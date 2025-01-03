@@ -1,0 +1,180 @@
+﻿@page "/orders"
+@using Microsoft.AspNetCore.Authorization
+@using FerrexWeb.Services
+@using FerrexWeb.Models
+@using System.Security.Claims
+@inject OrderService OrderService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager NavigationManager
+
+<div class="container my-5">
+    <h1 class="text-center mb-4">Órdenes</h1>
+
+    @if (orders == null)
+    {
+            <div class="d-flex justify-content-center align-items-center" style="height: 50vh;">
+                <div class="spinner-border" role="status" style="color: #F5C144;">
+                    <span class="visually-hidden">Cargando...</span>
+                </div>
+            </div>
+    }
+    else if (!orders.Any())
+    {
+            <p class="text-center">No hay órdenes</p>
+    }
+    else
+    {
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Número de Orden</th>
+                            <th>Cliente</th>
+                            <th>Fecha</th>
+                            <th>Total</th>
+                            <th>Status</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var order in orders)
+                    {
+                                <tr>
+                                    <td>@order.OrderNumber</td>
+                                    <td>@order.User.Name</td>
+                                    <td>@order.OrderDate.ToString("dd/MM/yyyy")</td>
+                                    <td>@order.Total.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</td>
+                                    <td>
+                                        <span class="badge @(GetStatusBadgeClass(order.Status))">@order.Status</span>
+                                    </td>
+                                    <td>
+                                        <a href="/orderdetails/@order.Id" class="btn btn-primary btn-sm">
+                                            <i class="fas fa-eye"></i> Ver Detalles
+                                        </a>
+                                @if (user.IsInRole("SuperAdmin"))
+                                {
+                                                <button class="btn btn-secondary btn-sm" @onclick="() => OpenChangeStatusModal(order)">
+                                                    Cambiar Estado
+                                                </button>
+                                }
+                                    </td>
+                                </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+    }
+</div>
+
+@if (isChangeStatusModalOpen)
+{
+        <div class="modal show d-block" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Cambiar Estado de la Orden</h5>
+                        <button type="button" class="btn-close" @onclick="CloseChangeStatusModal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>Seleccione el nuevo estado para la orden <strong>@selectedOrder.OrderNumber</strong>:</p>
+                        <select class="form-select" @bind="newStatus">
+                            <option value="Pendiente">Pendiente</option>
+                            <option value="Confirmada">Confirmada</option>
+                            <option value="Ordenada">Ordenada</option>
+                            <option value="Entregado">Entregado</option>
+                        </select>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-secondary" @onclick="CloseChangeStatusModal">Cancelar</button>
+                        <button class="btn btn-primary" @onclick="SaveStatusChange">Guardar Cambios</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-backdrop show"></div>
+}
+
+@code {
+    private List<Order> orders;
+    private ClaimsPrincipal user;
+
+    private Order selectedOrder;
+    private bool isChangeStatusModalOpen = false;
+    private string newStatus;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        user = authState.User;
+
+        if (user.Identity.IsAuthenticated)
+        {
+            if (user.IsInRole("SuperAdmin"))
+            {
+                // SuperAdmin puede ver todas las órdenes
+                orders = await OrderService.GetAllOrdersAsync();
+            }
+            else
+            {
+                // Usuarios regulares solo ven sus propias órdenes
+                var userIdString = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (int.TryParse(userIdString, out int userId))
+                {
+                    orders = await OrderService.GetOrdersByUserIdAsync(userId);
+                }
+                else
+                {
+                    // Manejar el caso donde no se pudo obtener el ID del usuario
+                    orders = new List<Order>();
+                }
+            }
+        }
+        else
+        {
+            NavigationManager.NavigateTo("/login?returnUrl=/orders");
+        }
+    }
+
+    private string GetStatusBadgeClass(string status)
+    {
+        return status switch
+        {
+            "Pendiente" => "bg-warning text-dark",
+            "Confirmada" => "bg-primary",
+            "Ordenada" => "bg-info",
+            "Entregado" => "bg-success",
+            _ => "bg-secondary",
+        };
+    }
+
+    private void OpenChangeStatusModal(Order order)
+    {
+        selectedOrder = order;
+        newStatus = order.Status;
+        isChangeStatusModalOpen = true;
+    }
+
+    private void CloseChangeStatusModal()
+    {
+        isChangeStatusModalOpen = false;
+        selectedOrder = null;
+    }
+
+    private async Task SaveStatusChange()
+    {
+        if (user.IsInRole("SuperAdmin"))
+        {
+            selectedOrder.Status = newStatus;
+            await OrderService.UpdateOrderStatusAsync(selectedOrder.Id, selectedOrder.Status);
+            isChangeStatusModalOpen = false;
+            selectedOrder = null;
+            // Refrescar las órdenes
+            orders = await OrderService.GetAllOrdersAsync();
+            StateHasChanged();
+        }
+        else
+        {
+            // Opcional: Mostrar mensaje de error o notificar al usuario
+        }
+    }
+}

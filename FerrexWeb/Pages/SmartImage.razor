@@ -1,0 +1,18 @@
+﻿@using FerrexWeb.Services
+@inject ImageService ImageService
+
+<img @attributes="AdditionalAttributes" src="@currentSrc" alt="@Alt" />
+
+@code {
+    [Parameter] public string BaseUrl { get; set; }
+    [Parameter] public string Alt { get; set; }
+    [Parameter] public Dictionary<string, object> AdditionalAttributes { get; set; }
+
+    private string[] extensions = new[] { ".png", ".jpg", ".jpeg", ".gif" };
+    private string currentSrc;
+
+    protected override async Task OnInitializedAsync()
+    {
+        currentSrc = await ImageService.GetValidImageUrl(BaseUrl, extensions);
+    }
+}

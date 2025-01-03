@@ -1,0 +1,71 @@
+﻿@using FerrexWeb.Services;
+@inject NotificationService NotificationService 
+
+
+<div class="notification" style="position: fixed; top: 20px; right: 20px; z-index: 1000;">
+    @if (showNotification)
+    {
+        <div class="alert alert-success alert-dismissible fade show notification-enter" role="alert">
+            @notificationMessage
+            <button type="button" class="btn-close" aria-label="Close" @onclick="OcultarNotificacion"></button>
+        </div>
+    }
+</div>
+
+@code {
+    private bool showNotification = false;
+    private string notificationMessage = string.Empty;
+    private string animationClass = string.Empty;
+    
+    protected override void OnInitialized()
+    {
+        NotificationService.OnNotify += MostrarNotificacion;
+    }
+
+    private async void MostrarNotificacion(string message)
+    {
+        notificationMessage = message;
+        animationClass = "notification-enter";
+        showNotification = true;
+        await InvokeAsync(StateHasChanged);
+
+        await Task.Delay(3000);
+        OcultarNotificacion();
+    }
+
+    private async void OcultarNotificacion()
+    {
+        animationClass = "notification-exit";
+        await InvokeAsync(StateHasChanged);
+
+        await Task.Delay(500);
+        showNotification = false;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        NotificationService.OnNotify -= MostrarNotificacion;
+    }
+}
+
+<style>
+    @@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@@keyframes fadeOut {
+    from { opacity: 1; transform: translateY(0); }
+    to { opacity: 0; transform: translateY(-10px); }
+}
+
+.notification-enter {
+    animation: fadeIn 0.5s forwards;
+}
+
+.notification-exit {
+    animation: fadeOut 0.5s forwards;
+}
+
+</style>

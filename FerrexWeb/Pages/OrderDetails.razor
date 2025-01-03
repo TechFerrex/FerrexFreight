@@ -1,0 +1,191 @@
+﻿@page "/orderdetails/{Id:int}"
+@using FerrexWeb.Services
+@using FerrexWeb.Models
+@using System.Security.Claims
+@inject OrderService OrderService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<div class="container my-5">
+    @if (order == null)
+    {
+        <div class="d-flex justify-content-center align-items-center full-height">
+            <div class="spinner-border" role="status" style="color: #F5C144;">
+                <span class="visually-hidden">Cargando...</span>
+            </div>
+        </div>
+    }
+    else
+    {
+        <h1 class="text-center mb-4">Detalles de la Orden</h1>
+        <div class="card mb-4 shadow-sm">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h4>Número de Orden: <strong>@order.OrderNumber</strong></h4>
+                        <p><strong>Cliente:</strong> @order.User.Name</p>
+                        <p><strong>Fecha:</strong> @order.OrderDate.ToString("dd/MM/yyyy")</p>
+                        <p><strong>Flete:</strong> @order.Freight.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Total:</strong> @order.Total.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</p>
+                        <p><strong>Status:</strong> <span class="badge @(GetStatusBadgeClass(order.Status))">@order.Status</span></p>
+                        @if (user.IsInRole("SuperAdmin"))
+                        {
+                            <button class="btn btn-secondary mt-2" @onclick="OpenChangeStatusModal">Cambiar Estado</button>
+                        }
+                        <p><strong>Coordenadas:</strong> Latitud: @order.FreightLatitude, Longitud: @order.FreightLongitude</p>
+                        <p><strong>Observaciones:</strong> @order.DeliveryInstructions</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <h4 class="mb-3">Productos Ordenados</h4>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Producto</th>
+                        <th>Cantidad</th>
+                        <th>Unidad</th>
+                        <th>Precio</th>
+                        <th>Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in order.OrderedItems)
+                    {
+                        <tr>
+                            <td data-label="Producto">@item.Product.DescProducto</td>
+                            <td data-label="Cantidad">@item.Quantity</td>
+                            <td data-label="Unidad">@item.Product.Unit</td>
+                            <td data-label="Precio">@item.Price.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</td>
+                            <td data-label="Total">@((item.Price * item.Quantity).ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN")))</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@if (isChangeStatusModalOpen)
+{
+    <div class="modal show d-block" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Cambiar Estado de la Orden</h5>
+                    <button type="button" class="btn-close" @onclick="CloseChangeStatusModal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Seleccione el nuevo estado para la orden <strong>@order.OrderNumber</strong>:</p>
+                    <select class="form-select" @bind="newStatus">
+                        <option value="Pendiente">Pendiente</option>
+                        <option value="Confirmada">Confirmada</option>
+                        <option value="Ordenada">Ordenada</option>
+                        <option value="Entregado">Entregado</option>
+                    </select>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" @onclick="CloseChangeStatusModal">Cancelar</button>
+                    <button class="btn btn-primary" @onclick="SaveStatusChange">Guardar Cambios</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-backdrop show"></div>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private Order order;
+    private ClaimsPrincipal user;
+    private bool isChangeStatusModalOpen = false;
+    private string newStatus;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        user = authState.User;
+        order = await OrderService.GetOrderByIdAsync(Id);
+    }
+
+    private void OpenChangeStatusModal()
+    {
+        newStatus = order.Status;
+        isChangeStatusModalOpen = true;
+    }
+
+    private void CloseChangeStatusModal()
+    {
+        isChangeStatusModalOpen = false;
+    }
+
+    private async Task SaveStatusChange()
+    {
+        if (user.IsInRole("SuperAdmin"))
+        {
+            await OrderService.UpdateOrderStatusAsync(order.Id, newStatus);
+            order.Status = newStatus;
+            isChangeStatusModalOpen = false;
+            StateHasChanged();
+        }
+        else
+        {
+            // Manejar acceso no autorizado si se requiere
+        }
+    }
+
+    private string GetStatusBadgeClass(string status)
+    {
+        return status switch
+        {
+            "Pendiente" => "bg-warning text-dark",
+            "Confirmada" => "bg-primary",
+            "Ordenada" => "bg-info",
+            "Entregado" => "bg-success",
+            _ => "bg-secondary",
+        };
+    }
+}
+
+<style>
+    .full-height {
+        height: 50vh;
+    }
+
+    @@media (max-width: 767.98px) {
+        .table thead
+
+    {
+        display: none;
+    }
+
+    .table tbody tr {
+        display: block;
+        margin-bottom: 1rem;
+        border: 1px solid #dee2e6;
+    }
+
+    .table tbody td {
+        display: block;
+        width: 100%;
+        text-align: right;
+        position: relative;
+        padding-left: 50%;
+    }
+
+        .table tbody td::before {
+            content: attr(data-label);
+            position: absolute;
+            left: 0;
+            width: 50%;
+            padding-left: 15px;
+            font-weight: bold;
+            text-align: left;
+        }
+
+    }
+</style>

@@ -1,0 +1,79 @@
+﻿@page "/admin"
+@using Microsoft.AspNetCore.Authorization
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager NavigationManager
+
+@attribute [Authorize(Roles = "SuperAdmin")]
+
+<PageTitle>Panel de Administración</PageTitle>
+
+<div class="container my-5">
+    <h1 class="text-center mb-4">Panel de Administración</h1>
+    <p class="text-center">Bienvenido, Super Administrador. Aquí puedes gestionar todas las cotizaciones, órdenes y usuarios.</p>
+
+    @if (mostrarBotonAdmin)
+    {
+            <div class="row text-center">
+                <div class="col-md-4 mb-3">
+                    <div class="card h-100 shadow-sm">
+                        <div class="card-body">
+                            <i class="fas fa-box fa-3x mb-3"></i>
+                            <h5 class="card-title">Órdenes</h5>
+                            <p class="card-text">Visualiza y administra todas las órdenes.</p>
+                            <button class="btn btn-primary" @onclick="IrAOrdenes">Gestionar Órdenes</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <div class="card h-100 shadow-sm">
+                        <div class="card-body">
+                            <i class="fas fa-file-invoice fa-3x mb-3"></i>
+                            <h5 class="card-title">Cotizaciones</h5>
+                            <p class="card-text">Revisa y maneja todas las cotizaciones.</p>
+                            <button class="btn btn-primary" @onclick="IrACotizaciones">Gestionar Cotizaciones</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <div class="card h-100 shadow-sm">
+                        <div class="card-body">
+                            <i class="fas fa-users fa-3x mb-3"></i>
+                            <h5 class="card-title">Usuarios</h5>
+                            <p class="card-text">Administra los usuarios del sistema.</p>
+                            <button class="btn btn-primary" @onclick="IrAUsuarios">Gestionar Usuarios</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+    }
+</div>
+
+@code {
+    private bool mostrarBotonAdmin = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user.Identity.IsAuthenticated && user.IsInRole("SuperAdmin"))
+        {
+            mostrarBotonAdmin = true;
+        }
+    }
+
+    private void IrAOrdenes()
+    {
+        NavigationManager.NavigateTo("/orders");
+    }
+
+    private void IrACotizaciones()
+    {
+        NavigationManager.NavigateTo("/quotations");
+    }
+
+    private void IrAUsuarios()
+    {
+        NavigationManager.NavigateTo("/usersmanagement");
+    }
+}

@@ -1,0 +1,322 @@
+﻿@using FerrexWeb.Pages
+@using FerrexWeb.Services
+@inject ShoppingCartService CartService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<div class="navbar-brand logo-container">
+    <img src="images/logopage.webp" alt="Logo" class="logo-img">
+</div>
+<!-- Barra de navegación superior -->
+<nav class="navbar navbar-expand-lg navbar-light bg-white top-navbar">
+    <div class="container-fluid">
+        <!-- Buscador -->
+        <div class="search-container">
+            <Seeker />
+        </div>
+
+        <!-- Íconos Centrales para Escritorio -->
+        <div class="d-none d-lg-flex central-icons">
+            <ul class="navbar-nav">
+                <!-- Inicio -->
+                <li class="nav-item mx-2">
+                    <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
+                        <i class="fas fa-home" title="Inicio"></i>
+                    </NavLink>
+                </li>
+                <!-- Servicios -->
+                <li class="nav-item mx-2">
+                    <NavLink class="nav-link nav-service-link" href="service">
+                        <img class="service-icon" src="iconos/iconoservicio.svg" alt="Servicio" title="Servicio" style="width: 26px; height: 26px;">
+                    </NavLink>
+                </li>
+
+                <!-- Mis Cotizaciones -->
+                <li class="nav-item mx-2">
+                    <NavLink class="nav-link" href="quotations">
+                        <i class="fas fa-file-invoice-dollar" title="Tus Cotizaciones"></i>
+                    </NavLink>
+                </li>
+                <!-- Categoría -->
+                <li class="nav-item mx-2">
+                    <NavLink class="nav-link" href="categories">
+                        <i class="fas fa-th-list" title="Categorías"></i>
+                    </NavLink>
+                </li>
+                <!-- Contáctanos -->
+                <li class="nav-item mx-2">
+                    <NavLink class="nav-link" href="contact">
+                        <i class="fas fa-address-book" title="Contacto"></i>
+                    </NavLink>
+                </li>
+                <AuthorizeView Roles="SuperAdmin">
+                    <li class="nav-item mx-2">
+                        <NavLink class="nav-link highlighted-icon" href="/admin" Match="NavLinkMatch.All">
+                            <i class="fas fa-user-secret" title="Administrador"></i>
+                        </NavLink>
+                    </li>
+                </AuthorizeView>
+            </ul>
+        </div>
+
+        <!-- Carrito e Ícono de Usuario -->
+        <div class="d-flex align-items-center right-icons">
+            <ul class="navbar-nav flex-row">
+                <!-- Icono del Carrito -->
+                <li class="nav-item position-relative">
+                    <a class="nav-link" href="cart">
+                        <Icon Name="IconName.Cart2" title="Carrito" />
+                        @if (CartItemCount > 0)
+                        {
+                            <span class="badge badge-danger position-absolute top-0 start-100 translate-middle">
+                                @CartItemCount
+                                <span class="visually-hidden">elementos en el carrito</span>
+                            </span>
+                        }
+                    </a>
+                </li>
+                <!-- Icono del Usuario -->
+                <li class="nav-item">
+                    <AuthorizeView>
+                        <Authorized>
+                            <a class="nav-link" href="profile">
+                                <Icon Name="IconName.Person" title="Usuario" />
+                            </a>
+                        </Authorized>
+                        <NotAuthorized>
+                            <a class="nav-link" href="userinfo">
+                                <Icon Name="IconName.Person" title="Usuario" />
+                            </a>
+                        </NotAuthorized>
+                    </AuthorizeView>
+                </li>
+            </ul>
+        </div>
+    </div>
+</nav>
+
+<!-- Barra de navegación inferior solo para móviles -->
+<nav class="navbar navbar-light bg-white bottom-navbar d-lg-none">
+    <div class="container-fluid justify-content-center">
+        <ul class="navbar-nav flex-row">
+            <!-- Inicio -->
+            <li class="nav-item mx-2">
+                <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
+                    <i class="fas fa-home" title="Inicio"></i>
+                </NavLink>
+            </li>
+            <!-- Servicios -->
+            <li class="nav-item mx-2">
+                <NavLink class="nav-link nav-service-link" href="service">
+                    <img class="service-icon" src="iconos/iconoservicio.svg" alt="Servicio" title="Servicio" style="width: 26px; height: 26px;">
+                </NavLink>
+            </li>
+            <!-- Mis Cotizaciones -->
+            <li class="nav-item mx-2">
+                <NavLink class="nav-link" href="quotations">
+                    <i class="fas fa-file-invoice-dollar" title="Tus Cotizaciones"></i>
+                </NavLink>
+            </li>
+            <!-- Categoría -->
+            <li class="nav-item mx-2">
+                <NavLink class="nav-link" href="categories">
+                    <i class="fas fa-th-list" title="Categorías"></i>
+                </NavLink>
+            </li>
+            <!-- Contáctanos -->
+            <li class="nav-item mx-2">
+                <NavLink class="nav-link" href="contact">
+                    <i class="fas fa-address-book" title="Contacto"></i>
+                </NavLink>
+            </li>
+            <AuthorizeView Roles="SuperAdmin">
+                <!--Admin-->
+                <li class="nav-item mx-2">
+                    <NavLink class="nav-link" href="/admin" Match="NavLinkMatch.All">
+                        <i class="fas fa-user-secret " title="Administrador"></i>
+                    </NavLink>
+                </li>
+            </AuthorizeView>
+        </ul>
+    </div>
+</nav>
+
+@code {
+    private bool navMenuVisible;
+    private bool isSuperAdmin;
+    private int CartItemCount = 0;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await CartService.EnsureInitializedAsync();
+            UpdateCartCount();
+            CartService.OnChange += UpdateCartCount;
+            StateHasChanged();
+        }
+    }
+    private void UpdateCartCount()
+    {
+        CartItemCount = CartService.Items.Count;
+        InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        CartService.OnChange -= UpdateCartCount;
+    }
+    [Inject] NavigationManager NavManager { get; set; }
+}
+
+
+<style>
+    /* Aplica el color por defecto */
+    .service-icon {
+    filter: brightness(0) saturate(100%) invert(46%) sepia(5%) saturate(294%) hue-rotate(155deg) brightness(96%) contrast(92%);
+    transition: filter 0.3s ease-in-out;
+    }
+
+    /* Cambia el color cuando se hace hover sobre el enlace */
+    .nav-service-link:hover .service-icon {
+        filter: brightness(0) saturate(100%) invert(28%) sepia(10%) saturate(153%) hue-rotate(22deg) brightness(95%) contrast(84%);
+    }
+
+    /* Cambia el color cuando el enlace está seleccionado */
+    .nav-service-link.active .service-icon {
+filter: brightness(0) saturate(100%) invert(6%) sepia(1%) saturate(4221%) hue-rotate(202deg) brightness(110%) contrast(96%);
+    }
+
+
+
+
+    .badge-danger {
+        background-color: #dc3545;
+        color: white;
+        font-size: 0.75rem;
+        padding: 0.5em 0.6em;
+        border-radius: 50%;
+    }
+
+    .position-relative .badge {
+        transform: translate(-50%, -50%);
+    }
+.navbar .nav-link {
+    color: #000;
+    transition: color 0.3s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    padding: 0.5rem;
+}
+
+        .navbar-brand{
+            margin: auto;
+         }
+.navbar .nav-link:hover,
+.navbar .nav-link.active {
+    color: #F5C144;
+}
+
+/* Logo */
+    .logo-container {
+        display: flex;
+        justify-content: center;
+        align-items: flex-start; /* Cambiado para alinear hacia el inicio */
+        height: 100%;
+        background-color: #ffffff;
+        padding-top: 30px; /* Agrega espacio en la parte superior para bajar la imagen */
+    }
+
+        .logo-container .logo-img {
+            width: 150px; /* Aumenta el ancho para hacerla más grande */
+            height: auto;
+            object-fit: contain;
+            background-color: #ffffff;
+        }
+    
+
+        }
+
+/* Barra superior */
+.top-navbar {
+    position: static;
+    width: 100%;
+    z-index: 1000;
+    border-bottom: 1px solid #ccc;
+}
+
+.top-navbar .container-fluid {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+/* Íconos Centrales en la Barra Superior */
+    .central-icons {
+        justify-content: center; /* Centra los elementos en el contenedor .central-icons */
+    }
+
+        .central-icons .navbar-nav {
+            display: flex; /* Habilita flexbox para distribuir los íconos */
+            gap: 5rem; /* Ajusta este valor para definir la separación entre los iconos */
+        }
+
+        .central-icons .nav-item .nav-link {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+
+/* Barra inferior */
+.bottom-navbar {
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+    z-index: 1000;
+    border-top: 1px solid #ccc;
+}
+
+    .highlighted-icon {
+        background-color: #F5C144; /* Fondo amarillento */
+        padding: 8px; /* Espacio alrededor del ícono */
+        border-radius: 8px;
+        color: #000000; /* Color del icono */
+    }
+
+
+/* Ajuste de íconos centrales en escritorio */
+@@media (min-width: 992px) {
+    .navbar-nav.flex-row .nav-item {
+        margin: 0 1rem;
+    }
+        /* Aplica el color por defecto */
+        .service-icon {
+            filter: brightness(0) saturate(100%) invert(46%) sepia(5%) saturate(294%) hue-rotate(155deg) brightness(96%) contrast(92%);
+            transition: filter 0.3s ease-in-out;
+        }
+
+        /* Cambia el color cuando el enlace está seleccionado */
+        .nav-service-link.active .service-icon {
+            filter: brightness(0) saturate(100%) invert(6%) sepia(1%) saturate(4221%) hue-rotate(202deg) brightness(110%) contrast(96%);
+        }
+}
+
+/* Ajuste del body para barra inferior fija */
+@@media (max-width: 991.98px) {
+    body {
+        padding-bottom: 56px; /* Ajusta este valor según la altura de tu navbar inferior */
+    }
+        /* Aplica el color por defecto */
+        .service-icon {
+            filter: brightness(0) saturate(100%) invert(46%) sepia(5%) saturate(294%) hue-rotate(155deg) brightness(96%) contrast(92%);
+            transition: filter 0.3s ease-in-out;
+        }
+        
+        /* Cambia el color cuando el enlace está seleccionado */
+        .nav-service-link.active .service-icon {
+            filter: brightness(0) saturate(100%) invert(6%) sepia(1%) saturate(4221%) hue-rotate(202deg) brightness(110%) contrast(96%);
+        }
+}
+</style>

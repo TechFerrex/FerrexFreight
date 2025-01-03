@@ -1,0 +1,906 @@
+﻿@page "/cart"
+@using FerrexWeb.Services
+@using FerrexWeb.Models
+@using Blazored.LocalStorage
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Components.Authorization
+@inject OrderService OrderService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IJSRuntime JSRuntime
+@inject ShoppingCartService CartService
+@inject QuotationService QuotationService
+@inject NavigationManager NavigationManager
+@inject ILocalStorageService LocalStorage
+
+@* <PageTitle>Carrito de Compras</PageTitle> *@
+
+<div class="container my-5">
+    <h1 class="text-center mb-4">
+        @(CartService.CurrentQuotationId.HasValue ? "Editar Cotización" : "Carrito de Compras")
+    </h1>
+    @if (isLoading)
+    {
+        <div class="text-center">
+            <p>Cargando...</p>
+        </div>
+    }
+    else if (   CartService.Items.Count == 0)
+    {
+        <div class="alert alert-warning text-center">
+            <strong>No hay productos en el carrito.</strong>
+        </div>
+    }
+    else
+    {
+        <div class="row">
+            <!-- Columna de Productos -->
+            <div class="col-12 col-lg-8 mb-4">
+                <!-- Tabla para pantallas grandes -->
+                <div class="table-responsive d-none d-lg-block">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Producto</th>
+                                <th>Cantidad</th>
+                                <th>Unidad</th>
+                                <th>Precio</th>
+                                <th>Subtotal</th>
+                                <th>ISV</th>
+                                <th>Total</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @{
+                                int rowIndex = 0;
+                            }
+                            @foreach (var item in CartService.Items)
+                            {
+                                var subtotalProducto = item.Product.Precio * item.Quantity;
+                                var isvProducto = subtotalProducto * 0.15m;
+                                var totalProducto = subtotalProducto + isvProducto;
+                                var rowClass = rowIndex % 2 == 0 ? "row-gray" : "row-white"; // Alterna las clases
+                                rowIndex++;
+                                <tr class="@rowClass">
+                                    <td>@item.Product.DescProducto</td>
+                                    <td>
+                                        <input type="number" class="form-control quantity-input" value="@item.Quantity" min="1" @onchange="(e) => UpdateQuantity(item, e)" />
+                                    </td>
+                                    <td>@item.Product.Unit</td>
+                                    <td>@item.Product.Precio.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</td>
+                                    <td>@subtotalProducto.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</td>
+                                    <td>@isvProducto.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</td>
+                                    <td>@totalProducto.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</td>
+                                    <td>
+                                        <button class="btn btn-danger" @onclick="() => RemoveFromCart(item.Product)">
+                                            <i class="fas fa-trash-alt"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Cards para pantallas pequeñas -->
+                <div class="d-block d-lg-none">
+                    @foreach (var item in CartService.Items)
+                    {
+                        var subtotalProducto = item.Product.Precio * item.Quantity;
+                        var isvProducto = subtotalProducto * 0.15m;
+                        var totalProducto = subtotalProducto + isvProducto;
+                        <div class="card mb-3">
+                            <div class="card-body">
+                                <h5 class="card-title">@item.Product.DescProducto</h5>
+                                <p class="card-text"><strong>Cantidad:</strong>
+                                    <input type="number" class="form-control quantity-input" value="@item.Quantity" min="1" @onchange="(e) => UpdateQuantity(item, e)" />
+                                </p>
+                                <p class="card-text"><strong>Unidad:</strong> @item.Product.Unit</p>
+                                <p class="card-text"><strong>Precio:</strong> @item.Product.Precio.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</p>
+                                <p class="card-text"><strong>Subtotal:</strong> @subtotalProducto.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</p>
+                                <p class="card-text"><strong>ISV:</strong> @isvProducto.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</p>
+                                <p class="card-text"><strong>Total:</strong> @totalProducto.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</p>
+                                <button class="btn btn-danger" @onclick="() => RemoveFromCart(item.Product)">
+                                    <i class="fas fa-trash-alt"></i> Eliminar
+                                </button>
+                            </div>
+                        </div>
+                    }
+                </div>
+
+                <!-- Sección del Mapa y Cálculo de Flete -->
+                <div class="card mt-4">
+                    <div class="card-header bg-dark text-white">
+                        <h5 class="mb-0">Selecciona tu Ubicación de Entrega</h5>
+                    </div>
+                    <div class="card-body">
+
+                        <!-- Instrucciones claras para el usuario -->
+                        <div class="alert alert-info mb-3">
+                            <strong>¿Cómo seleccionar tu ubicación?</strong><br />
+                            1. Haz clic en el mapa para colocar un marcador en tu dirección de entrega.<br />
+                            2. Una vez colocado el marcador, presiona el botón <strong>"Calcular Flete"</strong> para obtener el costo de envío.<br />
+                            3. Luego, escribe tus instrucciones adicionales en el recuadro de abajo.
+                        </div>
+
+                        <div id="map" style="height: 300px; width: 100%; border: 1px solid #ccc;"></div>
+
+                        @if (!isFreightCalculated)
+                        {
+                            <p class="text-danger mt-2">Primero debes seleccionar tu ubicación en el mapa para calcular el flete.</p>
+                        }
+
+                        <div class="form-group mt-3">
+                            <label for="deliveryInstructions">Dirección de Entrega e Instrucciones (requerido):</label>
+                            <textarea id="deliveryInstructions" class="form-control" @bind="deliveryInstructions" placeholder="Ejemplo: Casa amarilla con portón negro, dejar el producto en la entrada."></textarea>
+                        </div>
+                        <!-- Cambiar el texto del botón para aclarar el siguiente paso -->
+                        <button @onclick="CalculateDistanceAndRedirect" class="btn btn-primary mt-3">
+                            <i class="fas fa-map-marker-alt"></i> Calcular Flete
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Columna de Resumen -->
+            <div class="col-12 col-lg-4">
+                @{
+                    var subtotalGeneral = CartService.Items.Sum(item => item.Product.Precio * item.Quantity);
+                    var freight = (decimal)freightPrice;
+                    var isvGeneral = (subtotalGeneral + freight) * 0.15m;
+                    var totalGeneral = subtotalGeneral + freight + isvGeneral;
+                }
+                <div class="card">
+                    <div class="card-body">
+                        <h4>Resumen</h4>
+                        <ul class="list-group list-group-flush">
+                            <li class="list-group-item d-flex justify-content-between">
+                                <span>Subtotal:</span>
+                                <strong>@subtotalGeneral.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</strong>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between">
+                                <span>ISV (15%):</span>
+                                <strong>@isvGeneral.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</strong>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between">
+                                <span>Flete:</span>
+                                <strong>@freightPrice.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</strong>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between">
+                                <span>Total:</span>
+                                <strong>@totalGeneral.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</strong>
+                            </li>
+                        </ul>
+                        <div class="d-grid gap-4 mt-3">
+                            <button class="btn btn-success btn-lg" @onclick="Cotizar" disabled="@(isFreightCalculated && isAuthenticated && !string.IsNullOrWhiteSpace(deliveryInstructions) ? false : true)">
+                                <i class="fas fa-file-invoice"></i> Cotizar
+                            </button>
+                            <button class="btn truck-button" @onclick="IniciarProcesoOrden" @ref="ordenarButton" disabled="@(isFreightCalculated && isAuthenticated && !string.IsNullOrWhiteSpace(deliveryInstructions) ? false : true)">
+                                <span class="default"><i class="fas fa-shopping-cart"></i> Ordenar</span>
+                                <span class="success">
+                                    Ordenado
+                                    <svg viewbox="0 0 12 10">
+                                        <polyline points="1.5 6 4.5 9 10.5 1"></polyline>
+                                    </svg>  
+                                </span>
+                                <div class="truck">
+                                    <div class="wheel"></div>
+                                    <div class="back"></div>
+                                    <div class="front"></div>
+                                    <div class="box"></div>
+                                </div>
+                            </button>
+                        </div>
+
+                        @if (!isFreightCalculated)
+                        {
+                            <p class="text-danger mt-2 text-center">Debes seleccionar tu ubicación en el mapa y calcular el flete antes de cotizar u ordenar.</p>
+                        }
+                        else if (!isAuthenticated)
+                        {
+                            <p class="text-danger mt-2 text-center">Debes iniciar sesión para cotizar u ordenar.</p>
+                        }
+                        else if (string.IsNullOrWhiteSpace(deliveryInstructions))
+                        {
+                            <p class="text-danger mt-2 text-center">Debes ingresar las instrucciones de entrega antes de cotizar u ordenar.</p>
+                        }
+
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private bool isFreightCalculated = false;
+    private double freightPrice = 0;
+    private bool isAuthenticated;
+    private string userId;
+    private string userName;
+    private double selectedLatitude;
+    private double selectedLongitude;
+    private string deliveryInstructions;
+    private Quotation quotation;
+    private bool isLoading = true;
+    private bool isMapInitialized = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Perform any initializations that do not involve JS interop
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        isAuthenticated = user.Identity.IsAuthenticated;
+
+        if (isAuthenticated)
+        {
+            userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            userName = user.Identity.Name;
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await CartService.EnsureInitializedAsync();
+            CartService.OnChange += StateHasChanged;
+
+            isLoading = false;
+
+            // Update the UI
+            StateHasChanged();
+        }
+        else
+        {
+            if (CartService.Items.Count > 0 && !isMapInitialized)
+            {
+                try
+                {
+                    await JSRuntime.InvokeVoidAsync("initLeafletMap");
+                    await JSRuntime.InvokeVoidAsync("iniciarAnimacion");
+                    isMapInitialized = true;
+                }
+                catch (JSException jsEx)
+                {
+                    // Handle the exception as needed
+                    Console.Error.WriteLine(jsEx.Message);
+                }
+            }
+        }
+    }
+
+
+    // protected override async Task OnAfterRenderAsync(bool firstRender)
+    // {
+    //     if (firstRender && CartService.Items.Count > 0)
+    //     {
+    //         await CartService.EnsureInitializedAsync();
+    //         await JSRuntime.InvokeVoidAsync("initLeafletMap");
+    //         await JSRuntime.InvokeVoidAsync("iniciarAnimacion");
+    //         StateHasChanged();
+    //     }
+    // }
+    public void Dispose()
+    {
+        CartService.OnChange -= StateHasChanged;
+    }
+
+
+
+    private async Task CalculateDistanceAndRedirect()
+    {
+        try
+        {
+            var result = await JSRuntime.InvokeAsync<JSResult>("calculateLeafletDistance");
+
+            var distance = result.DistanceKm;
+            selectedLatitude = result.Latitude;
+            selectedLongitude = result.Longitude;
+
+            if (distance >= 23)
+            {
+                freightPrice = distance * 20;
+            }
+            else
+            {
+                freightPrice = distance * 50;
+            }
+
+            if (freightPrice < 350)
+            {
+                freightPrice = 350;
+            }
+
+            isFreightCalculated = true;
+            StateHasChanged();
+        }
+        catch (JSException jsEx)
+        {
+            // Mostrar mensaje al usuario
+            await JSRuntime.InvokeVoidAsync("alert", jsEx.Message);
+        }
+    }
+
+    // protected override async Task OnInitializedAsync()
+    // {
+    //     var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+    //     var user = authState.User;
+
+    //     isAuthenticated = user.Identity.IsAuthenticated;
+
+    //     if (isAuthenticated)
+    //     {
+    //         userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+    //         userName = user.Identity.Name;
+    //     }
+    //     else
+    //     {
+    //         // Manejar el caso en que el usuario no está autenticado
+    //     }
+    //     await CartService.EnsureInitializedAsync();
+
+    // }
+
+    private async Task RemoveFromCart(Products product)
+    {
+        await CartService.RemoveFromCartAsync(product);
+    }
+
+    private async Task UpdateQuantity(CartItem item, ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value.ToString(), out int newQuantity))
+        {
+            item.Quantity = newQuantity;
+            await CartService.SaveCartAsync();
+            StateHasChanged();
+        }
+    }
+
+    private async Task Cotizar()
+    {
+        if (!isAuthenticated)
+        {
+            NavigationManager.NavigateTo("/login?returnUrl=/cart");
+            return;
+        }
+
+        if (CartService.CurrentQuotationId.HasValue)
+        {
+            // Estamos editando una cotización existente
+            quotation = await QuotationService.GetQuotationByIdAsync(CartService.CurrentQuotationId.Value);
+
+            if (quotation == null)
+            {
+                // Manejar el caso donde la cotización no existe
+                return;
+            }
+
+            // Actualizar los campos de la cotización
+            quotation.Date = DateTime.Now;
+            quotation.Subtotal = CartService.GetTotalPrice();
+            quotation.Freight = (decimal)freightPrice;
+            quotation.ISV = (quotation.Subtotal + quotation.Freight) * 0.15m;
+            quotation.Total = quotation.Subtotal + quotation.ISV + quotation.Freight;
+            quotation.DeliveryInstructions = deliveryInstructions;
+            quotation.FreightLatitude = selectedLatitude;
+            quotation.FreightLongitude = selectedLongitude;
+
+            // Limpiar los detalles antiguos y agregar los nuevos
+            quotation.QuotedItems.Clear();
+            int lineNumber = 1;
+            foreach (var item in CartService.Items)
+            {
+                var detalle = new QuotationDetail
+                    {
+                        QuotationId = quotation.Id,
+                        Line = lineNumber++,
+                        ProductId = item.Product.IdProducto,
+                        Quantity = item.Quantity,
+                        Price = item.Product.Precio
+                    };
+
+                quotation.QuotedItems.Add(detalle);
+            }
+
+            // Actualizar la cotización en la base de datos
+            await QuotationService.UpdateQuotationAsync(quotation);
+        }
+        else
+        {
+            var nuevoNumeroCotizacion = $"COTP-{Guid.NewGuid().ToString().Substring(0, 8)}";
+
+            var subtotalGeneral = CartService.Items.Sum(item => item.Product.Precio * item.Quantity);
+            var freight = (decimal)freightPrice;
+            var isvGeneral = (subtotalGeneral + freight) * 0.15m;
+            var totalCotizacion = subtotalGeneral + isvGeneral + freight;
+
+            // Crear la nueva cotización incluyendo los nuevos campos
+            quotation = new Quotation
+                {
+                    Client = userName,
+                    Date = DateTime.Now,
+                    Subtotal = subtotalGeneral,
+                    Freight = freight,
+                    ISV = isvGeneral,
+                    Total = totalCotizacion,
+                    UserID = int.Parse(userId),
+                    QuotationNumber = nuevoNumeroCotizacion,
+                    FreightLatitude = selectedLatitude,
+                    FreightLongitude = selectedLongitude,
+                    DeliveryInstructions = deliveryInstructions,
+                    QuotedItems = new List<QuotationDetail>()
+                };
+
+            // Guardar la cotización
+            await QuotationService.SaveQuotationAsync(quotation);
+
+            // Agregar los detalles de la cotización
+            int lineNumber = 1;
+            foreach (var item in CartService.Items)
+            {
+                var detalle = new QuotationDetail
+                    {
+                        QuotationId = quotation.Id,
+                        Line = lineNumber++,
+                        ProductId = item.Product.IdProducto,
+                        Quantity = item.Quantity,
+                        Price = item.Product.Precio
+                    };
+
+                quotation.QuotedItems.Add(detalle);
+            }
+
+            // Guardar los detalles de la cotización
+            await QuotationService.SaveQuotationDetailsAsync(quotation.QuotedItems);
+        }
+
+        // Limpiar el carrito
+        await CartService.ClearCartAsync();
+        CartService.CurrentQuotationId = null;
+
+        // Redirigir al usuario a la página de detalles de la cotización
+        NavigationManager.NavigateTo($"/quotationdetails/{quotation.Id}");
+    }
+
+
+    private ElementReference ordenarButton;
+
+    private async Task IniciarProcesoOrden()
+    {
+        // Agregar la clase CSS para iniciar la animación
+        await JSRuntime.InvokeVoidAsync("iniciarAnimacion", ordenarButton);
+
+        // Esperar la duración de la animación (por ejemplo, 3 segundos)
+        await Task.Delay(5000);
+
+        // Llamar al método Ordenar
+        await Ordenar();
+    }
+
+    private async Task Ordenar()
+    {
+        if (!isAuthenticated)
+        {
+            NavigationManager.NavigateTo("/login?returnUrl=/cart");
+            return;
+        }
+
+        var newOrderNumber = $"ORD-{Guid.NewGuid().ToString().Substring(0, 8)}";
+
+        var subtotal = CartService.GetTotalPrice();
+        var tax = subtotal * 0.15m;
+        var totalOrder = subtotal + tax + (decimal)freightPrice;
+
+        var newOrder = new Order
+        {
+            OrderNumber = newOrderNumber,
+            UserId = int.Parse(userId),
+            OrderDate = DateTime.Now,
+            Subtotal = subtotal,
+            Tax = tax,
+            Freight = (decimal)freightPrice,
+            Total = totalOrder,
+            DeliveryInstructions = deliveryInstructions,
+            FreightLatitude = selectedLatitude,
+            FreightLongitude = selectedLongitude,
+            Status = "Pending",
+            OrderedItems = new List<OrderDetail>()
+        };
+
+        int lineNumber = 1;
+        foreach (var item in CartService.Items)
+        {
+            var orderDetail = new OrderDetail
+            {
+                Line = lineNumber++,
+                ProductId = item.Product.IdProducto,
+                Quantity = item.Quantity,
+                Price = item.Product.Precio
+            };
+            newOrder.OrderedItems.Add(orderDetail);
+        }
+
+        // Guardar la orden
+        await OrderService.SaveOrderAsync(newOrder);
+
+        // Limpiar el carrito
+        await CartService.ClearCartAsync();
+        CartService.CurrentQuotationId = null;
+
+        // Redirigir al usuario a los detalles de la orden o página de órdenes
+        NavigationManager.NavigateTo($"/orderdetails/{newOrder.Id}");
+    }
+}
+
+
+<style>
+    /* Estilos generales */
+    .table thead th,
+    .table tbody td {
+        vertical-align: middle;
+        text-align: center;
+    }
+
+    .row-gray {
+        background-color: #f2f2f2; /* Color gris */
+    }
+
+    .row-white {
+        background-color: #ffffff; /* Color blanco */
+    }
+
+    .quantity-input {
+        width: 80px;
+        margin: 0 auto;
+    }
+
+    .btn {
+        display: inline-flex;
+        align-items: center;
+    }
+
+    .btn i {
+        margin-right: 5px;
+    }
+
+    .card-header {
+        background-color: #000000;
+        color: #FFFFFF;
+    }
+
+    .card {
+        border: none;
+    }
+
+    .card-body h4 {
+        color: #F5C144;
+    }
+
+    .list-group-item {
+        background-color: transparent;
+        border: none;
+    }
+
+    .btn-success {
+        background-color: #000000;
+        border-color: #000000;
+    }
+
+    .btn-success:hover {
+        background-color: #A7A9AC;
+        border-color: #A7A9AC;
+    }
+
+    .alert-warning {
+        background-color: #fff3cd;
+        color: #856404;
+    }
+
+    .alert-warning strong {
+        font-size: 1.2em;
+    }
+
+    .img-thumbnail {
+        border: none;
+    }
+
+
+    .truck-button {
+        --color: #fff;
+        --background: #2b3044;
+        --tick: #16bf78;
+        --base: #0d0f18;
+        --wheel: #2b3044;
+        --wheel-inner: #646b8c;
+        --wheel-dot: #fff;
+        --back: #6d58ff;
+        --back-inner: #362a89;
+        --back-inner-shadow: #2d246b;
+        --front: #a6accd;
+        --front-shadow: #535a79;
+        --front-light: #fff8b1;
+        --window: #2b3044;
+        --window-shadow: #404660;
+        --street: #646b8c;
+        --street-fill: #404660;
+        --box: #dcb97a;
+        --box-shadow: #b89b66;
+        padding: 13px;
+        font-size: 5rem; 
+        border-radius: 0.3rem;
+        width: auto;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        text-align: center;
+        position: relative;
+        border: none;
+        outline: none;
+        color: var(--color);
+        background: var(--background);
+        border-radius: var(--br, 5px);
+        -webkit-tap-highlight-color: transparent;
+        transform-style: preserve-3d; 
+        transform: rotateX(var(--rx, 0deg)) translateZ(0); 
+        transition: transform 0.5s, border-radius 0.3s linear var(--br-d, 0s);
+    }
+
+    .truck-button:hover {
+        background-color: #F5C144;
+            border-color: #F5C144;
+    }
+    
+    
+
+        .truck-button:before, .truck-button:after {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 6px;
+            display: block;
+            background: var(--b, var(--street));
+            transform-origin: 0 100%;
+            transform: rotateX(90deg) scaleX(var(--sy, 1));
+        }
+
+        .truck-button:after {
+            --sy: var(--progress, 0);
+            --b: var(--street-fill);
+        }
+
+        .truck-button .default, .truck-button .success {
+            display: block;
+            font-weight: 500;
+            font-size: 17px;
+            font-style: 
+            line-height: 24px;
+            opacity: var(--o, 1);
+            transition: opacity 0.3s;
+            transform-style: inherit;
+        }
+
+        .truck-button .success {
+            --o: 0;
+            position: absolute;
+            top: 12px;
+            left: 0;
+            right: 0;
+        }
+
+            .truck-button .success svg {
+                width: 12px;
+                height: 10px;
+                display: inline-block;
+                vertical-align: top;
+                fill: none;
+                margin: 7px 0 0 4px;
+                stroke: var(--tick);
+                stroke-width: 2;
+                stroke-linecap: round;
+                stroke-linejoin: round;
+                stroke-dasharray: 16px;
+                stroke-dashoffset: var(--offset, 16px);
+                transition: stroke-dashoffset 0.4s ease 0.45s;
+            }
+
+        .truck-button .truck {
+            position: absolute;
+            width: 72px;
+            height: 28px;
+            transform: rotateX(90deg) translate3d(var(--truck-x, 4px), calc(var(--truck-y-n, -26) * 1px), 12px);
+        }
+
+            .truck-button .truck:before, .truck-button .truck:after {
+                content: '';
+                position: absolute;
+                bottom: -6px;
+                left: var(--l, 18px);
+                width: 10px;
+                height: 10px;
+                border-radius: 50%;
+                z-index: 2;
+                box-shadow: inset 0 0 0 2px var(--wheel), inset 0 0 0 4px var(--wheel-inner);
+                background: var(--wheel-dot);
+                transform: translateY(calc(var(--truck-y) * -1px)) translateZ(0);
+            }
+
+            .truck-button .truck:after {
+                --l: 54px;
+            }
+
+            .truck-button .truck .wheel, .truck-button .truck .wheel:before {
+                position: absolute;
+                bottom: var(--b, -6px);
+                left: var(--l, 6px);
+                width: 10px;
+                height: 10px;
+                border-radius: 50%;
+                background: var(--wheel);
+                transform: translateZ(0);
+            }
+
+            .truck-button .truck .wheel {
+                transform: translateY(calc(var(--truck-y) * -1px)) translateZ(0);
+            }
+
+                .truck-button .truck .wheel:before {
+                    --l: 35px;
+                    --b: 0;
+                    content: '';
+                }
+
+            .truck-button .truck .front, .truck-button .truck .back, .truck-button .truck .box {
+                position: absolute;
+            }
+
+            .truck-button .truck .back {
+                left: 0;
+                bottom: 0;
+                z-index: 1;
+                width: 47px;
+                height: 28px;
+                border-radius: 1px 1px 0 0;
+                background: linear-gradient(68deg, var(--back-inner) 0%, var(--back-inner) 22%, var(--back-inner-shadow) 22.1%, var(--back-inner-shadow) 100%);
+            }
+
+                .truck-button .truck .back:before, .truck-button .truck .back:after {
+                    content: '';
+                    position: absolute;
+                }
+
+                .truck-button .truck .back:before {
+                    left: 11px;
+                    top: 0;
+                    right: 0;
+                    bottom: 0;
+                    z-index: 2;
+                    border-radius: 0 1px 0 0;
+                    background: var(--back);
+                }
+
+                .truck-button .truck .back:after {
+                    border-radius: 1px;
+                    width: 73px;
+                    height: 2px;
+                    left: -1px;
+                    bottom: -2px;
+                    background: var(--base);
+                }
+
+            .truck-button .truck .front {
+                left: 47px;
+                bottom: -1px;
+                height: 22px;
+                width: 24px;
+                -webkit-clip-path: polygon(55% 0, 72% 44%, 100% 58%, 100% 100%, 0 100%, 0 0);
+                clip-path: polygon(55% 0, 72% 44%, 100% 58%, 100% 100%, 0 100%, 0 0);
+                background: linear-gradient(84deg, var(--front-shadow) 0%, var(--front-shadow) 10%, var(--front) 12%, var(--front) 100%);
+            }
+
+                .truck-button .truck .front:before, .truck-button .truck .front:after {
+                    content: '';
+                    position: absolute;
+                }
+
+                .truck-button .truck .front:before {
+                    width: 7px;
+                    height: 8px;
+                    background: #fff;
+                    left: 7px;
+                    top: 2px;
+                    -webkit-clip-path: polygon(0 0, 60% 0%, 100% 100%, 0% 100%);
+                    clip-path: polygon(0 0, 60% 0%, 100% 100%, 0% 100%);
+                    background: linear-gradient(59deg, var(--window) 0%, var(--window) 57%, var(--window-shadow) 55%, var(--window-shadow) 100%);
+                }
+
+                .truck-button .truck .front:after {
+                    width: 3px;
+                    height: 2px;
+                    right: 0;
+                    bottom: 3px;
+                    background: var(--front-light);
+                }
+
+            .truck-button .truck .box {
+                width: 13px;
+                height: 13px;
+                right: 56px;
+                bottom: 0;
+                z-index: 1;
+                border-radius: 1px;
+                overflow: hidden;
+                transform: translate(calc(var(--box-x, -24) * 1px), calc(var(--box-y, -6) * 1px)) scale(var(--box-s, 0.5));
+                opacity: var(--box-o, 0);
+                background: linear-gradient(68deg, var(--box) 0%, var(--box) 50%, var(--box-shadow) 50.2%, var(--box-shadow) 100%);
+                background-size: 250% 100%;
+                background-position-x: calc(var(--bx, 0) * 1%);
+            }
+
+                .truck-button .truck .box:before, .truck-button .truck .box:after {
+                    content: '';
+                    position: absolute;
+                }
+
+                .truck-button .truck .box:before {
+                    content: '';
+                    background: rgba(255, 255, 255, .2);
+                    left: 0;
+                    right: 0;
+                    top: 6px;
+                    height: 1px;
+                }
+
+                .truck-button .truck .box:after {
+                    width: 6px;
+                    left: 100%;
+                    top: 0;
+                    bottom: 0;
+                    background: var(--back);
+                    transform: translateX(calc(var(--hx, 0) * 1px));
+                }
+
+        .truck-button.animation {
+            --rx: -90deg;
+            --br: 0;
+        }
+
+            .truck-button.animation .default {
+                --o: 0;
+            }
+
+            .truck-button.animation.done {
+                --rx: 0deg;
+                --br: 5px;
+                --br-d: 0.2s;
+            }
+
+                .truck-button.animation.done .success {
+                    --o: 1;
+                    --offset: 0;
+                }
+
+
+
+
+    /* Ajustes para dispositivos móviles */
+    @@media (max-width: 767.98px) {
+        .quantity-input {
+            width: 60px;
+        }
+
+        .btn {
+            font-size: 14px;
+        }
+
+        .card-body h4 {
+            font-size: 1.5rem;
+        }
+
+        #map {
+            height: 200px;
+        }
+    }
+</style>

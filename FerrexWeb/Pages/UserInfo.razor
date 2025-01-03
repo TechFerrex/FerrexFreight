@@ -1,0 +1,337 @@
+﻿@page "/userinfo"
+@using Microsoft.EntityFrameworkCore
+@using FerrexWeb.Services
+@using FerrexWeb.Models
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Authorization
+@using System.IdentityModel.Tokens.Jwt
+@using Microsoft.IdentityModel.Tokens
+@using System.Text
+@inject Blazored.LocalStorage.ILocalStorageService LocalStorageService
+@inject IConfiguration _configuration
+@inject ApplicationDbContext DbContext
+@inject NavigationManager NavigationManager
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<div class="main">
+    <input type="checkbox" id="chk" aria-hidden="true" class="user-input">
+    <div class="signup">
+        <form @onsubmit="HandleRegister">
+            <label for="chk" aria-hidden="true">Registrarse</label>
+            <input type="text" class="user-input" name="name" placeholder="Tu Nombre" @bind="registerModel.Name" required>
+            <input type="email" class="user-input" name="email" placeholder="Correo" @bind="registerModel.Email" required>
+            <input type="text" class="user-input" name="phoneNumber" placeholder="Número de Teléfono" @bind="registerModel.PhoneNumber" required>
+            <input type="password" class="user-input" name="password" placeholder="Contraseña" @bind="registerModel.Password" required minlength="8"
+                   pattern="^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^\w])[A-Za-z\d\S]{8,}$"
+                   title="La contraseña debe tener al menos 8 caracteres, incluyendo una mayúscula, un número y un carácter especial." />
+            <button class="user-button" type="submit">Registrarse</button>
+        </form>
+        @if (registerFailed)
+        {
+            <p style="color: red;">El registro falló. El correo electrónico puede estar en uso.</p>
+        }
+    </div>
+    <div class="login">
+        <form @onsubmit="HandleLogin">
+            <label style="padding-top: 50px" for="chk" aria-hidden="true">Inicio de Sesion</label>
+            <input type="email" class="user-input" name="email" placeholder="Correo" @bind="loginModel.Email" required />
+            <input type="password" class="user-input" name="password" placeholder="Contraseña" @bind="loginModel.Password" required />
+            <button class="user-button" type="submit">Iniciar sesión</button>
+        </form>
+        @if (loginFailed)
+        {
+            <p style="color: red;">Correo o contraseña incorrectos.</p>
+        }
+    </div>
+</div>
+
+@code {
+    private LoginModel loginModel = new LoginModel();
+    private RegisterModel registerModel = new RegisterModel();
+    private bool loginFailed;
+    private bool registerFailed;
+
+    private static Dictionary<string, int> loginAttempts = new Dictionary<string, int>();
+    private static Dictionary<string, DateTime> lockouts = new Dictionary<string, DateTime>();
+
+    private async Task HandleLogin()
+    {
+        loginFailed = false;
+
+        if (lockouts.ContainsKey(loginModel.Email) && lockouts[loginModel.Email] > DateTime.Now)
+        {
+            loginFailed = true;
+            return;
+        }
+
+        if (loginAttempts.ContainsKey(loginModel.Email) && loginAttempts[loginModel.Email] >= 5)
+        {
+            lockouts[loginModel.Email] = DateTime.Now.AddMinutes(10);
+            loginFailed = true;
+            return;
+        }
+
+        var user = await DbContext.Users
+            .FirstOrDefaultAsync(u => u.Email == loginModel.Email);
+
+        if (user != null && BCrypt.Net.BCrypt.Verify(loginModel.Password, user.Password))
+        {
+            var claims = new List<Claim>
+            {
+                new Claim(ClaimTypes.Name, user.Name),
+                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+                new Claim(ClaimTypes.Email, user.Email),
+                new Claim(ClaimTypes.MobilePhone, user.PhoneNumber ?? ""), // Si se quiere agregar el teléfono a los claims
+                new Claim(ClaimTypes.Role, user.Role)
+            };
+
+            var authToken = SerializeClaims(claims);
+
+            if (AuthenticationStateProvider is CustomAuthenticationStateProvider customAuthStateProvider)
+            {
+                await customAuthStateProvider.SignIn(authToken);
+            }
+
+            NavigationManager.NavigateTo("/");
+            loginAttempts.Remove(loginModel.Email);
+        }
+        else
+        {
+            loginFailed = true;
+            if (loginAttempts.ContainsKey(loginModel.Email))
+            {
+                loginAttempts[loginModel.Email]++;
+            }
+            else
+            {
+                loginAttempts[loginModel.Email] = 1;
+            }
+        }
+    }
+
+    private async Task HandleRegister()
+    {
+        if (string.IsNullOrEmpty(registerModel.Name) || string.IsNullOrEmpty(registerModel.Email) || string.IsNullOrEmpty(registerModel.Password))
+        {
+            registerFailed = true;
+            return;
+        }
+
+        var existingUser = await DbContext.Users
+            .FirstOrDefaultAsync(u => u.Email == registerModel.Email);
+
+        if (existingUser != null)
+        {
+            registerFailed = true;
+        }
+        else
+        {
+            var hashedPassword = BCrypt.Net.BCrypt.HashPassword(registerModel.Password);
+
+            var newUser = new User
+                {
+                    Name = registerModel.Name,
+                    Email = registerModel.Email,
+                    PhoneNumber = registerModel.PhoneNumber,
+                    Password = hashedPassword,
+                    CreateTime = DateTime.Now,
+                    Role = "User"
+                };
+
+            DbContext.Users.Add(newUser);
+            await DbContext.SaveChangesAsync();
+
+            var claims = new List<Claim>
+            {
+                new Claim(ClaimTypes.Name, newUser.Name),
+                new Claim(ClaimTypes.NameIdentifier, newUser.Id.ToString()),
+                new Claim(ClaimTypes.Email, newUser.Email),
+                new Claim(ClaimTypes.MobilePhone, newUser.PhoneNumber ?? ""),
+                new Claim(ClaimTypes.Role, newUser.Role)
+            };
+
+            var authToken = SerializeClaims(claims);
+            if (AuthenticationStateProvider is CustomAuthenticationStateProvider customAuthStateProvider)
+            {
+                await customAuthStateProvider.SignIn(authToken);
+            }
+
+            NavigationManager.NavigateTo("/");
+        }
+    }
+
+    private string SerializeClaims(List<Claim> claims)
+    {
+        var secretKey = _configuration["JwtSettings:SecretKey"];
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));
+        var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
+        var token = new JwtSecurityToken(
+            issuer: _configuration["JwtSettings:Issuer"],
+            audience: _configuration["JwtSettings:Audience"],
+            claims: claims,
+            expires: DateTime.Now.AddHours(8),
+            signingCredentials: creds);
+
+        return new JwtSecurityTokenHandler().WriteToken(token);
+    }
+
+    public class LoginModel
+    {
+        public string Email { get; set; }
+        public string Password { get; set; }
+    }
+
+    public class RegisterModel
+    {
+        public string Name { get; set; }
+        public string Email { get; set; }
+        public string PhoneNumber { get; set; }
+        public string Password { get; set; }
+    }
+}
+
+
+<style>
+    body {
+        background: url("/images/sitioweb-horizontal.png") no-repeat center/cover;
+        margin: 0;
+    }
+
+
+    .main {
+        padding: 0;
+        width: 650px;
+        height: 600px;
+        margin: 0 auto;
+        border-radius: 15px;
+        justify-content: center;
+        align-items: center;
+        overflow: hidden;
+        font-family: 'Jost', sans-serif;
+        background: linear-gradient(to bottom, #e6b23b, #F5C144, #e6b23b);
+    }
+
+    #chk {
+        display: none;
+    }
+
+    .signup, .login {
+        position: relative;
+        width: 100%;
+        height: 90%;
+    }
+
+    label {
+        color: #fff;
+        font-size: 2.3em;
+        justify-content: center;
+        display: flex;
+        margin: 60px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: .5s ease-in-out;
+    }
+
+
+    .user-input {
+        width: 300px;
+        height: 50px;
+        background: #ffffff;
+        justify-content: center;
+        display: flex;
+        margin: 10px auto;
+        padding: 10px;
+        border: none;
+        outline: none;
+        border-radius: 5px;
+    }
+
+    .user-button {
+        width: 60%;
+        height: 40px;
+        margin: 10px auto;
+        justify-content: center;
+        display: block;
+        color: #fff;
+        background: #000000;
+        font-size: 1em;
+        font-weight: bold;
+        margin-top: 20px;
+        outline: none;
+        border: none;
+        border-radius: 5px;
+        transition: .2s ease-in;
+        cursor: pointer;
+    }
+
+        .user-button:hover {
+            background: #ffffff;
+            color: #000000;
+        }
+
+    .login {
+        height: 560px;
+        background: #ffffff;
+        border-radius: 60% / 10%;
+        transform: translateY(-180px);
+        transition: .8s ease-in-out;
+    }
+
+        .login label {
+            color: #e6b23b;
+            transform: scale(.6);
+        }
+
+    #chk:checked ~ .login {
+        transform: translateY(-500px);
+    }
+
+        #chk:checked ~ .login label {
+            transform: scale(1);
+        }
+
+    #chk:checked ~ .signup label {
+        transform: scale(.6);
+    }
+
+    @@media (max-width: 600px) {
+        .main {
+            width: 95%;
+            height: 550px;
+            margin: 10px;
+        }
+
+        .signup, .login {
+            height: 600px;
+            padding: 20px;
+        }
+
+        label {
+            font-size: 1.8em;
+            margin: 30px;
+        }
+
+        .user-input, button {
+            width: 95%;
+            font-size: 0.9em;
+            height: 45px;
+        }
+
+        .user-button {
+            height: 45px;
+            font-size: 1em;
+        }
+
+        .login {
+            transform: translateY(-180px);
+            transition: .8s ease-in-out;
+            border-radius: 10px;
+        }
+
+        #chk:checked ~ .login {
+            transform: translateY(-500px);
+        }
+    }
+
+</style>

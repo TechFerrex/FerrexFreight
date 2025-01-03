@@ -1,0 +1,208 @@
+﻿@page "/quotations"
+@using FerrexWeb.Services
+@using FerrexWeb.Models
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Components.Authorization
+@inject QuotationService QuotationService
+@inject OrderService OrderService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager NavigationManager
+
+<div class="container my-5">
+    <h1 class="text-center mb-4">Cotizaciones</h1>
+
+    @if (quotations == null)
+    {
+        <div class="d-flex justify-content-center align-items-center full-height">
+            <div class="spinner-border" role="status" style="color: #F5C144;">
+                <span class="visually-hidden">Cargando...</span>
+            </div>
+        </div>
+    }
+    else if (!quotations.Any())
+    {
+        <p class="text-center">No tienes cotizaciones disponibles.</p>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Número de Cotización</th>
+                        <th>Cliente</th>
+                        <th>Fecha</th>
+                        <th>Total</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var quotation in quotations)
+                    {
+                        <tr>
+                            <td data-label="Número de Cotización">@quotation.QuotationNumber</td>
+                            <td data-label="Cliente">@quotation.Client</td>
+                            <td data-label="Fecha">@quotation.Date.ToString("dd/MM/yyyy")</td>
+                            <td data-label="Total">@quotation.Total.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</td>
+                            <td data-label="Acciones">
+                                <a href="@($"/quotationdetails/{quotation.Id}")" class="btn btn-primary btn-sm">Ver Detalles</a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+<div class="container my-5">
+    <h1 class="text-center mb-4">Órdenes</h1>
+
+    @if (orders == null)
+    {
+        <div class="d-flex justify-content-center align-items-center full-height">
+            <div class="spinner-border" role="status" style="color: #F5C144;">
+                <span class="visually-hidden">Cargando...</span>
+            </div>
+        </div>
+    }
+    else if (!orders.Any())
+    {
+        <p class="text-center">No tienes órdenes disponibles.</p>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Número de Orden</th>
+                        <th>Cliente</th>
+                        <th>Fecha</th>
+                        <th>Total</th>
+                        <th>Status</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var order in orders)
+                    {
+                        <tr>
+                            <td data-label="Número de Orden">@order.OrderNumber</td>
+                            <td data-label="Cliente">@order.User.Name</td>
+                            <td data-label="Fecha">@order.OrderDate.ToString("dd/MM/yyyy")</td>
+                            <td data-label="Total">@order.Total.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</td>
+                            <td data-label="Status">
+                                <span class="badge @(GetStatusBadgeClass(order.Status))">@order.Status</span>
+                            </td>
+                            <td data-label="Acciones">
+                                <a href="@($"/orderdetails/{order.Id}")" class="btn btn-primary btn-sm">Ver Detalles</a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@code {
+    private List<Quotation> quotations;
+    private List<Order> orders;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (!user.Identity.IsAuthenticated)
+        {
+            NavigationManager.NavigateTo("/userinfo?returnUrl=/quotations");
+            return;
+        }
+
+        var userIdString = user.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        // Verificamos que el userId se pueda parsear, si no, retornamos colecciones vacías.
+        if (!int.TryParse(userIdString, out int userId))
+        {
+            quotations = new List<Quotation>();
+            orders = new List<Order>();
+            return;
+        }
+
+        // Si es SuperAdmin ve todas, de lo contrario solo las suyas.
+        if (user.IsInRole("SuperAdmin"))
+        {
+            quotations = await QuotationService.GetAllQuotationsAsync();
+            orders = await OrderService.GetAllOrdersAsync();
+        }
+        else
+        {
+            quotations = await QuotationService.GetQuotationsByUserIdAsync(userId);
+            orders = await OrderService.GetOrdersByUserIdAsync(userId);
+        }
+    }
+
+    private string GetStatusBadgeClass(string status)
+    {
+        return status switch
+        {
+            "Pendiente" => "bg-warning text-dark",
+            "Confirmada" => "bg-primary",
+            "Ordenada" => "bg-info",
+            "Entregado" => "bg-success",
+            _ => "bg-secondary",
+        };
+    }
+}
+
+<style>
+    .full-height {
+        height: 50vh;
+    }
+
+    /* Estilos para tablas responsivas en dispositivos móviles */
+    @@media (max-width: 767.98px) {
+        .table thead
+
+    {
+        display: none;
+    }
+
+    .table tbody tr {
+        display: block;
+        margin-bottom: 1rem;
+        border: 1px solid #dee2e6;
+    }
+
+    .table tbody td {
+        display: block;
+        width: 100%;
+        text-align: right;
+        position: relative;
+        padding-left: 50%;
+        border-top: none;
+    }
+
+        .table tbody td::before {
+            content: attr(data-label);
+            position: absolute;
+            left: 0;
+            width: 45%;
+            padding-left: 15px;
+            font-weight: bold;
+            text-align: left;
+        }
+
+        .table tbody td:last-child {
+            border-bottom: 0;
+        }
+
+    .btn-sm {
+        font-size: 0.875rem;
+        padding: 0.5rem 1rem;
+    }
+
+    }
+</style>

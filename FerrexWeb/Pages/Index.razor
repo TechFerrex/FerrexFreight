@@ -1,0 +1,507 @@
+﻿    @page "/"
+    @using FerrexWeb.Models
+    @using FerrexWeb.Services
+    @inject CategoryService CategoryService
+    @inject ProductService ProductService
+    @inject ApplicationDbContext DbContext
+
+    @* <PageTitle>Bienvenido a Ferrexpress</PageTitle>
+     *@
+
+    <div class="banner-container">
+        @if (IsFading && !string.IsNullOrEmpty(PreviousImage))
+        {
+            <img src="@PreviousImage" class="banner-image fade-out" alt="Banner Anterior" />
+        }
+        <img src="@CurrentImage" class="banner-image @(IsFading ? "" : "fade-in")" alt="Banner Actual" width="1920" height="400"loading="lazy" fetchpriority="low" decoding="async" />
+    </div>
+
+    <div class="container mt-5">
+        <div class="jumbotron text-center">
+            <p class="lead">Ofrecemos los mejores productos para ti. Explora nuestras categorías y encuentra lo que necesitas.</p>
+            <hr class="my-4" />
+            <p>Busca los productos que necesitas para tu construcción</p>
+        </div>
+        <h2 class="mt-5">Categorías Destacadas</h2>
+        <div class="row">
+            @if (categories == null)
+            {
+                <div class="d-flex justify-content-center align-items-center" style="height: 50vh;">
+                    <div class="spinner" role="status">
+                        <span class="visually-hidden">Cargando...</span>
+                    </div>
+                </div>
+            }
+            else
+            {
+                @foreach (var category in categories)
+                {
+                    <div class="col-12 col-sm-6 col-md-4 mb-4">
+                        <NavLink href="@($"productlist/{category.Id}")" class="text-decoration-none" style="color: black">
+                        <div class="card">
+                            <div class="card-inner" style="--clr:#ffffff;">
+                                <div class="box">
+                                    <div class="imgBox">
+                                        <img src="@category.ImageUrl" alt="@category.Name">
+                                    </div>
+                                    <div class="icon">
+                                        <a href="productlist/@category.Id" class="iconBox">
+                                            <span class="material-symbols-outlined">
+                                                open_in_new
+                                            </span>
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="content">
+                                <h3>@category.Name</h3>
+                                <p>@category.Description</p>
+                            </div>
+                        </div>
+                        </NavLink>
+                    </div>
+                }
+            }
+        </div>
+
+        <h2 class="mt-5">Productos Destacados</h2>
+        <div class="row">
+            @if (featuredProducts == null)
+            {
+                <div class="d-flex justify-content-center align-items-center" style="height: 50vh;">
+                    <div class="spinner" role="status">
+                        <span class="visually-hidden">Cargando...</span>
+                    </div>
+                </div>
+            }
+            else
+            {
+                @foreach (var product in featuredProducts)
+                {
+                    <div class="col-12 col-sm-6 col-md-4 mb-4">
+                        <NavLink href="@($"productdetails/{product.IdProducto}")" class="text-decoration-none" style="color: black">
+                            <div class="card product-card h-100">
+                                <img class="card-img-top" src="@product.ImageUrl" alt="@product.DescProducto" style="height: 200px; object-fit: cover;">
+                                <div class="card-body d-flex flex-column">
+                                    <h5 class="card-title">@product.DescProducto</h5>
+                                    <p class="card-text">@product.Precio.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</p>
+                                    <div class="mt-auto">
+                                        <a href="productdetails/@product.IdProducto" class="btn custom-btn">Ver</a>
+                                    </div>
+                                </div>
+                            </div>
+                        </NavLink>
+                    </div>
+                }
+            }
+        </div>
+    </div>
+
+
+    @code {
+        private List<Categories> categories;
+        private List<Products> featuredProducts;
+        private bool isConnected;
+
+        protected override async Task OnInitializedAsync()
+        {
+            try
+            {
+                // Verificar si se puede conectar a la base de datos
+                isConnected = await DbContext.Database.CanConnectAsync();
+                if (isConnected)
+                {
+                    // Obtener 3 categorías aleatorias
+                    categories = await CategoryService.GetRandomCategoriesAsync(3);
+                    // Obtener 3 productos aleatorios
+                    featuredProducts = await ProductService.GetRandomProductsAsync(3);
+                }
+                else
+                {
+                    Console.WriteLine("No se pudo conectar a la base de datos. Intentando obtener más detalles...");
+
+                    // Intentar ejecutar una consulta simple para forzar una excepción si la base de datos no está accesible
+                    try
+                    {
+                        categories = await CategoryService.GetRandomCategoriesAsync(3);
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine("Error de conexión a la base de datos:");
+                        Console.WriteLine($"Mensaje de error: {ex.Message}");
+                        Console.WriteLine("Detalles de la excepción: " + ex.ToString());
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Ocurrió un error general:");
+                Console.WriteLine($"Mensaje de error: {ex.Message}");
+                Console.WriteLine("Detalles de la excepción: " + ex.ToString());
+            }
+        }
+
+        private List<string> ImagePaths = new List<string>
+        {
+            "/images/banner1.webp",
+            "/images/banner2.webp",
+            "/images/banner3.webp"
+        };
+
+        private int currentIndex = 0;
+        private string CurrentImage => ImagePaths[currentIndex];
+        private string PreviousImage;
+        private bool IsFading = false;
+        private System.Timers.Timer timer;
+
+        protected override void OnInitialized()
+        {
+            // Configurar el timer para cambiar de imagen cada 5 segundos
+            timer = new System.Timers.Timer(5000);
+            timer.Elapsed += (sender, e) =>
+            {
+                InvokeAsync(ChangeImage);
+            };
+            timer.Start();
+        }
+
+        private async void ChangeImage()
+        {
+            IsFading = true;
+            PreviousImage = CurrentImage;
+            StateHasChanged();
+
+            // Esperar a que la transición de desvanecimiento termine (0.5s)
+            await Task.Delay(500);
+
+            currentIndex = (currentIndex + 1) % ImagePaths.Count;
+            IsFading = false;
+            StateHasChanged();
+        }
+
+        public void Dispose()
+        {
+            timer?.Dispose();
+        }
+    }
+
+
+    <style>
+        /* Reset de márgenes y padding */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        /* Estilos del cuerpo */
+        body {
+            background: url("/images/GrayWall.png") no-repeat center/cover;
+            font-family: "Lato", sans-serif;
+            font-weight: 400;
+            font-style: normal;
+        }
+
+        /* Contenedor principal */
+        .container {
+            width: 100%;
+            max-width: 1140px;
+            margin: 0 auto;
+            padding: 0 15px;
+        }
+
+        .mt-5 {
+            margin-top: 3rem;
+        }
+
+        .mb-4 {
+            margin-bottom: 1.5rem;
+        }
+
+        .my-4 {
+            margin-top: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        .lead {
+            font-size: 1.25rem;
+            font-weight: 300;
+        }
+
+        .jumbotron {
+            padding: 2rem 1rem;
+            margin-bottom: 2rem;
+            background-color: rgba(249, 249, 249, 0.8);
+            border-radius: 0.3rem;
+        }
+
+        hr {
+            border: none;
+            border-top: 1px solid #ccc;
+            margin: 1rem 0;
+        }
+
+        /* Sistema de cuadrícula */
+        .row {
+            display: flex;
+            flex-wrap: wrap;
+            margin-right: -15px;
+            margin-left: -15px;
+        }
+
+        .col-12,
+        .col-sm-6,
+        .col-md-4 {
+            padding-right: 15px;
+            padding-left: 15px;
+            width: 100%;
+        }
+
+        @@media (min-width: 576px) {
+            .col-sm-6
+
+        {
+            width: 50%;
+        }
+
+        }
+
+        @@media (min-width: 768px) {
+            .col-md-4
+
+        {
+            width: 33.3333%;
+        }
+
+        }
+
+        /* Flex utilities */
+        .d-flex {
+            display: flex;
+        }
+
+        .justify-content-center {
+            justify-content: center;
+        }
+
+        .align-items-center {
+            align-items: center;
+        }
+
+        .flex-column {
+            flex-direction: column;
+        }
+
+        .mt-auto {
+            margin-top: auto;
+        }
+
+        /* Spinner personalizado */
+        .spinner {
+            display: inline-block;
+            width: 3rem;
+            height: 3rem;
+            border: 0.4rem solid #f3f3f3;
+            border-top: 0.4rem solid #F5C144;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @@keyframes spin {
+            to
+
+        {
+            transform: rotate(360deg);
+        }
+
+        }
+
+        .visually-hidden {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+
+        /* Estilos de la tarjeta */
+        .card {
+            background-color: #fff;
+            border: none;
+            border-radius: 0.25rem;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        .card-inner {
+            position: relative;
+            height: 300px;
+            background: var(--clr);
+            overflow: hidden;
+        }
+
+            .card-inner .box {
+                position: relative;
+                width: 100%;
+                height: 100%;
+            }
+
+            .card-inner .imgBox {
+                width: 100%;
+                height: 100%;
+            }
+
+                .card-inner .imgBox img {
+                    width: 100%;
+                    height: 100%;
+                    object-fit: cover;
+                }
+
+            .card-inner .icon {
+                position: absolute;
+                bottom: 0;
+                right: 0;
+                width: 4rem;
+                height: 4rem;
+                background: var(--clr);
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                border-top-left-radius: 50%;
+                transition: transform 0.3s;
+            }
+
+                .card-inner .icon:hover {
+                    transform: scale(1.1);
+                }
+
+                .card-inner .icon .iconBox {
+                    color: #000000;
+                    font-size: 2.5rem; /* Ajusta el tamaño a tu gusto, puede ser 3rem o más */
+                }
+
+
+
+        .content {
+            padding: 1rem;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+            .content h3 {
+                font-size: 1.5rem;
+                margin-bottom: 0.5rem;
+            }
+
+            .content p {
+                flex-grow: 1;
+                color: #565656;
+            }
+
+        /* Botón personalizado */
+        .custom-btn {
+            background-color: #F5C144;
+            color: #000000;
+            border: none;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+            .custom-btn:hover,
+            .custom-btn:active {
+                background-color: #000000;
+                color: #F5C144;
+            }
+
+        /* Estilos para las imágenes del banner */
+        .banner-container {
+            position: relative;
+            width: 100%;
+            height: 400px;
+            overflow: hidden;
+            margin: 0;
+            padding: 0;
+        }
+
+        .banner-image {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
+        }
+
+            .banner-image.fade-in {
+                opacity: 1;
+                z-index: 2;
+            }
+
+            .banner-image.fade-out {
+                opacity: 0;
+                z-index: 1;
+            }
+
+        /* Ajustes responsivos para el banner */
+        @@media (max-width: 768px) {
+            .banner-container
+
+        {
+            height: 300px;
+        }
+
+        }
+
+        @@media (max-width: 480px) {
+            .banner-container
+
+        {
+            height: 200px;
+        }
+
+        }
+
+        /* Enlaces sin decoración */
+        .text-decoration-none {
+            text-decoration: none;
+        }
+
+        .card-title {
+            font-size: 1.2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .card-text {
+            font-size: 1rem;
+            color: #565656;
+        }
+
+        .card:hover {
+            transform: scale(1.02);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        <style >
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 1, 'wght' 700, 'GRAD' 0, 'opsz' 48;
+        }
+
+    </style>
+
+    </style>   

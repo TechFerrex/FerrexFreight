@@ -1,0 +1,43 @@
+﻿@page "/notauthorized"
+
+<div class="not-authorized">
+    <img src="images/confidencial.png" alt="Imagen en primer plano" class="foreground-image" />
+    
+</div>
+
+<style>
+    .not-authorized {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: #ffffff; /* Fondo gris */
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-family: Arial, sans-serif;
+        z-index: 1000; /* Asegura que esté al frente */
+    }
+    .not-authorized h1 {
+        color: #ff0000; /* Rojo */
+        font-size: 5rem;
+        text-transform: uppercase;
+        font-weight: bold;
+        animation: pulse 1.5s infinite;
+    }
+    @@keyframes pulse {
+        0% {
+            transform: scale(1);
+            opacity: 1;
+        }
+        50% {
+            transform: scale(1.1);
+            opacity: 0.8;
+        }
+        100% {
+            transform: scale(1);
+            opacity: 1;
+        }
+    }
+</style>

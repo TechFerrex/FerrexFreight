@@ -1,0 +1,64 @@
+﻿@page "/error404"
+
+
+    <div class="error404">
+        <h1>ERROR 404</h1>
+        <p>Lo sentimos, no encontramos esa página.</p>
+    </div>
+
+<style>
+    .error404 {
+        height: 100%;
+        width: 100%;
+        margin: 0;
+        font-family: Arial, sans-serif;
+        position: relative;
+        overflow: hidden;
+    }
+
+        /* Imagen de fondo con efecto de blur usando ::before */
+        .error404::before {
+            content: "";
+            background-image: url('images/Floor.jpg'); /* Reemplaza con la ruta correcta de tu imagen */
+            height: 100%;
+            width: 100%;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-size: cover;
+            filter: blur(8px);
+            -webkit-filter: blur(8px); /* Compatibilidad con navegadores WebKit */
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: -1; 
+            opacity: 1;
+            transition: opacity 0.5s ease-in-out;
+        }
+
+    .error404 {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        text-align: center;
+        color: white; 
+        padding: 20px;
+    }
+
+        .error404 h1 {
+            font-size: 80px;
+            color: #F5C144;
+            margin: 0;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+
+        .error404 p {
+            font-size: 40px;
+            color: black;
+            display: inline-block;
+            padding: 10px 20px;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+
+</style>

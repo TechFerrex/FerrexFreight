@@ -1,0 +1,225 @@
+﻿@page "/service"
+@inject IJSRuntime JS
+@using Microsoft.AspNetCore.Components.Web
+
+<!-- Sección de Servicios Destacados -->
+<section id="about" class="py-5 bg-light">
+    <div class="container text-center">
+        <h2 class="display-4 mb-4">¿Qué Servicios Ofrecemos?</h2>
+        <p class="lead mb-5">Ofrecemos un enfoque integral para tu proyecto de construcción, desde la logística hasta la calidad de los materiales.</p>
+        <div class="row">
+            <!-- Servicio de Flete -->
+            <div class="col-12 col-md-6 mb-4">
+                <div class="card h-100 shadow-sm">
+                    <img src="images/flete.jpg" class="card-img-top img-fluid" alt="Servicio de Flete">
+                    <div class="card-body d-flex flex-column">
+                        <h4 class="card-title">Flete Seguro y Rápido</h4>
+                        <p class="card-text">Llevamos tus materiales donde los necesites, con tarifas basadas en distancia y peso. ¡Pide una cotización hoy mismo!</p>
+                        <button class="btn btn-outline-primary mt-auto w-100" @onclick="() => ToggleDetails(1)">Saber Más</button>
+                        <div class="expandable-content mt-3" style="display:@(selectedSection == 1 ? "block" : "none")">
+                            <p>Más detalles sobre el servicio de flete, incluyendo opciones personalizadas, tiempos de entrega y zonas de cobertura.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- Análisis de Materiales -->
+            <div class="col-12 col-md-6 mb-4">
+                <div class="card h-100 shadow-sm">
+                    <img src="images/analisis.jpg" class="card-img-top img-fluid" alt="Análisis de Materiales">
+                    <div class="card-body d-flex flex-column">
+                        <h4 class="card-title">Análisis Profesional de Materiales</h4>
+                        <p class="card-text">Nos aseguramos de que los materiales cumplan con los estándares más altos para garantizar la seguridad de tu proyecto.</p>
+                        <button class="btn btn-outline-primary mt-auto w-100" @onclick="() => ToggleDetails(2)">Saber Más</button>
+                        <div class="expandable-content mt-3" style="display:@(selectedSection == 2 ? "block" : "none")">
+                            <p>Información adicional sobre el análisis de materiales: tipos de pruebas, certificaciones y recomendaciones.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Sección de Servicios -->
+<section id="services" class="py-5 bg-light">
+    <div class="container text-center text-black">
+        <h2 class="display-4 mb-5">Nuestros Servicios</h2>
+        <div class="row">
+            <!-- Servicio 1 -->
+            <div class="col-12 col-md-6 col-lg-4 mb-4">
+                <div class="card h-100 text-white" style="background-color: #F5C144;">
+                    <div class="card-body d-flex flex-column">
+                        <div class="icon mb-3">
+                            <i class="fas fa-truck fa-3x"></i>
+                        </div>
+                        <h3 class="card-title">Servicio de Flete</h3>
+                        <p class="card-text">Transporte especializado de materiales a cualquier destino con máxima seguridad y puntualidad.</p>
+                        <button class="btn btn-outline-light mt-auto w-100" @onclick="() => ToggleServiceDetails(1)">Ver Detalles</button>
+                        <div class="expandable-content mt-3" style="display:@(selectedService == 1 ? "block" : "none")">
+                            <p>Detalles adicionales sobre el flete: capacidad, opciones de vehículos y seguros disponibles para los envíos.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- Servicio 2 -->
+            <div class="col-12 col-md-6 col-lg-4 mb-4">
+                <div class="card h-100 text-white" style="background-color: #000000; border: 1px solid #F5C144;">
+                    <div class="card-body d-flex flex-column">
+                        <div class="icon mb-3">
+                            <i class="fas fa-hard-hat fa-3x"></i>
+                        </div>
+                        <h3 class="card-title">Consultoría de Proyectos</h3>
+                        <p class="card-text">Nuestros expertos te ayudan a optimizar tus proyectos de construcción mediante nuestras consultorias</p>
+                        <button class="btn btn-outline-light mt-auto w-100" @onclick="() => ToggleServiceDetails(3)">Ver Detalles</button>
+                        <div class="expandable-content mt-3" style="display:@(selectedService == 3 ? "block" : "none")">
+                            <p>Detalles sobre la consultoría: apoyo en las fases del proyecto, desde la planificación hasta la ejecución.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+@code {
+    private int selectedSection = -1;
+    private int selectedService = -1;
+
+    private void ToggleDetails(int section)
+    {
+        selectedSection = selectedSection == section ? -1 : section;
+    }
+
+    private void ToggleServiceDetails(int service)
+    {
+        selectedService = selectedService == service ? -1 : service;
+    }
+
+    private async Task ScrollToDetails()
+    {
+        await JS.InvokeVoidAsync("scrollToSection", "about");
+    }
+}
+
+
+<style>
+   /*  */
+.hero-section {
+    background: url('images/construccion2.png') center/cover no-repeat;
+    min-height: 80vh;
+    padding: 100px 0;
+    position: relative;
+    color: #fff;
+    text-align: center;
+}
+
+.hero-section h1 {
+    font-weight: bold;
+    color: #F5C144;
+    z-index: 1;
+}
+
+.hero-section .btn-primary {
+    background-color: #F5C144;
+    border-color: #F5C144;
+    color: #000000;
+}
+
+.hero-section .btn-primary:hover {
+    background-color: #A7A9AC;
+    border-color: #A7A9AC;
+    color: #fff;
+}
+
+/* Sección de Servicios Destacados */
+.card {
+    border: none;
+}
+
+.card-title {
+    color: #000;
+}
+
+.btn-outline-primary {
+    color: #F5C144;
+    border-color: #F5C144;
+}
+
+.btn-outline-primary:hover {
+    background-color: #F5C144;
+    color: #000;
+    border-color: #F5C144;
+}
+
+/* Sección de Servicios */
+#services .card {
+    border: none;
+}
+
+.icon, #services .card-title, .btn-outline-light {
+    color: #fff;
+}
+
+.btn-outline-light {
+    border-color: #fff;
+}
+
+.btn-outline-light:hover {
+    background-color: #fff;
+    color: #000;
+}
+
+/* Responsividad */
+@@media (max-width: 768px) {
+    .hero-section {
+        padding: 60px 0;
+        min-height: 60vh;
+    }
+
+    .hero-section h1 {
+        font-size: 2rem;
+    }
+
+    .hero-section p, .card-text, .btn {
+        font-size: 1rem;
+    }
+
+    .card-title {
+        font-size: 1.25rem;
+    }
+
+    .icon {
+        font-size: 2.5rem;
+    }
+
+    /* Ajuste de márgenes y padding en dispositivos móviles */
+    .card-body {
+        padding: 1rem;
+    }
+
+    .card-text {
+        margin-bottom: 1rem;
+    }
+}
+
+@@media (max-width: 576px) {
+    .hero-section h1 {
+        font-size: 1.75rem;
+    }
+
+    .hero-section p, .card-title, .card-text, .btn {
+        font-size: 0.9rem;
+    }
+
+    .icon {
+        font-size: 2rem;
+    }
+
+    /* Asegurar que los botones ocupen todo el ancho */
+    .btn {
+        width: 100%;
+    }
+}
+
+
+</style>

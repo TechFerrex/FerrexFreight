@@ -1,0 +1,383 @@
+﻿@page "/quotationdetails/{Id:int}"
+@using FerrexWeb.Services
+@using FerrexWeb.Models
+@using System.Security.Claims
+@using System.Text
+@inject QuotationService QuotationService
+@inject IJSRuntime JS
+@inject ShoppingCartService CartService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager NavigationManager
+@inject PdfService PdfService
+@inject OrderService OrderService
+
+<div class="container my-5">
+    <h1 class="text-center mb-4">Detalles de la Cotización</h1>
+
+    @if (quotation == null)
+    {
+        <div class="d-flex justify-content-center align-items-center full-height">
+            <div class="spinner-border" role="status" style="color: #F5C144;">
+                <span class="visually-hidden">Cargando...</span>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="card mb-4">
+            <div class="card-body text-end">
+                <h4 class="card-title">Cotización ID: @quotation.Id</h4>
+                <p class="card-text">Cliente: @quotation.Client</p>
+                <p class="card-text">Fecha: @quotation.Date.ToString("dd/MM/yyyy")</p>
+                <p class="card-text">Flete: @quotation.Freight.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</p>
+                <p class="card-text">Total: @quotation.Total.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</p>
+            </div>
+        </div>
+
+        <h4>Productos Cotizados</h4>
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Producto</th>
+                        <th>Cantidad</th>
+                        <th>Unidad</th>
+                        <th>Precio Unitario</th>
+                        <th>Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in quotation.QuotedItems)
+                    {
+                        <tr>
+                            <td data-label="Producto">@item.Product.DescProducto</td>
+                            <td data-label="Cantidad">@item.Quantity</td>
+                            <td data-label="Unidad">@item.Product.Unit</td>
+                            <td data-label="Precio Unitario">@item.Price.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</td>
+                            <td data-label="Total">@((item.Price * item.Quantity).ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN")))</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <div class="d-flex flex-wrap gap-2">
+            <button type="button" class="btn btn-primary" @onclick="GeneratePdf">Generar PDF</button>
+            @if (!quotation.IsOrdered)
+            {
+                <button class="btn btn-success" @onclick="PlaceOrder">Ordenar</button>
+                <button class="btn btn-success" @onclick="Edit">Editar</button>
+                <button class="btn btn-danger" @onclick="EliminarCotizacion">Eliminar Cotización</button>
+            }
+            else
+            {
+                <span class="badge bg-success">Cotización Ordenada</span>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public int Id { get; set; }
+    private Quotation quotation;
+
+    protected override async Task OnInitializedAsync()
+    {
+        quotation = await QuotationService.GetQuotationByIdAsync(Id);
+    }
+
+    private async Task PlaceOrder()
+    {
+        if (quotation.IsOrdered)
+        {
+            await JS.InvokeVoidAsync("alert", "Esta cotización ya ha sido ordenada.");
+            return;
+        }
+
+        var newOrderNumber = $"ORD-{Guid.NewGuid().ToString()[..8]}";
+        var newOrder = new Order
+            {
+                OrderNumber = newOrderNumber,
+                UserId = quotation.UserID,
+                OrderDate = DateTime.Now,
+                Subtotal = quotation.Subtotal,
+                Tax = quotation.ISV,
+                Freight = quotation.Freight,
+                Total = quotation.Total,
+                DeliveryInstructions = quotation.DeliveryInstructions,
+                FreightLatitude = quotation.FreightLatitude,
+                FreightLongitude = quotation.FreightLongitude,
+                Status = "Pending",
+                OrderedItems = quotation.QuotedItems.Select(item => new OrderDetail
+                {
+                    Line = item.Line,
+                    ProductId = item.ProductId,
+                    Quantity = item.Quantity,
+                    Price = item.Price
+                }).ToList()
+            };
+
+        await OrderService.SaveOrderAsync(newOrder);
+
+        quotation.IsOrdered = true;
+        await QuotationService.UpdateQuotationAsync(quotation);
+
+        await JS.InvokeVoidAsync("alert", "Orden creada exitosamente.");
+        NavigationManager.NavigateTo($"/orderdetails/{newOrder.Id}");
+    }
+
+    private string GenerateTableRows()
+    {
+        var rows = new StringBuilder();
+
+        foreach (var item in quotation.QuotedItems)
+        {
+            var codigo = item.Product.Codigo;
+            var descripcion = item.Product.DescProducto;
+            var unidad = item.Product.Unit;
+            var cantidad = item.Quantity;
+            var precio = item.Price.ToString("N2");
+            var importe = (item.Price * item.Quantity).ToString("N2");
+
+            rows.Append($@"
+            <tr>
+                <td>{System.Net.WebUtility.HtmlEncode(codigo)}</td>
+                <td>{System.Net.WebUtility.HtmlEncode(descripcion)}</td>
+                <td>{System.Net.WebUtility.HtmlEncode(unidad)}</td>
+                <td>{cantidad}</td>
+                <td>L. {precio}</td>
+                <td>L. {importe}</td>
+            </tr>");
+        }
+
+        return rows.ToString();
+    }
+
+    private async Task GeneratePdf()
+    {
+        var htmlContent = $@"
+        <style>
+            body {{
+                font-family: Arial, sans-serif;
+                color: #333;
+            }}
+            .container {{
+                max-width: 800px;
+                margin: 0 auto;
+                padding: 20px;
+                border: 1px solid #ddd;
+                border-radius: 10px;
+                box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            }}
+            h1 {{
+                text-align: center;
+                color: #F5C144;
+                font-size: 24px;
+                margin-bottom: 5px;
+            }}
+            h2 {{
+                text-align: center;
+                color: #666;
+                font-size: 18px;
+                margin-top: 10px;
+                margin-bottom: 20px;
+            }}
+            .contact-info, .client-info {{
+                text-align: center;
+                font-size: 12px;
+                color: #555;
+                margin: 5px 0;
+            }}
+            .table-title {{
+                text-align: left;
+                font-size: 14px;
+                color: #666;
+                margin-top: 30px;
+                margin-bottom: 10px;
+                font-weight: bold;
+            }}
+            table {{
+                width: 100%;
+                border-collapse: collapse;
+                margin-top: 10px;
+            }}
+            table, th, td {{
+                border: 1px solid #ddd;
+            }}
+            th {{
+                padding: 10px;
+                text-align: left;
+                background-color: #F5C144;
+                color: #333;
+                font-weight: bold;
+                font-size: 12px;
+            }}
+            td {{
+                padding: 10px;
+                font-size: 12px;
+            }}
+            .totals {{
+                margin-top: 20px;
+                font-size: 12px;
+                text-align: right;
+                color: #333;
+            }}
+            .totals p {{
+                margin: 3px 0;
+            }}
+            .notes {{
+                margin-top: 40px;
+                font-style: italic;
+                color: #555;
+                font-size: 11px;
+            }}
+            .signature {{
+                text-align: right;
+                margin-top: 40px;
+                font-size: 12px;
+                color: #333;
+                font-weight: bold;
+            }}
+            .footer {{
+                text-align: center;
+                margin-top: 30px;
+                font-size: 10px;
+                color: #999;
+                border-top: 1px solid #ddd;
+                padding-top: 10px;
+            }}
+        </style>
+
+        <div class='container'>
+            <h1>Cotización #{quotation.Id}</h1>
+            <p class='contact-info'>Hacienda San Antonio, 800m de CA5 sobre carretera principal, Choloma, Cortes</p>
+            <p class='contact-info'>Cel: +504 3202-4761 | RTN: 05019023565072</p>
+            <h2>Atención: {System.Net.WebUtility.HtmlEncode(quotation.Client)}</h2>
+            <p class='client-info'>Cotización No: {quotation.Id} | Fecha: {quotation.Date}</p>
+            <div class='table-title'>Oferta Económica</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Código</th>
+                        <th>Resumen</th>
+                        <th>Ud</th>
+                        <th>Cant</th>
+                        <th>Costo</th>
+                        <th>Importe</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {GenerateTableRows()}
+                </tbody>
+            </table>
+            <div class='totals'>
+                <p><strong>Total: L. {quotation.Subtotal:N2}</strong></p>
+                <p><strong>ISV (15%): L. {quotation.ISV:N2}</strong></p>
+                <p><strong>Flete: L. {quotation.Freight:N2}</strong></p>
+                <p style='border-top: 1px solid #ddd; padding-top: 5px;'><strong>Gran Total: L. {quotation.Total:N2}</strong></p>
+            </div>
+            <div class='notes'>
+                <p><strong>Notas:</strong></p>
+                <p>* TIEMPO DE ENTREGA: 24 HORAS</p>
+                <p>* FORMA DE PAGO: TRANSFERENCIA O PAGO CON TARJETA</p>
+            </div>
+            <div class='signature'>
+                <p>Firma Autorizada</p>
+            </div>
+            <div class='footer'>
+                Ferrexpress - Todos los derechos reservados | www.ferrexpress.com
+            </div>
+        </div>
+        ";
+
+        var pdfBytes = PdfService.CreatePdf(htmlContent);
+        var base64 = Convert.ToBase64String(pdfBytes);
+
+        await JS.InvokeVoidAsync("FileUtil.saveFile", $"Cotizacion-NUM{quotation.Id}-{quotation.Client}-Total-{quotation.Total:N2}.pdf", base64);
+    }
+
+    private async Task EliminarCotizacion()
+    {
+        await QuotationService.DeleteQuotationAsync(Id);
+        NavigationManager.NavigateTo("/quotations");
+    }
+
+    private async Task Edit()
+    {
+        await CartService.ClearCartAsync();
+        foreach (var item in quotation.QuotedItems)
+        {
+            await CartService.AddToCartAsync(item.Product, item.Quantity);
+        }
+
+        CartService.CurrentQuotationId = quotation.Id;
+        NavigationManager.NavigateTo("/cart");
+    }
+}
+
+<style>
+    .full-height {
+        height: 50vh;
+    }
+
+    .btn-primary {
+        background-color: #F5C144;
+        border-color: #F5C144;
+    }
+
+        .btn-primary:hover {
+            background-color: #A7A9AC;
+            border-color: #A7A9AC;
+        }
+
+    .btn-success {
+        background-color: #000000;
+        border-color: #000000;
+    }
+
+        .btn-success:hover {
+            background-color: #A7A9AC;
+            border-color: #A7A9AC;
+        }
+
+    @@media (max-width: 767.98px) {
+        .table thead
+
+    {
+        display: none;
+    }
+
+    .table tbody tr {
+        display: block;
+        margin-bottom: 1rem;
+        border: 1px solid #dee2e6;
+    }
+
+    .table tbody td {
+        display: block;
+        width: 100%;
+        text-align: right;
+        position: relative;
+        padding-left: 50%;
+    }
+
+        .table tbody td::before {
+            content: attr(data-label);
+            position: absolute;
+            left: 0;
+            width: 50%;
+            padding-left: 15px;
+            font-weight: bold;
+            text-align: left;
+        }
+
+    .btn {
+        width: 100%;
+    }
+
+    .d-flex.flex-wrap.gap-2 {
+        flex-direction: column;
+    }
+
+    }
+</style>

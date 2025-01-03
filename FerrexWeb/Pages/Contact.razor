@@ -1,0 +1,210 @@
+﻿@page "/contact"
+@using System.ComponentModel.DataAnnotations
+@using SendGrid
+@using SendGrid.Helpers.Mail
+@using Microsoft.Extensions.Configuration
+@inject IConfiguration Configuration
+
+@code {
+    private ContactFormModel formModel = new();
+    private bool isSubmitted = false;
+
+    private async Task HandleValidSubmit()
+    {
+        await SendEmail();
+        isSubmitted = true;
+    }
+
+    private async Task SendEmail()
+    {
+        var apiKey = Configuration["SendGrid:ApiKey"];
+
+        // Crea el cliente de SendGrid
+        var client = new SendGridClient(apiKey);
+
+        // Configura el correo
+        // El "from" será la dirección de la empresa, puedes cambiarlo si gustas.
+        var from = new EmailAddress("techferrexpress@outlook.com", "Ferrexpress Contact Form");
+
+        // El "to" será tu correo, donde quieres recibir los mensajes.
+        var to = new EmailAddress("ferrexpresshn@gmail.com", "Ferrexpress");
+
+        var subject = $"[Contacto] {formModel.Subject}";
+
+        // Contenido en texto plano y HTML
+        var plainTextContent = $"Nombre: {formModel.Name}\n" +
+                               $"Email: {formModel.Email}\n" +
+                               $"Mensaje:\n{formModel.Message}";
+
+        var htmlContent = $"<p><strong>Nombre:</strong> {formModel.Name}</p>" +
+                          $"<p><strong>Email:</strong> {formModel.Email}</p>" +
+                          $"<p><strong>Mensaje:</strong></p><p>{formModel.Message}</p>";
+
+        var msg = MailHelper.CreateSingleEmail(from, to, subject, plainTextContent, htmlContent);
+
+        // Envía el correo
+        var response = await client.SendEmailAsync(msg);
+
+        // Opcional: puedes imprimir el estado de la respuesta en la consola para debugging
+        Console.WriteLine($"Status Code: {response.StatusCode}");
+        var responseBody = await response.Body.ReadAsStringAsync();
+        Console.WriteLine("Response Body:");
+        Console.WriteLine(responseBody);
+    }
+
+    public class ContactFormModel
+    {
+        [Required(ErrorMessage = "El nombre es requerido.")]
+        public string Name { get; set; }
+
+        [Required(ErrorMessage = "El correo electrónico es requerido.")]
+        [EmailAddress(ErrorMessage = "Por favor ingresa un correo electrónico válido.")]
+        public string Email { get; set; }
+
+        [Required(ErrorMessage = "El asunto es requerido.")]
+        public string Subject { get; set; }
+
+        [Required(ErrorMessage = "El mensaje es requerido.")]
+        public string Message { get; set; }
+    }
+}
+
+
+<div class="container my-5 blury-content">
+    <h1 class="display-4 text-center mb-4">Contáctanos</h1>
+    <hr class="mb-5" />
+    <div class="row">
+        <!-- Sección de Información de Contacto -->
+        <div class="col-md-6">
+            <h2>Estamos aquí para ayudarte</h2>
+            <p>Si tienes preguntas o necesitas más información, no dudes en contactarnos a través de los siguientes medios:</p>
+            <ul class="list-unstyled contact-info">
+                <li>
+                    <i class="fas fa-envelope" style="color: #3b5998"></i>
+                    <a href="mailto:ferrexpresshn@gmail.com">ferrexpresshn@gmail.com</a>
+                </li>
+                <li>
+                    <i class="fas fa-phone-alt"></i>
+                    <a href="tel:+50432024761">+504 3202-4761</a>
+                </li>
+                <li>
+                    <i class="fas fa-map-marker-alt"></i>
+                    San Pedro Sula, Honduras
+                </li>
+            </ul>
+            <!-- Redes Sociales -->
+            <div class="social-media mt-4">
+                <a href="https://www.facebook.com/profile.php?id=615556746360913" target="_blank" style="color: #3b5998">
+                    <i class="fab fa-facebook-f"></i>
+                </a>
+                <a href="https://www.instagram.com/ferrexpresshn" target="_blank" style="color: #bc2a8d ">
+                    <i class="fab fa-instagram"></i>
+                </a>
+                <a href="https://wa.link/3cwl53" target="_blank" style="color: #25d366">
+                    <i class="fab fa-whatsapp"></i>
+                </a>
+            </div>
+        </div>
+        <!-- Sección del Formulario de Contacto -->
+        <div class="col-md-6">
+            <h2>Envíanos un mensaje</h2>
+
+            @if (isSubmitted)
+            {
+                <div class="alert alert-success" role="alert">
+                    ¡Formulario enviado con éxito! Nos pondremos en contacto contigo pronto.
+                </div>
+            }
+            else
+            {
+                <EditForm Model="@formModel" OnValidSubmit="@HandleValidSubmit">
+                    <DataAnnotationsValidator />
+                    <ValidationSummary />
+
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Nombre</label>
+                        <InputText id="name" class="form-control" @bind-Value="formModel.Name" placeholder="Tu nombre completo" />
+                        <ValidationMessage For="@(() => formModel.Name)" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="email" class="form-label">Correo Electrónico</label>
+                        <InputText id="email" class="form-control" @bind-Value="formModel.Email" placeholder="tuemail@ejemplo.com" />
+                        <ValidationMessage For="@(() => formModel.Email)" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="subject" class="form-label">Asunto</label>
+                        <InputText id="subject" class="form-control" @bind-Value="formModel.Subject" placeholder="Asunto del mensaje" />
+                        <ValidationMessage For="@(() => formModel.Subject)" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="message" class="form-label">Mensaje</label>
+                        <InputTextArea id="message" class="form-control" @bind-Value="formModel.Message" rows="5" placeholder="Escribe tu mensaje aquí..."></InputTextArea>
+                        <ValidationMessage For="@(() => formModel.Message)" />
+                    </div>
+                    <button type="submit" class="btn btn-primary">Enviar Mensaje</button>
+                </EditForm>
+            }
+        </div>
+    </div>
+</div>
+
+<style>
+    body {
+        background-image: url('images/construccion.png');
+        background-size: cover;
+        background-position: center;
+        background-attachment: fixed;
+    }
+
+    /* Fondo borroso para el contenido */
+    .blury-content {
+        background: rgba(255, 255, 255, 0.5); /* Fondo semi-transparente */
+        backdrop-filter: blur(10px); /* Efecto de desenfoque */
+        padding: 30px;
+        border-radius: 10px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Estilos del formulario y demás elementos */
+    .contact-info li {
+        margin-bottom: 15px;
+        font-size: 18px;
+    }
+
+        .contact-info li i {
+            color: #F5C144;
+            margin-right: 10px;
+        }
+
+    .social-media a {
+        font-size: 24px;
+        margin-right: 15px;
+        transition: color 0.3s;
+    }
+
+        .social-media a:hover {
+            color: #F5C144;
+        }
+
+    .btn-primary {
+        background-color: #F5C144;
+        border-color: #F5C144;
+    }
+
+        .btn-primary:hover {
+            background-color: #A7A9AC;
+            border-color: #A7A9AC;
+        }
+
+    .form-label {
+        color: #000000;
+    }
+
+    .form-control:focus {
+        border-color: #F5C144;
+        box-shadow: none;
+    }
+</style>

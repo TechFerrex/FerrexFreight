@@ -1,0 +1,473 @@
+﻿@page "/productdetails/{productId:int}"
+@using FerrexWeb.Models
+@using FerrexWeb.Services
+@inject ProductStateService ProductStateService
+@inject ShoppingCartService CartService
+@inject ProductService ProductService
+@inject NotificationService NotificationService
+
+@if (producto == null)
+{
+    <p>No se seleccionó ningún producto.</p>
+}
+else
+{
+    <div class="product-detail-container">
+        <div class="product-image-container">
+            <img class="product-image" src="@producto.ImageUrl" alt="@producto.DescProducto" />
+        </div>
+
+        <div class="product-details">
+            <h4 class="product-title">@producto.DescProducto</h4>
+            <p class="product-price">Precio: @producto.Precio.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</p>
+
+            <!-- Selector para Types -->
+            <!-- Selector para Types -->
+            @if (AvailableTypes.Any())
+            {
+                <div class="selector">
+                    <label for="typeSelect">Tipo:</label>
+                    <select id="typeSelect" @bind="selectedType">
+                        @foreach (var type in GetAvailableTypesForSelectedSize())
+                        {
+                            <option value="@type">@type</option>
+                        }
+                    </select>
+                </div>
+            }
+
+
+            <!-- Selector para Size -->
+            @if (AvailableSizes.Any())
+            {
+                <div class="selector">
+                    <label for="sizeSelect">Tamaño:</label>
+                    <select id="sizeSelect" @bind="selectedSize">
+                        @foreach (var size in GetAvailableSizesForSelectedType())
+                        {
+                            <option value="@size">@size</option>
+                        }
+                    </select>
+                </div>
+            }
+
+            <!-- Controles de cantidad -->
+            <div class="product-quantity">
+                <label for="cantidad">Cantidad (@producto.Unit):</label>
+                <div class="quantity-control">
+                    <button type="button" class="btn-quantity" @onclick="DecrementarCantidad"><i class="fas fa-minus"></i></button>
+                    <input type="number" id="cantidad" @bind="cantidad" min="1" />
+                    <button type="button" class="btn-quantity" @onclick="IncrementarCantidad"><i class="fas fa-plus"></i></button>
+                </div>
+            </div>
+
+            <!-- Botón Agregar al carrito -->
+            <button class="btn btn-primary" @onclick="AgregarAlCarrito" disabled="@(!string.IsNullOrEmpty(errorMessage))">
+                Agregar al carrito
+            </button>
+
+            <!-- Mensaje de error -->
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <div class="error-message">@errorMessage</div>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public int productId { get; set; }
+
+    private Products producto = null;
+    private int cantidad = 1;
+
+    private List<Products> productsWithSameType = new List<Products>();
+    private List<string> AvailableTypes = new List<string>();
+    private List<string> AvailableSizes = new List<string>();
+
+    private string _selectedType = null;
+    public string selectedType
+    {
+        get => _selectedType;
+        set
+        {
+            if (_selectedType != value)
+            {
+                _selectedType = value;
+
+                // Actualizar Sizes disponibles
+                var sizes = GetAvailableSizesForSelectedType();
+                if (!sizes.Contains(selectedSize))
+                {
+                    selectedSize = sizes.FirstOrDefault();
+                }
+
+                OnTypeOrSizeChanged();
+            }
+        }
+    }
+
+    private string _selectedSize = null;
+    public string selectedSize
+    {
+        get => _selectedSize;
+        set
+        {
+            if (_selectedSize != value)
+            {
+                _selectedSize = value;
+
+                // Actualizar Types disponibles
+                var types = GetAvailableTypesForSelectedSize();
+                if (!types.Contains(selectedType))
+                {
+                    selectedType = types.FirstOrDefault();
+                }
+
+                OnTypeOrSizeChanged();
+            }
+        }
+    }
+
+    private string errorMessage = string.Empty;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        try
+        {
+            // Cargar el producto
+            producto = await ProductService.GetProductByIdAsync(productId);
+
+            if (producto == null)
+            {
+                Console.WriteLine($"Producto con ID {productId} no encontrado.");
+                return;
+            }
+
+            // Cargar productos con el mismo NewProductoType
+            productsWithSameType = await ProductService.GetProductsByNewProductoTypeAsync(producto.NewProductoType) ?? new List<Products>();
+
+            // Incluir "Sin tipo" para Types nulos o "N/A"
+            AvailableTypes = productsWithSameType
+                .Select(p => string.IsNullOrEmpty(p.Types) || p.Types == "N/A" ? "Sin tipo" : p.Types)
+                .Distinct()
+                .ToList();
+
+            AvailableSizes = productsWithSameType
+                .Where(p => !string.IsNullOrEmpty(p.Size) && p.Size != "N/A")
+                .Select(p => p.Size)
+                .Distinct()
+                .ToList();
+
+            // Inicializar selectedType y selectedSize
+            selectedType = (!string.IsNullOrEmpty(producto.Types) && producto.Types != "N/A") ? producto.Types : "Sin tipo";
+            selectedSize = (!string.IsNullOrEmpty(producto.Size) && producto.Size != "N/A") ? producto.Size : null;
+
+            // Si solo hay un Type disponible y selectedType es null, seleccionarlo
+            if (AvailableTypes.Count == 1 && selectedType == null)
+            {
+                selectedType = AvailableTypes.First();
+            }
+
+            // Solo seleccionar el Size automáticamente si selectedSize es null
+            if (AvailableSizes.Count == 1 && selectedSize == null)
+            {
+                selectedSize = AvailableSizes.First();
+            }
+
+            // Llamar a OnTypeOrSizeChanged para cargar el producto inicial correctamente
+            OnTypeOrSizeChanged();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al cargar el producto: {ex.Message}");
+            producto = null;
+        }
+    }
+
+
+    private void OnTypeOrSizeChanged()
+    {
+        if (productsWithSameType == null || !productsWithSameType.Any())
+        {
+            return;
+        }
+
+        var matchingProductsQuery = productsWithSameType.AsQueryable();
+
+        if (!string.IsNullOrEmpty(selectedType))
+        {
+            if (selectedType == "Sin tipo")
+            {
+                matchingProductsQuery = matchingProductsQuery.Where(p => string.IsNullOrEmpty(p.Types) || p.Types == "N/A");
+            }
+            else
+            {
+                matchingProductsQuery = matchingProductsQuery.Where(p => p.Types == selectedType);
+            }
+        }
+
+        if (!string.IsNullOrEmpty(selectedSize))
+        {
+            matchingProductsQuery = matchingProductsQuery.Where(p => p.Size == selectedSize);
+        }
+
+        var matchingProduct = matchingProductsQuery.FirstOrDefault();
+
+        if (matchingProduct != null)
+        {
+            producto = matchingProduct;
+            productId = producto.IdProducto;
+
+            // Actualizar la URL de la imagen
+            producto.ImageUrl = ProductService.GetProductImageUrl(producto.ImageUrl);
+
+            errorMessage = string.Empty; // Limpiar mensaje de error
+
+            StateHasChanged();
+        }
+        else
+        {
+            // Mostrar mensaje de error solo si hay selectores disponibles
+            if ((AvailableTypes.Any() && !string.IsNullOrEmpty(selectedType)) ||
+                (AvailableSizes.Any() && !string.IsNullOrEmpty(selectedSize)))
+            {
+                errorMessage = "La combinación seleccionada de tipo y tamaño no está disponible.";
+            }
+            else
+            {
+                errorMessage = string.Empty;
+            }
+
+            StateHasChanged();
+        }
+    }
+
+
+    private List<string> GetAvailableSizesForSelectedType()
+    {
+        if (string.IsNullOrEmpty(selectedType))
+        {
+            return AvailableSizes;
+        }
+
+        return productsWithSameType
+            .Where(p => (selectedType == "Sin tipo" ? string.IsNullOrEmpty(p.Types) || p.Types == "N/A" : p.Types == selectedType)
+                        && !string.IsNullOrEmpty(p.Size) && p.Size != "N/A")
+            .Select(p => p.Size)
+            .Distinct()
+            .ToList();
+    }
+
+
+    private List<string> GetAvailableTypesForSelectedSize()
+    {
+        if (string.IsNullOrEmpty(selectedSize))
+        {
+            return AvailableTypes;
+        }
+
+        return productsWithSameType
+            .Where(p => p.Size == selectedSize)
+            .Select(p => string.IsNullOrEmpty(p.Types) || p.Types == "N/A" ? "Sin tipo" : p.Types)
+            .Distinct()
+            .ToList();
+    }
+
+
+    private async Task AgregarAlCarrito()
+    {
+        if (producto != null)
+        {
+            await CartService.AddToCartAsync(producto, cantidad);
+            Console.WriteLine($"Producto agregado al carrito: {producto.DescProducto}, Cantidad: {cantidad}");
+
+            // Enviar notificación
+            NotificationService.Notify($"{producto.DescProducto} se ha agregado al carrito.");
+        }
+    }
+
+
+    private void IncrementarCantidad()
+    {
+        cantidad++;
+    }
+
+    private void DecrementarCantidad()
+    {
+        if (cantidad > 1)
+        {
+            cantidad--;
+        }
+    }
+}
+
+
+<style>
+    .product-detail-container {
+    display: flex;
+    flex-wrap: wrap;
+    max-width: 800px;
+    margin: 40px auto;
+    padding: 20px;
+    border: 1px solid #ccc;
+    border-radius: 10px;
+    box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+    background-color: white;
+}
+
+.product-image-container {
+    flex: 1 1 300px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.product-details {
+    flex: 1 1 300px;
+    margin-left: 20px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.product-image {
+    max-width: 100%;
+    height: auto;
+    border-radius: 10px;
+}
+
+.product-title {
+    font-size: 1.5em; /* Ajustado a unidades relativas */
+    font-weight: bold;
+    margin-bottom: 20px;
+}
+
+.product-price {
+    font-size: 1.25em;
+    color: #F5C144;
+    margin-bottom: 10px;
+}
+
+.selector {
+    margin-bottom: 15px;
+}
+
+.selector label {
+    display: block;
+    margin-bottom: 5px;
+}
+
+.selector select {
+    width: 100%;
+    padding: 8px;
+    font-size: 1em;
+}
+
+.product-quantity {
+    margin-bottom: 20px;
+}
+
+.quantity-control {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.btn-quantity {
+    width: 2.5em;
+    height: 2.5em;
+    background-color: #b4b6b8;
+    border: none;
+    border-radius: 50%;
+    color: #F5C144;
+    font-size: 1.5em;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-quantity:hover {
+    background-color: #000000;
+}
+
+.btn-quantity i {
+    color: #FFFFFF;
+}
+
+.quantity-control input[type="number"] {
+    width: 3em;
+    text-align: center;
+    margin: 0 5px;
+    -webkit-appearance: none;
+    -moz-appearance: textfield;
+    appearance: textfield;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    padding: 5px;
+    font-size: 1em;
+}
+
+.quantity-control input[type="number"]::-webkit-inner-spin-button,
+.quantity-control input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.btn-primary {
+    padding: 10px 20px;
+    background-color: #F5C144;
+    border: none;
+    color: white;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 1em;
+    transition: background-color 0.3s;
+}
+
+.btn-primary:hover {
+    background-color: #000000;
+}
+
+.error-message {
+    color: red;
+    margin-top: 10px;
+    font-weight: bold;
+}
+
+@@media (max-width: 768px) {
+    .product-detail-container {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .product-image-container,
+    .product-details {
+        margin: 0;
+    }
+
+    .product-details {
+        margin-top: 20px;
+        text-align: center;
+    }
+
+    .quantity-control {
+        justify-content: center;
+    }
+
+    .quantity-control input[type="number"] {
+        width: 2.5em;
+        margin: 0 5px;
+    }
+
+    .btn-quantity {
+        width: 2em;
+        height: 2em;
+        font-size: 1.2em;
+    }
+}
+
+</style>

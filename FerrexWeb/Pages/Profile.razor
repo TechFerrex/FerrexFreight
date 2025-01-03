@@ -1,0 +1,396 @@
+﻿@page "/profile"
+@using System.Security.Claims
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject Blazored.LocalStorage.ILocalStorageService LocalStorageService
+@inject NavigationManager NavigationManager
+@using FerrexWeb.Services
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.EntityFrameworkCore
+@inject ApplicationDbContext DbContext
+
+@attribute [Authorize]
+
+
+<div class="profile-container">
+    <div class="profile-card">
+        <div class="profile-left">
+            <img src="/images/profileImage.webp" alt="Foto de Perfil">
+            <h2>@Name</h2>
+        </div>
+        <div class="profile-right">
+            <div class="profile-info">
+                <p><span>Correo electrónico</span>@Email</p>
+                <p><span>Teléfono</span>@Phone</p>
+            </div>
+            <div class="profile-actions">
+                <button class="btn-edit" @onclick="ToggleEditProfile">Editar</button>
+                <button class="btn-change-pass" @onclick="ToggleChangePassword">Cambiar Contraseña</button>
+                <button class="btn-logout" @onclick="Logout">Cerrar Sesión</button>
+            </div>
+
+            @if (showEditProfile)
+            {
+                <div class="edit-section">
+                    <h3>Editar Perfil</h3>
+                    <form>
+                        <input type="text" @bind-value="editName" placeholder="Nombre" required />
+                        <input type="text" @bind-value="editPhone" placeholder="Teléfono" required />
+                        @if (!string.IsNullOrEmpty(profileUpdateError))
+                        {
+                            <p class="error-message">@profileUpdateError</p>
+                        }
+                        <div class="buttons">
+                            <button type="button" class="btn-cancel" @onclick="CancelEditProfile">Cancelar</button>
+                            <button type="button" class="btn-save" @onclick="UpdateProfile">Guardar</button>
+                        </div>
+                    </form>
+                </div>
+            }
+
+            @if (showChangePassword)
+            {
+                <div class="change-pass-section">
+                    <h3>Cambiar Contraseña</h3>
+                    <form>
+                        <input type="password" @bind-value="currentPassword" placeholder="Contraseña Actual" required />
+                        <input type="password" @bind-value="newPassword" placeholder="Nueva Contraseña" required minlength="8"
+                               pattern="^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^\w])[A-Za-z\d\S]{8,}$"
+                               title="La contraseña debe tener al menos 8 caracteres, incluyendo una mayúscula, un número y un carácter especial." />
+                        <input type="password" @bind-value="confirmNewPassword" placeholder="Confirmar Nueva Contraseña" required />
+                        @if (!string.IsNullOrEmpty(changePasswordError))
+                        {
+                            <p class="error-message">@changePasswordError</p>
+                        }
+                        <div class="buttons">
+                            <button type="button" class="btn-cancel" @onclick="CancelChangePassword">Cancelar</button>
+                            <button type="button" class="btn-save" @onclick="ChangePasswordAction">Cambiar</button>
+                        </div>
+                    </form>
+                </div>
+            }
+
+        </div>
+    </div>
+</div>
+
+
+@code {
+    private string Name { get; set; }
+    private string Email { get; set; }
+    private string Phone { get; set; }
+    private int userId;
+
+    private bool showEditProfile = false;
+    private string editName;
+    private string editPhone;
+    private string profileUpdateError;
+
+    private bool showChangePassword = false;
+    private string currentPassword;
+    private string newPassword;
+    private string confirmNewPassword;
+    private string changePasswordError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        var userIdClaim = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (int.TryParse(userIdClaim, out int id))
+        {
+            userId = id;
+            var dbUser = await DbContext.Users.FindAsync(userId);
+            if (dbUser != null)
+            {
+                Name = dbUser.Name;
+                Email = dbUser.Email;
+                Phone = dbUser.PhoneNumber;
+            }
+        }
+    }
+
+    private void ToggleEditProfile()
+    {
+        if (!showEditProfile)
+        {
+            editName = Name;
+            editPhone = Phone;
+            profileUpdateError = string.Empty;
+        }
+        showEditProfile = !showEditProfile;
+        showChangePassword = false; // Cierra el otro formulario si estuviera abierto
+    }
+
+    private void CancelEditProfile()
+    {
+        showEditProfile = false;
+    }
+
+    private async Task UpdateProfile()
+    {
+        var dbUser = await DbContext.Users.FindAsync(userId);
+        if (dbUser == null)
+        {
+            profileUpdateError = "Usuario no encontrado.";
+            return;
+        }
+
+        dbUser.Name = editName;
+        dbUser.PhoneNumber = editPhone;
+
+        try
+        {
+            await DbContext.SaveChangesAsync();
+            Name = dbUser.Name;
+            Phone = dbUser.PhoneNumber;
+            showEditProfile = false;
+        }
+        catch (Exception ex)
+        {
+            profileUpdateError = "Error al actualizar el perfil: " + ex.Message;
+        }
+    }
+
+    private void ToggleChangePassword()
+    {
+        if (!showChangePassword)
+        {
+            currentPassword = string.Empty;
+            newPassword = string.Empty;
+            confirmNewPassword = string.Empty;
+            changePasswordError = string.Empty;
+        }
+
+        showChangePassword = !showChangePassword;
+        showEditProfile = false; // Cierra el otro formulario si estuviera abierto
+    }
+
+    private void CancelChangePassword()
+    {
+        showChangePassword = false;
+    }
+
+    private async Task ChangePasswordAction()
+    {
+        if (newPassword != confirmNewPassword)
+        {
+            changePasswordError = "Las contraseñas no coinciden.";
+            return;
+        }
+
+        var dbUser = await DbContext.Users.FindAsync(userId);
+        if (dbUser == null)
+        {
+            changePasswordError = "Usuario no encontrado.";
+            return;
+        }
+
+        if (!BCrypt.Net.BCrypt.Verify(currentPassword, dbUser.Password))
+        {
+            changePasswordError = "La contraseña actual no es correcta.";
+            return;
+        }
+
+        var hashed = BCrypt.Net.BCrypt.HashPassword(newPassword);
+        dbUser.Password = hashed;
+        try
+        {
+            await DbContext.SaveChangesAsync();
+            showChangePassword = false;
+        }
+        catch (Exception ex)
+        {
+            changePasswordError = "Error al cambiar la contraseña: " + ex.Message;
+        }
+    }
+
+    private async Task Logout()
+    {
+        if (AuthenticationStateProvider is FerrexWeb.Services.CustomAuthenticationStateProvider customAuthStateProvider)
+        {
+            await customAuthStateProvider.SignOut();
+        }
+        NavigationManager.NavigateTo("/userinfo", true);
+    }
+}
+
+<style>
+    body {
+        margin: 0;
+        padding: 0;
+        font-family: sans-serif;
+        background: #f9f9fa;
+    }
+
+    .profile-container {
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+        min-height: 100vh;
+        padding-top: 50px;
+        box-sizing: border-box;
+    }
+
+    .profile-card {
+        display: flex;
+        flex-direction: row;
+        background: #fff;
+        border-radius: 15px;
+        overflow: hidden;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+        width: 600px;
+        max-width: 90%;
+        position: relative;
+        padding: 20px;
+        box-sizing: border-box;
+    }
+
+    .profile-left {
+        background: linear-gradient(to right, #F5C144, #f2b114);
+        width: 40%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        box-sizing: border-box;
+        color: #fff;
+        border-radius: 10px;
+    }
+
+        .profile-left img {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            border: 4px solid #fff;
+            object-fit: cover;
+        }
+
+        .profile-left h2 {
+            margin: 15px 0 5px;
+            font-size: 20px;
+            font-weight: bold;
+            text-align: center;
+        }
+
+    .profile-right {
+        width: 60%;
+        display: flex;
+        flex-direction: column;
+        padding: 20px;
+        box-sizing: border-box;
+        justify-content: flex-start;
+    }
+
+    .profile-info {
+        margin-bottom: 20px;
+    }
+
+        .profile-info p {
+            margin: 10px 0;
+            font-size: 16px;
+            color: #333;
+            text-align: left;
+        }
+
+            .profile-info p span {
+                font-weight: bold;
+                display: block;
+                margin-bottom: 3px;
+                color: #555;
+            }
+
+    .profile-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        width: 100%;
+    }
+
+        .profile-actions button {
+            cursor: pointer;
+            padding: 10px;
+            font-size: 14px;
+            border: none;
+            border-radius: 8px;
+            transition: background 0.3s;
+            font-weight: bold;
+            color: #fff;
+            text-align: center;
+        }
+
+    .btn-edit {
+        background: #F5C144;
+    }
+
+        .btn-edit:hover {
+            background: #000000;
+        }
+
+    .btn-change-pass {
+        background: #000000;
+    }
+
+        .btn-change-pass:hover {
+            background: #F5C144;
+        }
+
+    .btn-logout {
+        background: #F5C144;
+    }
+
+        .btn-logout:hover {
+            background: #000000;
+        }
+
+    .edit-section, .change-pass-section {
+        margin-top: 20px;
+        background: #f5f5f5;
+        padding: 15px;
+        border-radius: 8px;
+    }
+
+        .edit-section h3, .change-pass-section h3 {
+            margin-top: 0;
+        }
+
+        .edit-section form, .change-pass-section form {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .edit-section input, .change-pass-section input {
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+
+        .edit-section .buttons, .change-pass-section .buttons {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+            .edit-section .buttons button, .change-pass-section .buttons button {
+                padding: 8px 12px;
+                border: none;
+                border-radius: 5px;
+                cursor: pointer;
+            }
+
+    .btn-cancel {
+        background: #ccc;
+    }
+
+    .btn-save {
+        background: #F5C144;
+        color: #fff;
+    }
+
+    .error-message {
+        color: red;
+        font-size: 0.9em;
+    }
+
+</style>

@@ -1,0 +1,55 @@
+/* Estilos para la barra de navegación personalizada */
+.navbar-custom {
+    background-color: #000000;
+    color: #F5C144;
+}
+
+    .navbar-custom .navbar-brand {
+        color: #F5C144;
+        font-weight: bold;
+        font-size: 1.5rem;
+    }
+
+    .navbar-custom .nav-link {
+        color: #F5C144 !important;
+    }
+
+        .navbar-custom .nav-link:hover,
+        .navbar-custom .nav-link:focus,
+        .navbar-custom .nav-link:active {
+            color: #ffffff !important;
+        }
+
+    /* Estilos para el botón de expansión del menú (navbar-toggler) */
+    .navbar-custom .navbar-toggler {
+        border-color: #F5C144; /* Borde del botón */
+        padding: 0.25rem 0.75rem;
+        font-size: 1.25rem;
+        background-color: #000000; /* Fondo del botón */
+    }
+
+    .navbar-custom .navbar-toggler-icon {
+        background-image: none; /* Elimina cualquier imagen de fondo existente */
+        color: #F5C144; /* Color del icono */
+    }
+
+        .navbar-custom .navbar-toggler-icon::before {
+            content: "\2630"; /* Unicode para el icono de hamburguesa */
+            font-size: 1.5rem;
+            color: #F5C144;
+        }
+
+/* Asegurar visibilidad del botón en pantallas pequeñas */
+@media (max-width: 767.98px) {
+    .navbar-custom .navbar-toggler {
+        display: block;
+    }
+}
+
+/* Ajustes adicionales para evitar colores azules en los enlaces */
+.navbar-custom .nav-link,
+.navbar-custom .nav-link:link,
+.navbar-custom .nav-link:visited {
+    color: #F5C144 !important;
+    text-decoration: none;
+}

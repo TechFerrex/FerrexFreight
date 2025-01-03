@@ -1,0 +1,34 @@
+﻿@using Microsoft.AspNetCore.Components
+@using Microsoft.AspNetCore.Components.Routing
+
+
+
+<ErrorBoundary>
+    <ChildContent>
+<CascadingAuthenticationState>
+    <Router AppAssembly="@typeof(App).Assembly">
+        <Found Context="routeData">
+            <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)">
+                <NotAuthorized>
+                    <NoAuthorized />
+                </NotAuthorized>
+                <Authorizing>
+                    <div style="display:none;"></div> 
+                </Authorizing>
+            </AuthorizeRouteView>
+            <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+        </Found>
+        <NotFound>
+            <Error404 />
+        </NotFound>
+    </Router>
+</CascadingAuthenticationState>
+    </ChildContent>
+    <ErrorContent>
+        <!-- Aquí pones el fallback que aparecerá si un componente explota por excepción -->
+        <div class="alert alert-danger m-4">
+            <h4>¡Ups! Algo salió mal.</h4>
+            <p>Por favor, intente recargar la página o regresar al inicio.</p>
+        </div>
+    </ErrorContent>
+</ErrorBoundary>
