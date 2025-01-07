@@ -43,7 +43,6 @@ builder.Services.AddScoped<ImageService>();
 builder.Services.AddScoped<QuotationService>();
 builder.Services.AddTransient<SeekerService>();
 builder.Services.AddTransient<PdfService>();
-var testApiKey = builder.Configuration["SendGrid:ApiKey"];
 builder.Services.AddAntiforgery(options => options.HeaderName = "X-XSRF-TOKEN");
 
 builder.Services.AddResponseCompression(options =>

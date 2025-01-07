@@ -17,9 +17,6 @@
         <Footer />
     </main>
 </div>
-@* <a href="https://wa.me/50432024761?text=Hola%20FerrExpress" class="whatsapp" target="_blank">
-    <Icon Name="IconName.Whatsapp" Size="IconSize.x5" class="whatsapp-icon" />
-</a> *@
 <a href="https://wa.me/50432024761?text=Hola%20FerrExpress" class="whatsapp" target="_blank">
     <i class="fab fa-whatsapp"></i>
 </a>
@@ -55,19 +52,25 @@
 
     .whatsapp {
         position: fixed;
+        display: flex;
+        justify-content: center;
+        align-items: center;
         width: 60px;
         height: 60px;
         bottom: 80px;
         right: 40px;
         background-color: #25d366;
         color: #FFF;
-        border-radius: 50px;
-        text-align: center;
+        border-radius: 50%;
         font-size: 30px;
         z-index: 9999;
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Sombra para mejor visibilidad */
-        animation: pulsate 2s infinite; /* Aplicar la animación de pulsación */
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        animation: pulsate 2s infinite;
+        /* Quitar el subrayado */
+        text-decoration: none;
     }
+
+
 
     .whatsapp-icon {
         margin-top: 13px;

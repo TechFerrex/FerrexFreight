@@ -1,0 +1,7 @@
+﻿# security.txt
+Contact: mailto:techferrexpress@outlook.com
+Encryption: https://ferrexpresshn.com/pgpey.txt
+Acknowledgments: https://ferrespresshn.com/acknowledgments.html
+Policy: https://ferrexpresshn.com/privacy
+Preferred-Languages: en, es
+Expires: 2025-01-01T00:00:00Z

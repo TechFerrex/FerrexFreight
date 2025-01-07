@@ -26,10 +26,8 @@ namespace FerrexWeb.Services
 
         public override async Task<AuthenticationState> GetAuthenticationStateAsync()
         {
-            // Verificar si JS interop está disponible
             if (_localStorage == null)
             {
-                // Durante el prerenderizado, retornar estado anónimo
                 return Anonymous;
             }
 

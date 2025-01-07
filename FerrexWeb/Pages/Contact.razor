@@ -1,13 +1,18 @@
 ﻿@page "/contact"
 @using System.ComponentModel.DataAnnotations
-@using SendGrid
-@using SendGrid.Helpers.Mail
+@using System.Net.Mail
+@using System.Net
 @using Microsoft.Extensions.Configuration
 @inject IConfiguration Configuration
 
 @code {
     private ContactFormModel formModel = new();
     private bool isSubmitted = false;
+
+    private readonly string SmtpServer = "smtp-relay.brevo.com";
+    private readonly int SmtpPort = 587;
+    private readonly string SmtpUser = "830f59001@smtp-brevo.com"; // usuario
+    private readonly string SmtpPass = "9wVEyZBc4CFzpSRO";         // clave
 
     private async Task HandleValidSubmit()
     {
@@ -17,39 +22,44 @@
 
     private async Task SendEmail()
     {
-        var apiKey = Configuration["SendGrid:ApiKey"];
+        try
+        {
+            var fromEmail = "techferrexpress@outlook.com";  
+            var fromName = "Ferrexpress Contact Form";
+            var toEmail = "ferrexpresshn@gmail.com";       // Destinatario
+            var toName = "Ferrexpress";
 
-        // Crea el cliente de SendGrid
-        var client = new SendGridClient(apiKey);
+            var subject = $"[Contacto] {formModel.Subject}";
 
-        // Configura el correo
-        // El "from" será la dirección de la empresa, puedes cambiarlo si gustas.
-        var from = new EmailAddress("techferrexpress@outlook.com", "Ferrexpress Contact Form");
+            var plainTextContent = $"Nombre: {formModel.Name}\n" +
+                                   $"Email: {formModel.Email}\n" +
+                                   $"Mensaje:\n{formModel.Message}";
 
-        // El "to" será tu correo, donde quieres recibir los mensajes.
-        var to = new EmailAddress("ferrexpresshn@gmail.com", "Ferrexpress");
+            var htmlContent = $"<p><strong>Nombre:</strong> {formModel.Name}</p>" +
+                              $"<p><strong>Email:</strong> {formModel.Email}</p>" +
+                              $"<p><strong>Mensaje:</strong></p><p>{formModel.Message}</p>";
 
-        var subject = $"[Contacto] {formModel.Subject}";
-
-        // Contenido en texto plano y HTML
-        var plainTextContent = $"Nombre: {formModel.Name}\n" +
-                               $"Email: {formModel.Email}\n" +
-                               $"Mensaje:\n{formModel.Message}";
-
-        var htmlContent = $"<p><strong>Nombre:</strong> {formModel.Name}</p>" +
-                          $"<p><strong>Email:</strong> {formModel.Email}</p>" +
-                          $"<p><strong>Mensaje:</strong></p><p>{formModel.Message}</p>";
-
-        var msg = MailHelper.CreateSingleEmail(from, to, subject, plainTextContent, htmlContent);
-
-        // Envía el correo
-        var response = await client.SendEmailAsync(msg);
-
-        // Opcional: puedes imprimir el estado de la respuesta en la consola para debugging
-        Console.WriteLine($"Status Code: {response.StatusCode}");
-        var responseBody = await response.Body.ReadAsStringAsync();
-        Console.WriteLine("Response Body:");
-        Console.WriteLine(responseBody);
+            using var mailMessage = new MailMessage()
+                {
+                    From = new MailAddress(fromEmail, fromName),
+                    Subject = subject,
+                    Body = htmlContent,
+                    IsBodyHtml = true
+                };
+            mailMessage.To.Add(new MailAddress(toEmail, toName));
+            
+            using var smtpClient = new SmtpClient(SmtpServer, SmtpPort)
+                {
+                    Credentials = new NetworkCredential(SmtpUser, SmtpPass),
+                    EnableSsl = true
+                };
+            await smtpClient.SendMailAsync(mailMessage);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al enviar correo: {ex.Message}");
+            throw;
+        }
     }
 
     public class ContactFormModel
@@ -68,7 +78,6 @@
         public string Message { get; set; }
     }
 }
-
 
 <div class="container my-5 blury-content">
     <h1 class="display-4 text-center mb-4">Contáctanos</h1>
@@ -161,14 +170,13 @@
 
     /* Fondo borroso para el contenido */
     .blury-content {
-        background: rgba(255, 255, 255, 0.5); /* Fondo semi-transparente */
-        backdrop-filter: blur(10px); /* Efecto de desenfoque */
+        background: rgba(255, 255, 255, 0.5);
+        backdrop-filter: blur(10px);
         padding: 30px;
         border-radius: 10px;
         box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
     }
 
-    /* Estilos del formulario y demás elementos */
     .contact-info li {
         margin-bottom: 15px;
         font-size: 18px;
