@@ -39,7 +39,7 @@
         set
         {
             _searchTerm = value;
-            cts.Cancel();                  // Cancela la búsqueda anterior
+            cts.Cancel();             
             cts = new CancellationTokenSource();
             _ = BuscarProductosAsync(cts.Token);
         }
@@ -71,26 +71,22 @@
 }
 
 <style>
-    /* Aseguramos que todo use border-box a nivel general (opcional). */
     * {
         box-sizing: border-box;
     }
-
-    /* CONTENEDOR PRINCIPAL */
     .buscador-flotante {
         position: relative;
-        max-width: 400px; /* Ajusta el ancho a tu gusto */
-        margin: 1rem auto; /* Centrado opcional */
+        max-width: 400px; 
+        margin: 1rem auto; 
     }
 
-    /* BARRA DE BÚSQUEDA (input + botón) */
     .search-floating-bar {
         display: flex;
         align-items: center;
         background-color: #fff;
-        border-radius: 40px; /* Borde grande y redondeado */
+        border-radius: 40px;
         box-shadow: 0 4px 10px rgba(0,0,0,0.15);
-        overflow: hidden; /* Recorta esquinas internas */
+        overflow: hidden; 
     }
 
     /* INPUT */
@@ -143,7 +139,6 @@
         /* ↑ e.g. 1rem a la derecha, 0.75rem en otras direcciones */
     }
 
-    /* ÍTEMS DE RESULTADOS */
     .search-floating-item {
         padding: 0.5rem;
         cursor: pointer;
@@ -157,11 +152,6 @@
             color: #fff;
         }
 
-    /*
-       OPCIONAL: Estilizar scrollbar en navegadores WebKit
-       (Chrome, Safari, etc.). Reducir ancho para que se vea
-       más delgado y no “rompa” el borde redondeado.
-    */
     .search-floating-results::-webkit-scrollbar {
         width: 8px; /* ancho del scroll */
     }
@@ -174,7 +164,6 @@
         background-color: #ccc;
         border-radius: 20px;
     }
-
         .search-floating-results::-webkit-scrollbar-thumb:hover {
             background-color: #aaa;
         }

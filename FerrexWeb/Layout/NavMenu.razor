@@ -29,7 +29,6 @@
                         <img class="service-icon" src="iconos/iconoservicio.svg" alt="Servicio" title="Servicio" style="width: 26px; height: 26px;">
                     </NavLink>
                 </li>
-
                 <!-- Mis Cotizaciones -->
                 <li class="nav-item mx-2">
                     <NavLink class="nav-link" href="quotations">
@@ -247,11 +246,20 @@ filter: brightness(0) saturate(100%) invert(6%) sepia(1%) saturate(4221%) hue-ro
 }
 
 .top-navbar .container-fluid {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-}
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: nowrap; /* Evita que en móvil se haga “wrap” */
+        }
 
+    .search-container {
+        flex: 1; /* Que el buscador ocupe el espacio disponible */
+        max-width: 300px; /* Ajusta el máximo ancho para que no empuje los íconos */
+    }
+
+    .right-icons {
+        flex-shrink: 0; /* Evita que se encojan o se vayan abajo */
+    }
 /* Íconos Centrales en la Barra Superior */
     .central-icons {
         justify-content: center; /* Centra los elementos en el contenedor .central-icons */

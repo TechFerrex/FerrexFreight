@@ -4,10 +4,9 @@
 @inject CategoryService CategoryService
 @inject ProductService ProductService
 @inject ApplicationDbContext DbContext
-
-<!--   <PageTitle>Bienvenido a Ferrexpress</PageTitle>--><!-- En vez de renderizar el banner inmediatamente,usamos la variable mostrarBanner para decidir cuándo mostrarlo. -->
+<!--   <PageTitle>Bienvenido a Ferrexpress</PageTitle>-->
 <div class="banner-container">
-    @if (!mostrarBanner)  // <-- NUEVO
+    @if (!mostrarBanner)  
     {
         <p style="text-align:center; margin-top:2rem;">Cargando banner...</p>
     }
@@ -27,7 +26,6 @@
              decoding="async" />
     }
 </div>
-
 <div class="container mt-5">
     <div class="jumbotron text-center">
         <p class="lead">Ofrecemos los mejores productos para ti. Explora nuestras categorías y encuentra lo que necesitas.</p>
@@ -78,7 +76,6 @@
             }
         }
     </div>
-
     <h2 class="mt-5">Productos Destacados</h2>
     <div class="row">
         @if (featuredProducts == null)
@@ -127,42 +124,29 @@
     private List<Categories> categories;
     private List<Products> featuredProducts;
     private bool isConnected;
-
-    // Lista de rutas de las imágenes del banner
     private List<string> ImagePaths = new List<string>
     {
         "/images/banner1.webp",
         "/images/banner2.webp",
         "/images/banner3.webp"
     };
-
-    // Indice para saber qué imagen está activa
     private int currentIndex = 0;
     private string CurrentImage => ImagePaths[currentIndex];
     private string PreviousImage;
     private bool IsFading = false;
-
-    // Timer que rota las imágenes
     private System.Timers.Timer timer;
 
-    // --- NUEVO: propiedad y timer para retrasar la aparición del banner
-    private bool mostrarBanner = false;              // <-- NUEVO
-    private System.Timers.Timer _delayTimer;         // <-- NUEVO
+    private bool mostrarBanner = false;              
+    private System.Timers.Timer _delayTimer;         
 
-    // ===================================================================================
-    // CARGA DE CATEGORÍAS Y PRODUCTOS
-    // ===================================================================================
     protected override async Task OnInitializedAsync()
     {
         try
         {
-            // Verificar si se puede conectar a la base de datos
             isConnected = await DbContext.Database.CanConnectAsync();
             if (isConnected)
             {
-                // Obtener 3 categorías aleatorias
                 categories = await CategoryService.GetRandomCategoriesAsync(3);
-                // Obtener 3 productos aleatorios
                 featuredProducts = await ProductService.GetRandomProductsAsync(3);
             }
             else
@@ -170,7 +154,6 @@
                 Console.WriteLine("No se pudo conectar a la base de datos. Intentando obtener más detalles...");
                 try
                 {
-                    // Intentar forzar una excepción si la base de datos no está accesible
                     categories = await CategoryService.GetRandomCategoriesAsync(3);
                 }
                 catch (Exception ex)
@@ -349,7 +332,6 @@
         margin-top: auto;
     }
 
-    /* Spinner personalizado */
     .spinner {
         display: inline-block;
         width: 3rem;
@@ -377,7 +359,6 @@
         border: 0;
     }
 
-    /* Estilos de la tarjeta */
     .card {
         background-color: #fff;
         border: none;
@@ -453,7 +434,6 @@
             color: #565656;
         }
 
-    /* Botón personalizado */
     .custom-btn {
         background-color: #F5C144;
         color: #000000;
