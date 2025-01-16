@@ -9,7 +9,7 @@
 
 <div class="container my-5">
     <h1 class="text-center mb-4">Panel de Administración</h1>
-    <p class="text-center">Bienvenido, Super Administrador. Aquí puedes gestionar todas las cotizaciones, órdenes y usuarios.</p>
+    <p class="text-center">Aquí puedes gestionar todas las cotizaciones, órdenes y usuarios.</p>
 
     @if (mostrarBotonAdmin)
     {
@@ -44,6 +44,16 @@
                         </div>
                     </div>
                 </div>
+                <div class="col-md-4 mb-3">
+                    <div class="card h-100 shadow-sm">
+                        <div class="card-body">
+                            <i class="fas fa-upload fa-3x mb-3"></i>
+                            <h5 class="card-title">Actualizar Productos</h5>
+                            <p class="card-text">Actualizar Productos</p>
+                        <button class="btn btn-primary" @onclick="IrAUpdateProduct">Actualizar</button>
+                        </div>
+                    </div>
+                </div>
             </div>
     }
 </div>
@@ -75,5 +85,9 @@
     private void IrAUsuarios()
     {
         NavigationManager.NavigateTo("/usersmanagement");
+    }
+    private void IrAUpdateProduct()
+    {
+        NavigationManager.NavigateTo("/updateproduct");
     }
 }

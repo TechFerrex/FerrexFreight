@@ -40,6 +40,7 @@ builder.Services.AddScoped<ProductService>();
 builder.Services.AddScoped<NotificationService>();
 builder.Services.AddScoped<OrderService>();
 builder.Services.AddScoped<ImageService>();
+builder.Services.AddScoped<ProductSyncService>();
 builder.Services.AddScoped<QuotationService>();
 builder.Services.AddTransient<SeekerService>();
 builder.Services.AddTransient<PdfService>();

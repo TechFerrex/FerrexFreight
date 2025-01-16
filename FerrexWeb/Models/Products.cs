@@ -14,7 +14,8 @@ namespace FerrexWeb.Models
         public string Codigo { get; set; }
 
         [Column("Product")]
-        public string DescProducto { get; set; } // Mapeado a la columna 'Product'
+        public string DescProducto { get; set; } 
+
         [Column("NewProductoType")]
         public string? NewProductoType { get; set; }
 
@@ -28,7 +29,7 @@ namespace FerrexWeb.Models
         public decimal Precio { get; set; }
 
         [Column("CategoriaID")]
-        public int CategoriaID { get; set; } // Mapeado a la columna 'CategoriaID'
+        public int CategoriaID { get; set; } // Mapeado a la columna 'CategoriaIDzzzzzzzzzzzzzzzzzzzzzzzzzzz'
 
         [Column("Unit")]
         public string Unit { get; set; }

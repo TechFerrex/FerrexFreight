@@ -14,23 +14,55 @@
 @inject AuthenticationStateProvider AuthenticationStateProvider
 
 <div class="main">
+    @if (showPolicyDialog)
+    {
+        <div class="modal-overlay">
+            <div class="modal-box">
+                <h3>Política de Privacidad</h3>
+                <p>
+                    Aquí va el texto completo de tu política o un resumen. <br />
+                    El usuario debe leer y aceptar.
+                </p>
+                <div style="text-align: right;">
+                    <button class="user-button" @onclick="AcceptPolicy"
+                            style="display:inline-block; width:auto; margin-right:10px;">
+                        Aceptar
+                    </button>
+                    <button class="user-button" @onclick="DeclinePolicy"
+                            style="display:inline-block; width:auto; background-color:red;">
+                        Cancelar
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+
     <input type="checkbox" id="chk" aria-hidden="true" class="user-input">
     <div class="signup">
-        <form @onsubmit="HandleRegister">
+        <form @onsubmit:preventDefault="true">
             <label for="chk" aria-hidden="true">Registrarse</label>
+
+            @if (!string.IsNullOrEmpty(registerMessage))
+            {
+                <p style="color: red;">@registerMessage</p>
+            }
+
             <input type="text" class="user-input" name="name" placeholder="Tu Nombre" @bind="registerModel.Name" required>
             <input type="email" class="user-input" name="email" placeholder="Correo" @bind="registerModel.Email" required>
             <input type="text" class="user-input" name="phoneNumber" placeholder="Número de Teléfono" @bind="registerModel.PhoneNumber" required>
-            <input type="password" class="user-input" name="password" placeholder="Contraseña" @bind="registerModel.Password" required minlength="8"
+            <input type="password" class="user-input" name="password" placeholder="Contraseña" @bind="registerModel.Password" required
+                   minlength="8"
                    pattern="^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^\w])[A-Za-z\d\S]{8,}$"
                    title="La contraseña debe tener al menos 8 caracteres, incluyendo una mayúscula, un número y un carácter especial." />
-            <button class="user-button" type="submit">Registrarse</button>
+
+            <!-- NOTA: type="button" en lugar de "submit" -->
+            <button class="user-button" type="button" @onclick="OnRegisterClick">
+                Registrarse
+            </button>
         </form>
-        @if (registerFailed)
-        {
-            <p style="color: red;">El registro falló. El correo electrónico puede estar en uso.</p>
-        }
     </div>
+
+
     <div class="login">
         <form @onsubmit="HandleLogin">
             <label style="padding-top: 50px" for="chk" aria-hidden="true">Inicio de Sesion</label>
@@ -50,6 +82,10 @@
     private RegisterModel registerModel = new RegisterModel();
     private bool loginFailed;
     private bool registerFailed;
+
+    private string registerMessage;
+    private bool showPolicyDialog = false;
+
 
     private static Dictionary<string, int> loginAttempts = new Dictionary<string, int>();
     private static Dictionary<string, DateTime> lockouts = new Dictionary<string, DateTime>();
@@ -81,7 +117,7 @@
                 new Claim(ClaimTypes.Name, user.Name),
                 new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
                 new Claim(ClaimTypes.Email, user.Email),
-                new Claim(ClaimTypes.MobilePhone, user.PhoneNumber ?? ""), // Si se quiere agregar el teléfono a los claims
+                new Claim(ClaimTypes.MobilePhone, user.PhoneNumber ?? ""),
                 new Claim(ClaimTypes.Role, user.Role)
             };
 
@@ -109,11 +145,41 @@
         }
     }
 
+    private void OnRegisterClick()
+    {
+        // Antes de procesar el registro, mostramos la política
+        // de modo que el usuario decida si la acepta o no.
+        showPolicyDialog = true;
+    }
+
+    // Este método se llama si el usuario ACEPTA las políticas
+    private async Task AcceptPolicy()
+    {
+        registerModel.PolicyAccepted = true;
+
+        showPolicyDialog = false;
+
+        await HandleRegister();
+    }
+
+    private void DeclinePolicy()
+    {
+        registerModel.PolicyAccepted = false;
+        showPolicyDialog = false;
+    }
+
+
     private async Task HandleRegister()
     {
-        if (string.IsNullOrEmpty(registerModel.Name) || string.IsNullOrEmpty(registerModel.Email) || string.IsNullOrEmpty(registerModel.Password))
+        registerFailed = false;
+        registerMessage = string.Empty;
+
+        if (string.IsNullOrEmpty(registerModel.Name) ||
+            string.IsNullOrEmpty(registerModel.Email) ||
+            string.IsNullOrEmpty(registerModel.Password))
         {
             registerFailed = true;
+            registerMessage = "Por favor, rellena todos los campos.";
             return;
         }
 
@@ -123,41 +189,42 @@
         if (existingUser != null)
         {
             registerFailed = true;
+            registerMessage = "El correo electrónico ya está en uso.";
+            return;
         }
-        else
-        {
-            var hashedPassword = BCrypt.Net.BCrypt.HashPassword(registerModel.Password);
 
-            var newUser = new User
-                {
-                    Name = registerModel.Name,
-                    Email = registerModel.Email,
-                    PhoneNumber = registerModel.PhoneNumber,
-                    Password = hashedPassword,
-                    CreateTime = DateTime.Now,
-                    Role = "User"
-                };
+        var hashedPassword = BCrypt.Net.BCrypt.HashPassword(registerModel.Password);
 
-            DbContext.Users.Add(newUser);
-            await DbContext.SaveChangesAsync();
-
-            var claims = new List<Claim>
+        var newUser = new User
             {
-                new Claim(ClaimTypes.Name, newUser.Name),
-                new Claim(ClaimTypes.NameIdentifier, newUser.Id.ToString()),
-                new Claim(ClaimTypes.Email, newUser.Email),
-                new Claim(ClaimTypes.MobilePhone, newUser.PhoneNumber ?? ""),
-                new Claim(ClaimTypes.Role, newUser.Role)
+                Name = registerModel.Name,
+                Email = registerModel.Email,
+                PhoneNumber = registerModel.PhoneNumber,
+                Password = hashedPassword,
+                CreateTime = DateTime.Now,
+                Role = "User",
+                PolicyUser = registerModel.PolicyAccepted // Se guarda en la BD
             };
 
-            var authToken = SerializeClaims(claims);
-            if (AuthenticationStateProvider is CustomAuthenticationStateProvider customAuthStateProvider)
-            {
-                await customAuthStateProvider.SignIn(authToken);
-            }
+        DbContext.Users.Add(newUser);
+        await DbContext.SaveChangesAsync();
 
-            NavigationManager.NavigateTo("/");
+        var claims = new List<Claim>
+        {
+            new Claim(ClaimTypes.Name, newUser.Name),
+            new Claim(ClaimTypes.NameIdentifier, newUser.Id.ToString()),
+            new Claim(ClaimTypes.Email, newUser.Email),
+            new Claim(ClaimTypes.MobilePhone, newUser.PhoneNumber ?? ""),
+            new Claim(ClaimTypes.Role, newUser.Role)
+        };
+
+        var authToken = SerializeClaims(claims);
+        if (AuthenticationStateProvider is CustomAuthenticationStateProvider customAuthStateProvider)
+        {
+            await customAuthStateProvider.SignIn(authToken);
         }
+
+        NavigationManager.NavigateTo("/");
     }
 
     private string SerializeClaims(List<Claim> claims)
@@ -175,7 +242,6 @@
 
         return new JwtSecurityTokenHandler().WriteToken(token);
     }
-
     public class LoginModel
     {
         public string Email { get; set; }
@@ -188,9 +254,10 @@
         public string Email { get; set; }
         public string PhoneNumber { get; set; }
         public string Password { get; set; }
+        public bool PolicyAccepted { get; set; }  
+
     }
 }
-
 
 <style>
     body {
@@ -231,6 +298,27 @@
         font-weight: bold;
         cursor: pointer;
         transition: .5s ease-in-out;
+    }
+
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0,0,0,0.5); /* semitransparente */
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 9999; /* para que quede por encima de todo */
+    }
+
+    .modal-box {
+        background-color: white;
+        padding: 20px;
+        border-radius: 8px;
+        width: 500px;
+        max-width: 90%; /* Para que en pantallas pequeñas se ajuste */
     }
 
 

@@ -1,0 +1,42 @@
+﻿@page "/updateproduct"
+@using FerrexWeb.Services
+@inject ProductSyncService ProductSyncService
+
+<div class="container my-5">
+    <h3 class="mb-4">Sincronizar Productos</h3>
+
+    <button class="btn btn-primary" @onclick="OnSyncClick" disabled="@isSyncing">
+        @if (isSyncing)
+        {
+            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            <span class="ms-2">Sincronizando...</span>
+        }
+        else
+        {
+            <span>Sincronizar</span>
+        }
+    </button>
+
+    @if (isCompleted)
+    {
+        <div class="alert alert-success mt-3">
+            ¡La actualización de precios ha finalizado con éxito!
+        </div>
+    }
+</div>
+
+@code {
+    private bool isSyncing = false;
+    private bool isCompleted = false;
+
+    private async Task OnSyncClick()
+    {
+        isSyncing = true;
+        isCompleted = false;
+
+        await ProductSyncService.UpdatePricesByCodigoAsync();
+
+        isSyncing = false;
+        isCompleted = true;
+    }
+}
