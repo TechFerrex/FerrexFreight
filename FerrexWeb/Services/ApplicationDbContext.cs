@@ -15,6 +15,7 @@ namespace FerrexWeb.Services
         public DbSet<ProductVariant> ProductVariants { get; set; }
         public DbSet<Order> Order { get; set; }
         public DbSet<OrderDetail> OrderDetail { get; set; }
+        public DbSet<Visitor> Visitor { get; set; }
 
 
         public bool CanConnect()
