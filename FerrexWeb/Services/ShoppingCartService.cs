@@ -33,17 +33,50 @@ namespace FerrexWeb.Services
                 NotifyStateChanged();
             }
         }
-        public async Task AddToCartAsync(Products product, int quantity)
+        public async Task AddToCartAsync(
+           Products product, int quantity, decimal? aluzincLargo = null, string? aluzincCalibre = null, string? aluzincMilimetro = null, string? aluzincColor = null)
         {
-            var cartItem = Items.Find(item => item.Product.IdProducto == product.IdProducto);
+            // 1) Verificar si ya existe el ítem en el carrito
+            var cartItem = Items.FirstOrDefault(item =>
+                item.Product.IdProducto == product.IdProducto
+                // Si quieres además discriminar por calibre, color, etc., agréga más condiciones:
+                && item.AluzincCalibre == aluzincCalibre
+                && item.AluzincMilimetro == aluzincMilimetro
+                && item.AluzincColor == aluzincColor
+                && item.AluzincLargo == aluzincLargo
+            );
+
+            // 2) Si existe, solo sumamos la cantidad
             if (cartItem != null)
             {
                 cartItem.Quantity += quantity;
+                if (cartItem.AluzincLargo.HasValue)
+                {
+                    // Recalcular total de pies
+                    cartItem.TotalPiesAluzinc = cartItem.AluzincLargo.Value * cartItem.Quantity;
+                }
             }
             else
             {
-                Items.Add(new CartItem { Product = product, Quantity = quantity });
+                // 3) Crear un nuevo CartItem con campos extra
+                var newItem = new CartItem
+                {
+                    Product = product,
+                    Quantity = quantity,
+                    AluzincLargo = aluzincLargo,
+                    AluzincCalibre = aluzincCalibre,
+                    AluzincMilimetro = aluzincMilimetro,
+                    AluzincColor = aluzincColor
+                };
+
+                // Calcular total de pies si aplica
+                if (aluzincLargo.HasValue)
+                    newItem.TotalPiesAluzinc = aluzincLargo.Value * quantity;
+
+                Items.Add(newItem);
             }
+
+            // Guardar en Local Storage
             await SaveCartAsync();
             NotifyStateChanged();
         }

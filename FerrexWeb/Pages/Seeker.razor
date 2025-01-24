@@ -5,12 +5,16 @@
 
 <div class="buscador-flotante">
     <div class="search-floating-bar">
+        <!-- Notar que quitamos el @bind y usamos @oninput para manejarlo manualmente -->
         <input type="text"
-               @bind="searchTerm"
-               @bind:event="oninput"
+               value="@searchTerm"
+               @oninput="OnSearchTermInput"
                placeholder="Buscar..."
                class="floating-search-input" />
-        <button class="floating-search-button" @onclick="() => BuscarProductosAsync(cts.Token)">
+
+        <!-- El botón de búsqueda llama a la misma función de Buscar,
+             para quien guste dar clic en lugar de solo teclear -->
+        <button class="floating-search-button" @onclick="BuscarProductosClick">
             <i class="fas fa-search"></i>
         </button>
     </div>
@@ -30,45 +34,78 @@
 
 @code {
     private List<Products> productos = new();
-    private CancellationTokenSource cts = new();
+    private string searchTerm = string.Empty;
 
-    private string _searchTerm = string.Empty;
-    private string searchTerm
+    // Timer para “debounce”; con System.Timers
+    private System.Timers.Timer debounceTimer;
+    private const int debounceInterval = 300; // milisegundos de espera
+
+    // Cada vez que el usuario escribe en el input:
+    private void OnSearchTermInput(ChangeEventArgs e)
     {
-        get => _searchTerm;
-        set
+        searchTerm = e.Value?.ToString() ?? "";
+
+        // Si ya había un timer corriendo, lo detenemos y desechamos
+        debounceTimer?.Stop();
+        debounceTimer?.Dispose();
+
+        // Si el usuario borró todo, limpiamos resultados de una vez
+        if (string.IsNullOrWhiteSpace(searchTerm))
         {
-            _searchTerm = value;
-            cts.Cancel();             
-            cts = new CancellationTokenSource();
-            _ = BuscarProductosAsync(cts.Token);
+            productos.Clear();
+            StateHasChanged();
+            return;
         }
+
+        // Creamos un nuevo timer “debouncer”
+        debounceTimer = new System.Timers.Timer(debounceInterval);
+        debounceTimer.AutoReset = false; // Solo salta una vez
+        debounceTimer.Elapsed += async (s, args) =>
+        {
+            // Cuando pasan los 300ms sin que el usuario teclee, buscamos
+            debounceTimer.Dispose(); // ya no se usa
+            await InvokeAsync(() => BuscarProductosAsync());
+        };
+        debounceTimer.Start();
     }
 
-    private async Task BuscarProductosAsync(CancellationToken token)
+    // Si el usuario da clic en el botón de buscar
+    private async Task BuscarProductosClick()
+    {
+        // Cancelamos el debounce y vamos directo a buscar
+        debounceTimer?.Stop();
+        debounceTimer?.Dispose();
+        await BuscarProductosAsync();
+    }
+
+    // Llamada principal al servicio
+    private async Task BuscarProductosAsync()
     {
         if (!string.IsNullOrWhiteSpace(searchTerm))
         {
+            // Buscamos contra la BD
             var resultados = await SeekerService.GetProductosAsync(searchTerm);
-            if (!token.IsCancellationRequested)
-            {
-                productos = resultados;
-                StateHasChanged();
-            }
+            productos = resultados;
         }
         else
         {
             productos.Clear();
-            StateHasChanged();
         }
+        StateHasChanged();
     }
 
     private void SeleccionarProducto(Products product)
     {
+        // Navegamos al detalle pasando el ID correcto
         NavigationManager.NavigateTo($"/productdetails/{product.IdProducto}");
+
+        // Limpiamos lista y cuadro de búsqueda para que desaparezca el dropdown
+        searchTerm = string.Empty;
         productos.Clear();
     }
 }
+
+
 
 <style>
     * {

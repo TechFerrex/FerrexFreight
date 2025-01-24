@@ -59,15 +59,13 @@ if (!app.Environment.IsDevelopment())
     app.UseExceptionHandler("/Error");
     app.UseHsts();
 }
-
-app.UseResponseCompression();
 app.UseHttpsRedirection();
 app.UseStaticFiles();
-app.UseSession();
 app.UseRouting();
+app.UseSession();
 app.UseAuthentication();
 app.UseAuthorization();
-
+app.UseResponseCompression();
 app.Use(async (context, next) =>
 {
     context.Response.Headers.Add("X-Content-Type-Options", "nosniff");
@@ -75,8 +73,6 @@ app.Use(async (context, next) =>
     context.Response.Headers.Add("X-XSS-Protection", "1; mode=block");
     await next();
 });
-
 app.MapBlazorHub();
 app.MapFallbackToPage("/_Host");
-
 app.Run();  

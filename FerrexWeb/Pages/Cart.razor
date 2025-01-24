@@ -55,21 +55,85 @@
                             }
                             @foreach (var item in CartService.Items)
                             {
-                                var subtotalProducto = item.Product.Precio * item.Quantity;
-                                var isvProducto = subtotalProducto * 0.15m;
-                                var totalProducto = subtotalProducto + isvProducto;
-                                var rowClass = rowIndex % 2 == 0 ? "row-gray" : "row-white"; // Alterna las clases
-                                rowIndex++;
-                                <tr class="@rowClass">
+                                // Cálculo para lamina aluzinc
+                                bool isAluzinc = item.Product.NewProductoType?.Contains("Aluzinc", StringComparison.OrdinalIgnoreCase) == true;
+
+                                decimal subtotalProducto;
+                                decimal isvProducto;
+                                decimal totalProducto;
+
+                                if (isAluzinc && item.TotalPiesAluzinc.HasValue)
+                                {
+                                    // Ejemplo: precio por pie
+                                    subtotalProducto = item.Product.Precio * item.TotalPiesAluzinc.Value;
+                                    isvProducto = subtotalProducto * 0.15m;
+                                    totalProducto = subtotalProducto + isvProducto;
+                                }
+                                else
+                                {
+                                    // Caso normal (producto no aluzinc)
+                                    subtotalProducto = item.Product.Precio * item.Quantity;
+                                    isvProducto = subtotalProducto * 0.15m;
+                                    totalProducto = subtotalProducto + isvProducto;
+                                }
+
+                                <tr>
                                     <td>@item.Product.DescProducto</td>
-                                    <td>
-                                        <input type="number" class="form-control quantity-input" value="@item.Quantity" min="1" @onchange="(e) => UpdateQuantity(item, e)" />
-                                    </td>
-                                    <td>@item.Product.Unit</td>
-                                    <td>@item.Product.Precio.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</td>
-                                    <td>@subtotalProducto.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</td>
-                                    <td>@isvProducto.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</td>
-                                    <td>@totalProducto.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</td>
+
+                                    @if (isAluzinc)
+                                    {
+                                        <td>
+                                            <div>
+                                                <strong>Largo (pies):</strong> @item.AluzincLargo
+                                            </div>
+                                            <div>
+                                                <strong>Calibre:</strong> @item.AluzincCalibre
+                                            </div>
+                                            <div>
+                                                <strong>Milímetro:</strong> @item.AluzincMilimetro
+                                            </div>
+                                            <div>
+                                                <strong>Color:</strong> @item.AluzincColor
+                                            </div>
+                                        </td>
+
+                                        <!-- Ej: Cantidad de "láminas" -->
+                                        <td>
+                                            <input type="number" class="form-control quantity-input"
+                                                   value="@item.Quantity"
+                                                   min="1"
+                                                   @onchange="(e) => UpdateQuantity(item, e)" />
+                                        </td>
+
+                                        <!-- Muestra la unidad original o forzada a "PIE"? -->
+                                        <td>@item.Product.Unit</td>
+
+                                        <td>
+                                            <!-- Subtotal con base a la multiplicación de pies -->
+                                            @subtotalProducto.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))
+                                        </td>
+                                        <td>
+                                            @isvProducto.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))
+                                        </td>
+                                        <td>
+                                            @totalProducto.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))
+                                        </td>
+                                    }
+                                    else
+                                    {
+                                        <!-- Caso normal, sin mostrar campos aluzinc -->
+                                        <td>
+                                            <input type="number" class="form-control quantity-input"
+                                                   value="@item.Quantity"
+                                                   min="1"
+                                                   @onchange="(e) => UpdateQuantity(item, e)" />
+                                        </td>
+                                        <td>@item.Product.Unit</td>
+                                        <td>@subtotalProducto.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</td>
+                                        <td>@isvProducto.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</td>
+                                        <td>@totalProducto.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</td>
+                                    }
+
                                     <td>
                                         <button class="btn btn-danger" @onclick="() => RemoveFromCart(item.Product)">
                                             <i class="fas fa-trash-alt"></i>
@@ -269,23 +333,10 @@
         }
     }
 
-
-    // protected override async Task OnAfterRenderAsync(bool firstRender)
-    // {
-    //     if (firstRender && CartService.Items.Count > 0)
-    //     {
-    //         await CartService.EnsureInitializedAsync();
-    //         await JSRuntime.InvokeVoidAsync("initLeafletMap");
-    //         await JSRuntime.InvokeVoidAsync("iniciarAnimacion");
-    //         StateHasChanged();
-    //     }
-    // }
     public void Dispose()
     {
         CartService.OnChange -= StateHasChanged;
     }
-
-
 
     private async Task CalculateDistanceAndRedirect()
     {
@@ -321,26 +372,6 @@
         }
     }
 
-    // protected override async Task OnInitializedAsync()
-    // {
-    //     var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
-    //     var user = authState.User;
-
-    //     isAuthenticated = user.Identity.IsAuthenticated;
-
-    //     if (isAuthenticated)
-    //     {
-    //         userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-    //         userName = user.Identity.Name;
-    //     }
-    //     else
-    //     {
-    //         // Manejar el caso en que el usuario no está autenticado
-    //     }
-    //     await CartService.EnsureInitializedAsync();
-
-    // }
-
     private async Task RemoveFromCart(Products product)
     {
         await CartService.RemoveFromCartAsync(product);
@@ -348,13 +379,23 @@
 
     private async Task UpdateQuantity(CartItem item, ChangeEventArgs e)
     {
-        if (int.TryParse(e.Value.ToString(), out int newQuantity))
+        if (int.TryParse(e.Value?.ToString(), out int newQuantity))
         {
             item.Quantity = newQuantity;
+
+            // Si es aluzinc, recalcular los pies
+            if (item.Product.NewProductoType?.Contains("Aluzinc", StringComparison.OrdinalIgnoreCase) == true
+                && item.AluzincLargo.HasValue)
+            {
+                item.TotalPiesAluzinc = item.AluzincLargo.Value * item.Quantity;
+            }
+
+            // Guardar en localStorage
             await CartService.SaveCartAsync();
             StateHasChanged();
         }
     }
+
 
     private async Task Cotizar()
     {
@@ -390,19 +431,28 @@
             int lineNumber = 1;
             foreach (var item in CartService.Items)
             {
+                string extraDesc = "";
+                if (item.Product.NewProductoType?.Contains("Aluzinc") == true)
+                {
+                    extraDesc = $" | Calibre: {item.AluzincCalibre}"
+                              + $" | Milímetro: {item.AluzincMilimetro}"
+                              + $" | Color: {item.AluzincColor}"
+                              + $" | Largo: {item.AluzincLargo}ft";
+                }
+
                 var detalle = new QuotationDetail
                     {
                         QuotationId = quotation.Id,
                         Line = lineNumber++,
                         ProductId = item.Product.IdProducto,
-                        Quantity = item.Quantity,
-                        Price = item.Product.Precio
-                    };
+                        Quantity = item.Quantity, // o item.TotalPiesAluzinc si facturas por pie
+                        Price = item.Product.Precio,
+                 };
 
                 quotation.QuotedItems.Add(detalle);
             }
 
-            // Actualizar la cotización en la base de datos
+    
             await QuotationService.UpdateQuotationAsync(quotation);
         }
         else

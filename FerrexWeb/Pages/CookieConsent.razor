@@ -10,7 +10,7 @@
     <div class="alert alert-warning" style="position: fixed; bottom: 0; width: 100%;">
         <div class="d-flex align-items-center justify-content-between">
             <span>
-                Usamos cookies para mejorar la experiencia.
+                Usamos cookies para mejorar la experiencia de usuario. Al seguir usando la pagina web asumimos aceptamos las cookies automaticamente.
                 <a href="/politica-cookies" target="_blank">Ver detalles</a>.
             </span>
             <button class="btn btn-primary" @onclick="AcceptCookies">Acepto</button>
@@ -26,12 +26,9 @@
     {
         if (firstRender)
         {
-            // Al ser la primera renderización, ya pasamos la fase de prerender
-            // y podemos hacer llamadas a JS (LocalStorage).
             policyAccepted = await LocalStorageService.GetItemAsync<bool>("PolicyAccepted");
             hasLoadedLocalStorage = true;
 
-            // Si no ha aceptado y no lo tenemos marcado
             if (!policyAccepted)
             {
                 // Aquí si quieres puedes obtener sessionId
@@ -41,7 +38,6 @@
                     sessionId = context.Session.Id;
                 }
             }
-
             StateHasChanged();
         }
     }
