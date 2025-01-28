@@ -5,8 +5,18 @@
 @inject ProductService ProductService
 @inject ApplicationDbContext DbContext
 <!--   <PageTitle>Bienvenido a Ferrexpress</PageTitle>-->
+
+<div class="container mt-5">
+    <div class="jumbotron text-center">
+        <p class="lead">Ofrecemos los mejores productos para ti. Explora nuestras categorías y encuentra lo que necesitas.</p>
+        <hr class="my-4" />
+        <p>Busca los productos que necesitas para tu construcción</p>
+    </div>
+</div>
+
+
 <div class="banner-container">
-    @if (!mostrarBanner)  
+    @if (!mostrarBanner)
     {
         <p style="text-align:center; margin-top:2rem;">Cargando banner...</p>
     }
@@ -14,25 +24,25 @@
     {
         @if (IsFading && !string.IsNullOrEmpty(PreviousImage))
         {
-            <img src="@PreviousImage" class="banner-image fade-out" alt="Banner Anterior" />
+            <NavLink href="@GetProductLink(PreviousImage)">
+                <img src="@PreviousImage" class="banner-image fade-out" alt="Banner Anterior" />
+            </NavLink>
         }
-        <img src="@CurrentImage"
-             class="banner-image @(IsFading ? "" : "fade-in")"
-             alt="Banner Actual"
-             width="1920"
-             height="400"
-             loading="lazy"
-             fetchpriority="low"
-             decoding="async" />
+        <NavLink href="@GetProductLink(CurrentImage)">
+            <img src="@CurrentImage"
+            class="banner-image @(IsFading ? "" : "fade-in")"
+            alt="Banner Actual"
+            width="1920"
+            height="400"
+            loading="lazy"
+            fetchpriority="low"
+            decoding="async" />
+        </NavLink>
     }
 </div>
-<div class="container mt-5">
-    <div class="jumbotron text-center">
-        <p class="lead">Ofrecemos los mejores productos para ti. Explora nuestras categorías y encuentra lo que necesitas.</p>
-        <hr class="my-4" />
-        <p>Busca los productos que necesitas para tu construcción</p>
-    </div>
 
+
+<div class="container mt-5">
     <h2 class="mt-5">Categorías Destacadas</h2>
     <div class="row">
         @if (categories == null)
@@ -49,8 +59,8 @@
             {
                 <div class="col-12 col-sm-6 col-md-4 mb-4">
                     <NavLink href="@($"productlist/{category.Id}")"
-                             class="text-decoration-none"
-                             style="color: black">
+                    class="text-decoration-none"
+                    style="color: black">
                         <div class="card">
                             <div class="card-inner" style="--clr:#ffffff;">
                                 <div class="box">
@@ -92,13 +102,13 @@
             {
                 <div class="col-12 col-sm-6 col-md-4 mb-4">
                     <NavLink href="@($"productdetails/{product.IdProducto}")"
-                             class="text-decoration-none"
-                             style="color: black">
+                    class="text-decoration-none"
+                    style="color: black">
                         <div class="card product-card h-100">
                             <img class="card-img-top"
-                                 src="@product.ImageUrl"
-                                 alt="@product.DescProducto"
-                                 style="height: 200px; object-fit: cover;">
+                            src="@product.ImageUrl"
+                            alt="@product.DescProducto"
+                            style="height: 200px; object-fit: cover;">
                             <div class="card-body d-flex flex-column">
                                 <h5 class="card-title">@product.DescProducto</h5>
                                 <p class="card-text">
@@ -106,7 +116,7 @@
                                 </p>
                                 <div class="mt-auto">
                                     <a href="productdetails/@product.IdProducto"
-                                       class="btn custom-btn">
+                                    class="btn custom-btn">
                                         Ver
                                     </a>
                                 </div>
@@ -121,6 +131,7 @@
 
 
 @code {
+
     private List<Categories> categories;
     private List<Products> featuredProducts;
     private bool isConnected;
@@ -129,7 +140,33 @@
         "/images/banner1.webp",
         "/images/banner2.webp",
         "/images/banner3.webp"
+    };  
+
+    private Dictionary<string, string> ImageProductLinks = new Dictionary<string, string>
+    {
+        { "/images/banner1.webp", "productdetails/7119" },
+        { "/images/banner2.webp", "productdetails/7226" },
+        { "/images/banner3.webp", "productdetails/7150" }
     };
+
+
+
+    private string GetProductLink(string imagePath)
+    {
+
+        if (ImageProductLinks.ContainsKey(imagePath))
+
+        {
+
+            return ImageProductLinks[imagePath];
+
+        }
+
+        return "/";
+
+    }
+
+
     private int currentIndex = 0;
     private string CurrentImage => ImagePaths[currentIndex];
     private string PreviousImage;
