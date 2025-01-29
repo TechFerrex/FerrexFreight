@@ -100,9 +100,9 @@
                                         <!-- Ej: Cantidad de "láminas" -->
                                         <td>
                                             <input type="number" class="form-control quantity-input"
-                                                   value="@item.Quantity"
-                                                   min="1"
-                                                   @onchange="(e) => UpdateQuantity(item, e)" />
+                                            value="@item.Quantity"
+                                            min="1"
+                                            @onchange="(e) => UpdateQuantity(item, e)" />
                                         </td>
 
                                         <!-- Muestra la unidad original o forzada a "PIE"? -->
@@ -124,9 +124,9 @@
                                         <!-- Caso normal, sin mostrar campos aluzinc -->
                                         <td>
                                             <input type="number" class="form-control quantity-input"
-                                                   value="@item.Quantity"
-                                                   min="1"
-                                                   @onchange="(e) => UpdateQuantity(item, e)" />
+                                            value="@item.Quantity"
+                                            min="1"
+                                            @onchange="(e) => UpdateQuantity(item, e)" />
                                         </td>
                                         <td>@item.Product.Unit</td>
                                         <td>@subtotalProducto.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</td>
@@ -287,6 +287,7 @@
     private Quotation quotation;
     private bool isLoading = true;
     private bool isMapInitialized = false;
+    private bool isSuperAdmin;
 
     protected override async Task OnInitializedAsync()
     {
@@ -300,6 +301,8 @@
             userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             userName = user.Identity.Name;
         }
+        isSuperAdmin = user.IsInRole("SuperAdmin");
+
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -447,16 +450,44 @@
                         ProductId = item.Product.IdProducto,
                         Quantity = item.Quantity, // o item.TotalPiesAluzinc si facturas por pie
                         Price = item.Product.Precio,
-                 };
+                    };
 
                 quotation.QuotedItems.Add(detalle);
             }
 
-    
+
             await QuotationService.UpdateQuotationAsync(quotation);
         }
         else
         {
+
+            if (!isSuperAdmin)
+            {
+                // APLICA SOLO PARA USUARIOS NORMALES
+                var userIdInt = int.Parse(userId);
+                var userQuotations = await QuotationService.GetQuotationsByUserIdAsync(userIdInt);
+
+                // Count solo las no ordenadas (o todas si prefieres).
+                var activeQuotations = userQuotations.Where(q => !q.IsOrdered).ToList();
+
+                if (activeQuotations.Count >= 5)
+                {
+                    bool userWantsToDelete = await JSRuntime.InvokeAsync<bool>(
+                        "confirm",
+                        "Ya tienes 5 cotizaciones activas. Se eliminará la más antigua para crear la nueva. ¿Continuar?"
+                    );
+
+                    if (!userWantsToDelete)
+                    {
+                        // El usuario canceló, no creamos la cotización
+                        return;
+                    }
+
+                    // Eliminar la más antigua
+                    await QuotationService.DeleteOldestQuotationForUserAsync(userIdInt);
+                }
+            }
+
             var nuevoNumeroCotizacion = $"COTP-{Guid.NewGuid().ToString().Substring(0, 8)}";
 
             var subtotalGeneral = CartService.Items.Sum(item => item.Product.Precio * item.Quantity);
@@ -464,7 +495,6 @@
             var isvGeneral = (subtotalGeneral + freight) * 0.15m;
             var totalCotizacion = subtotalGeneral + isvGeneral + freight;
 
-            // Crear la nueva cotización incluyendo los nuevos campos
             quotation = new Quotation
                 {
                     Client = userName,
@@ -481,35 +511,31 @@
                     QuotedItems = new List<QuotationDetail>()
                 };
 
-            // Guardar la cotización
             await QuotationService.SaveQuotationAsync(quotation);
 
-            // Agregar los detalles de la cotización
-            int lineNumber = 1;
+            int lineNum = 1;
             foreach (var item in CartService.Items)
             {
                 var detalle = new QuotationDetail
                     {
                         QuotationId = quotation.Id,
-                        Line = lineNumber++,
+                        Line = lineNum++,
                         ProductId = item.Product.IdProducto,
                         Quantity = item.Quantity,
                         Price = item.Product.Precio
                     };
-
                 quotation.QuotedItems.Add(detalle);
             }
 
-            // Guardar los detalles de la cotización
             await QuotationService.SaveQuotationDetailsAsync(quotation.QuotedItems);
+
+            // Limpiamos carrito
+            await CartService.ClearCartAsync();
+            CartService.CurrentQuotationId = null;
+
+            // Redirigir
+            NavigationManager.NavigateTo($"/quotationdetails/{quotation.Id}");
         }
-
-        // Limpiar el carrito
-        await CartService.ClearCartAsync();
-        CartService.CurrentQuotationId = null;
-
-        // Redirigir al usuario a la página de detalles de la cotización
-        NavigationManager.NavigateTo($"/quotationdetails/{quotation.Id}");
     }
 
 

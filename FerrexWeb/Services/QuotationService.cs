@@ -85,6 +85,29 @@ namespace FerrexWeb.Services
                 .ToListAsync();
         }
 
+        public async Task DeleteOldestQuotationForUserAsync(int userId)
+        {
+            // Traemos todas las cotizaciones del usuario ordenadas por fecha ascendente.
+            var oldest = await _dbContext.Quotations
+                .Where(q => q.UserID == userId && !q.IsOrdered) // Si quieres solo contar las que aún no se han convertido en orden
+                .OrderBy(q => q.Date)
+                .FirstOrDefaultAsync();
+
+            if (oldest != null)
+            {
+                // Primero eliminamos los detalles
+                _dbContext.QuotationDetails.RemoveRange(oldest.QuotedItems);
+
+                // Luego eliminamos la cotización
+                _dbContext.Quotations.Remove(oldest);
+
+
+                await _dbContext.SaveChangesAsync();
+                //// Eliminamos la cotización
+                //await DeleteQuotationAsync(oldestQuotation.Id);
+            }
+        }
+
 
 
     }

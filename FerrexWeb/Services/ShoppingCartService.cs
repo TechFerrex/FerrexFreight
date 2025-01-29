@@ -11,8 +11,6 @@ namespace FerrexWeb.Services
         private readonly ILocalStorageService _localStorage;
         private const string CartKey = "shoppingCart";
         private bool isInitialized = false;
-
-
         public event Action OnChange;
 
         public List<CartItem> Items { get; private set; } = new List<CartItem>();
@@ -34,7 +32,7 @@ namespace FerrexWeb.Services
             }
         }
         public async Task AddToCartAsync(
-           Products product, int quantity, decimal? aluzincLargo = null, string? aluzincCalibre = null, string? aluzincMilimetro = null, string? aluzincColor = null)
+            Products product, int quantity, decimal? aluzincLargo = null, string? aluzincCalibre = null, string? aluzincMilimetro = null, string? aluzincColor = null)
         {
             // 1) Verificar si ya existe el ítem en el carrito
             var cartItem = Items.FirstOrDefault(item =>
