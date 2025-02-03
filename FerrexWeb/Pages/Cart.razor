@@ -12,18 +12,18 @@
 @inject NavigationManager NavigationManager
 @inject ILocalStorageService LocalStorage
 
-
 <div class="container my-5">
     <h1 class="text-center mb-4">
         @(CartService.CurrentQuotationId.HasValue ? "Editar Cotización" : "Carrito de Compras")
     </h1>
+
     @if (isLoading)
     {
         <div class="text-center">
             <p>Cargando...</p>
         </div>
     }
-    else if (   CartService.Items.Count == 0)
+    else if (CartService.Items.Count == 0)
     {
         <div class="alert alert-warning text-center">
             <strong>No hay productos en el carrito.</strong>
@@ -32,9 +32,10 @@
     else
     {
         <div class="row">
-            <!-- Columna de Productos -->
+            <!-- =================================== -->
+            <!-- Columna de Productos (Tabla grande) -->
+            <!-- =================================== -->
             <div class="col-12 col-lg-8 mb-4">
-                <!-- Tabla para pantallas grandes -->
                 <div class="table-responsive d-none d-lg-block">
                     <table class="table table-hover align-middle">
                         <thead class="table-dark">
@@ -50,28 +51,29 @@
                             </tr>
                         </thead>
                         <tbody>
-                            @{
-                                int rowIndex = 0;
-                            }
+                            @* Aquí mostraremos cada item en una fila *@
                             @foreach (var item in CartService.Items)
                             {
-                                // Cálculo para lamina aluzinc
                                 bool isAluzinc = item.Product.NewProductoType?.Contains("Aluzinc", StringComparison.OrdinalIgnoreCase) == true;
 
-                                decimal subtotalProducto;
-                                decimal isvProducto;
-                                decimal totalProducto;
+                                // Calcular Subtotal, ISV, Total de ESTE producto
+                                decimal subtotalProducto = 0m;
+                                decimal isvProducto = 0m;
+                                decimal totalProducto = 0m;
 
-                                if (isAluzinc && item.TotalPiesAluzinc.HasValue)
+                                if (isAluzinc)
                                 {
-                                    // Ejemplo: precio por pie
-                                    subtotalProducto = item.Product.Precio * item.TotalPiesAluzinc.Value;
+                                    // "precio por pie"
+                                    decimal pricePerPie = item.Product.Precio;
+                                    decimal totalPies = (item.AluzincLargo ?? 0) * item.Quantity;
+
+                                    subtotalProducto = pricePerPie * totalPies;
                                     isvProducto = subtotalProducto * 0.15m;
                                     totalProducto = subtotalProducto + isvProducto;
                                 }
                                 else
                                 {
-                                    // Caso normal (producto no aluzinc)
+                                    // Producto normal
                                     subtotalProducto = item.Product.Precio * item.Quantity;
                                     isvProducto = subtotalProducto * 0.15m;
                                     totalProducto = subtotalProducto + isvProducto;
@@ -83,52 +85,34 @@
                                     @if (isAluzinc)
                                     {
                                         <td>
-                                            <div>
-                                                <strong>Largo (pies):</strong> @item.AluzincLargo
-                                            </div>
-                                            <div>
-                                                <strong>Calibre:</strong> @item.AluzincCalibre
-                                            </div>
-                                            <div>
-                                                <strong>Milímetro:</strong> @item.AluzincMilimetro
-                                            </div>
-                                            <div>
-                                                <strong>Color:</strong> @item.AluzincColor
-                                            </div>
+                                            <div><strong>Largo (pies):</strong> @item.AluzincLargo</div>
+                                            <div><strong>Calibre:</strong> @item.AluzincCalibre</div>
+                                            <div><strong>Milímetro:</strong> @item.AluzincMilimetro</div>
+                                            <div><strong>Color:</strong> @item.AluzincColor</div>
                                         </td>
-
-                                        <!-- Ej: Cantidad de "láminas" -->
                                         <td>
-                                            <input type="number" class="form-control quantity-input"
-                                            value="@item.Quantity"
-                                            min="1"
-                                            @onchange="(e) => UpdateQuantity(item, e)" />
+                                            <input type="number"
+                                                   class="form-control quantity-input"
+                                                   value="@item.Quantity"
+                                                   min="1"
+                                                   @onchange="(e) => UpdateQuantity(item, e)" />
                                         </td>
-
-                                        <!-- Muestra la unidad original o forzada a "PIE"? -->
                                         <td>@item.Product.Unit</td>
-
-                                        <td>
-                                            <!-- Subtotal con base a la multiplicación de pies -->
-                                            @subtotalProducto.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))
-                                        </td>
-                                        <td>
-                                            @isvProducto.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))
-                                        </td>
-                                        <td>
-                                            @totalProducto.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))
-                                        </td>
+                                        <td>@subtotalProducto.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</td>
+                                        <td>@isvProducto.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</td>
+                                        <td>@totalProducto.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</td>
                                     }
                                     else
                                     {
-                                        <!-- Caso normal, sin mostrar campos aluzinc -->
                                         <td>
-                                            <input type="number" class="form-control quantity-input"
-                                            value="@item.Quantity"
-                                            min="1"
-                                            @onchange="(e) => UpdateQuantity(item, e)" />
+                                            <input type="number"
+                                                   class="form-control quantity-input"
+                                                   value="@item.Quantity"
+                                                   min="1"
+                                                   @onchange="(e) => UpdateQuantity(item, e)" />
                                         </td>
                                         <td>@item.Product.Unit</td>
+                                        <td>@item.Product.Precio.ToString("C")</td>          <!-- 4) Precio -->
                                         <td>@subtotalProducto.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</td>
                                         <td>@isvProducto.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</td>
                                         <td>@totalProducto.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</td>
@@ -145,24 +129,54 @@
                     </table>
                 </div>
 
-                <!-- Cards para pantallas pequeñas -->
+                <!-- ========================================= -->
+                <!-- Versión "Cards" para pantallas pequeñas  -->
+                <!-- ========================================= -->
                 <div class="d-block d-lg-none">
                     @foreach (var item in CartService.Items)
                     {
-                        var subtotalProducto = item.Product.Precio * item.Quantity;
-                        var isvProducto = subtotalProducto * 0.15m;
-                        var totalProducto = subtotalProducto + isvProducto;
+                        bool isAluzinc = item.Product.NewProductoType?.Contains("Aluzinc", StringComparison.OrdinalIgnoreCase) == true;
+
+                        decimal subtotalProducto = 0m;
+                        decimal isvProducto = 0m;
+                        decimal totalProducto = 0m;
+
+                        if (isAluzinc)
+                        {
+                            decimal pricePerPie = item.Product.Precio;
+                            decimal totalPies = (item.AluzincLargo ?? 0) * item.Quantity;
+                            subtotalProducto = pricePerPie * totalPies;
+                        }
+                        else
+                        {
+                            subtotalProducto = item.Product.Precio * item.Quantity;
+                        }
+                        isvProducto = subtotalProducto * 0.15m;
+                        totalProducto = subtotalProducto + isvProducto;
+
                         <div class="card mb-3">
                             <div class="card-body">
                                 <h5 class="card-title">@item.Product.DescProducto</h5>
-                                <p class="card-text"><strong>Cantidad:</strong>
-                                    <input type="number" class="form-control quantity-input" value="@item.Quantity" min="1" @onchange="(e) => UpdateQuantity(item, e)" />
+                                @if (isAluzinc)
+                                {
+                                    <p><strong>Largo (pies):</strong> @item.AluzincLargo</p>
+                                    <p><strong>Calibre:</strong> @item.AluzincCalibre</p>
+                                    <p><strong>Milímetro:</strong> @item.AluzincMilimetro</p>
+                                    <p><strong>Color:</strong> @item.AluzincColor</p>
+                                }
+                                <p>
+                                    <strong>Cantidad:</strong>
+                                    <input type="number"
+                                           class="form-control quantity-input"
+                                           value="@item.Quantity"
+                                           min="1"
+                                           @onchange="(e) => UpdateQuantity(item, e)" />
                                 </p>
-                                <p class="card-text"><strong>Unidad:</strong> @item.Product.Unit</p>
-                                <p class="card-text"><strong>Precio:</strong> @item.Product.Precio.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</p>
-                                <p class="card-text"><strong>Subtotal:</strong> @subtotalProducto.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</p>
-                                <p class="card-text"><strong>ISV:</strong> @isvProducto.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</p>
-                                <p class="card-text"><strong>Total:</strong> @totalProducto.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</p>
+                                <p><strong>Unidad:</strong> @item.Product.Unit</p>
+                                <p><strong>Subtotal:</strong> @subtotalProducto.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</p>
+                                <p><strong>ISV:</strong> @isvProducto.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</p>
+                                <p><strong>Total:</strong> @totalProducto.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</p>
+
                                 <button class="btn btn-danger" @onclick="() => RemoveFromCart(item.Product)">
                                     <i class="fas fa-trash-alt"></i> Eliminar
                                 </button>
@@ -171,14 +185,14 @@
                     }
                 </div>
 
-                <!-- Sección del Mapa y Cálculo de Flete -->
+                <!-- ========================= -->
+                <!-- Sección del Mapa y Flete -->
+                <!-- ========================= -->
                 <div class="card mt-4">
                     <div class="card-header bg-dark text-white">
                         <h5 class="mb-0">Selecciona tu Ubicación de Entrega</h5>
                     </div>
                     <div class="card-body">
-
-                        <!-- Instrucciones claras para el usuario -->
                         <div class="alert alert-info mb-3">
                             <strong>¿Cómo seleccionar tu ubicación?</strong><br />
                             1. Haz clic en el mapa para colocar un marcador en tu dirección de entrega.<br />
@@ -190,14 +204,20 @@
 
                         @if (!isFreightCalculated)
                         {
-                            <p class="text-danger mt-2">Primero debes seleccionar tu ubicación en el mapa para calcular el flete.</p>
+                            <p class="text-danger mt-2">
+                                Primero debes seleccionar tu ubicación en el mapa para calcular el flete.
+                            </p>
                         }
 
                         <div class="form-group mt-3">
                             <label for="deliveryInstructions">Dirección de Entrega e Instrucciones (requerido):</label>
-                            <textarea id="deliveryInstructions" class="form-control" @bind="deliveryInstructions" placeholder="Ejemplo: Casa amarilla con portón negro, dejar el producto en la entrada."></textarea>
+                            <textarea id="deliveryInstructions"
+                                      class="form-control"
+                                      @bind="deliveryInstructions"
+                                      placeholder="Ejemplo: Casa amarilla con portón negro, dejar el producto en la entrada.">
+                                </textarea>
                         </div>
-                        <!-- Cambiar el texto del botón para aclarar el siguiente paso -->
+
                         <button @onclick="CalculateDistanceAndRedirect" class="btn btn-primary mt-3">
                             <i class="fas fa-map-marker-alt"></i> Calcular Flete
                         </button>
@@ -205,14 +225,36 @@
                 </div>
             </div>
 
-            <!-- Columna de Resumen -->
+            <!-- ================================ -->
+            <!-- Columna de Resumen (Subtotal)   -->
+            <!-- ================================ -->
             <div class="col-12 col-lg-4">
                 @{
-                    var subtotalGeneral = CartService.Items.Sum(item => item.Product.Precio * item.Quantity);
-                    var freight = (decimal)freightPrice;
-                    var isvGeneral = (subtotalGeneral + freight) * 0.15m;
-                    var totalGeneral = subtotalGeneral + freight + isvGeneral;
+                    // Cálculo final del subtotal, pero teniendo en cuenta Aluzinc
+                    decimal subtotalGeneral = 0m;
+
+                    foreach (var item in CartService.Items)
+                    {
+                        bool isAluzinc = item.Product.NewProductoType?.Contains("Aluzinc") == true;
+                        decimal subProd = 0m;
+                        if (isAluzinc)
+                        {
+                            decimal pricePerPie = item.Product.Precio;
+                            decimal totalPies = (item.AluzincLargo ?? 0) * item.Quantity;
+                            subProd = pricePerPie * totalPies;
+                        }
+                        else
+                        {
+                            subProd = item.Product.Precio * item.Quantity;
+                        }
+                        subtotalGeneral += subProd;
+                    }
+
+                    var freightDecimal = (decimal)freightPrice;
+                    var isvGeneral = (subtotalGeneral + freightDecimal) * 0.15m;
+                    var totalGeneral = subtotalGeneral + freightDecimal + isvGeneral;
                 }
+
                 <div class="card">
                     <div class="card-body">
                         <h4>Resumen</h4>
@@ -234,17 +276,23 @@
                                 <strong>@totalGeneral.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</strong>
                             </li>
                         </ul>
+
                         <div class="d-grid gap-4 mt-3">
-                            <button class="btn btn-success btn-lg" @onclick="Cotizar" disabled="@(isFreightCalculated && isAuthenticated && !string.IsNullOrWhiteSpace(deliveryInstructions) ? false : true)">
+                            <button class="btn btn-success btn-lg"
+                                    @onclick="Cotizar"
+                                    disabled="@(isFreightCalculated && isAuthenticated && !string.IsNullOrWhiteSpace(deliveryInstructions) ? false : true)">
                                 <i class="fas fa-file-invoice"></i> Cotizar
                             </button>
-                            <button class="btn truck-button" @onclick="IniciarProcesoOrden" @ref="ordenarButton" disabled="@(isFreightCalculated && isAuthenticated && !string.IsNullOrWhiteSpace(deliveryInstructions) ? false : true)">
+                            <button class="btn truck-button"
+                                    @onclick="IniciarProcesoOrden"
+                                    @ref="ordenarButton"
+                                    disabled="@(isFreightCalculated && isAuthenticated && !string.IsNullOrWhiteSpace(deliveryInstructions) ? false : true)">
                                 <span class="default"><i class="fas fa-shopping-cart"></i> Ordenar</span>
                                 <span class="success">
                                     Ordenado
-                                    <svg viewbox="0 0 12 10">
+                                    <svg viewBox="0 0 12 10">
                                         <polyline points="1.5 6 4.5 9 10.5 1"></polyline>
-                                    </svg>  
+                                    </svg>
                                 </span>
                                 <div class="truck">
                                     <div class="wheel"></div>
@@ -257,24 +305,28 @@
 
                         @if (!isFreightCalculated)
                         {
-                            <p class="text-danger mt-2 text-center">Debes seleccionar tu ubicación en el mapa y calcular el flete antes de cotizar u ordenar.</p>
+                            <p class="text-danger mt-2 text-center">
+                                Debes seleccionar tu ubicación en el mapa y calcular el flete antes de cotizar u ordenar.
+                            </p>
                         }
                         else if (!isAuthenticated)
                         {
-                            <p class="text-danger mt-2 text-center">Debes iniciar sesión para cotizar u ordenar.</p>
+                            <p class="text-danger mt-2 text-center">
+                                Debes iniciar sesión para cotizar u ordenar.
+                            </p>
                         }
                         else if (string.IsNullOrWhiteSpace(deliveryInstructions))
                         {
-                            <p class="text-danger mt-2 text-center">Debes ingresar las instrucciones de entrega antes de cotizar u ordenar.</p>
+                            <p class="text-danger mt-2 text-center">
+                                Debes ingresar las instrucciones de entrega antes de cotizar u ordenar.
+                            </p>
                         }
-
                     </div>
                 </div>
             </div>
         </div>
     }
 </div>
-
 @code {
     private bool isFreightCalculated = false;
     private double freightPrice = 0;
@@ -446,10 +498,8 @@
                 var detalle = new QuotationDetail
                     {
                         QuotationId = quotation.Id,
-                        Line = lineNumber++,
                         ProductId = item.Product.IdProducto,
-                        Quantity = item.Quantity, // o item.TotalPiesAluzinc si facturas por pie
-                        Price = item.Product.Precio,
+                        Quantity = item.Quantity,
                     };
 
                 quotation.QuotedItems.Add(detalle);

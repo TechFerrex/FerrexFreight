@@ -12,7 +12,7 @@ namespace FerrexWeb.Services
     {
         private readonly ApplicationDbContext _dbContext;
         private readonly IWebHostEnvironment _hostingEnvironment;
-        
+
         public ProductService(ApplicationDbContext dbContext, IWebHostEnvironment hostingEnvironment)
         {
             _dbContext = dbContext;
@@ -51,7 +51,7 @@ namespace FerrexWeb.Services
         public string GetProductImageUrl(string imageUrl)
         {
             if (string.IsNullOrEmpty(imageUrl))
-                return "images/product/default.png"; 
+                return "images/product/default.png";
 
             var extensions = new[] { ".png", ".jpg", ".jpeg", ".gif" };
 
@@ -109,5 +109,23 @@ namespace FerrexWeb.Services
 
             return products;
         }
+
+
+        public async Task<List<AluzincVariant>> GetAluzincVariantsByProductIdAsync(string productId)
+        {
+            return await _dbContext.AluzincVariants
+                .Where(a => a.ProductId == productId)
+                .ToListAsync();
+        }
+
+        public async Task<AluzincVariant> GetAluzincVariantByIdAsync(int variantId)
+        {
+            // Igual aquí:
+            return await _dbContext.AluzincVariants
+                .FirstOrDefaultAsync(v => v.Id == variantId);
+        }
+
+
+
     }
 }

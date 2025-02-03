@@ -32,52 +32,62 @@ namespace FerrexWeb.Services
             }
         }
         public async Task AddToCartAsync(
-            Products product, int quantity, decimal? aluzincLargo = null, string? aluzincCalibre = null, string? aluzincMilimetro = null, string? aluzincColor = null)
+    Products product,
+    int quantity,
+    decimal? aluzincLargo = null,
+    string? aluzincCalibre = null,
+    string? aluzincMilimetro = null,
+    string? aluzincColor = null
+)
         {
-            // 1) Verificar si ya existe el ítem en el carrito
-            var cartItem = Items.FirstOrDefault(item =>
+            // 1) Verificar si YA existe un ítem con la MISMA variante Aluzinc
+            //    (Coincide ID del producto, calibre, milímetros y color).
+            var existingItem = Items.FirstOrDefault(item =>
                 item.Product.IdProducto == product.IdProducto
-                // Si quieres además discriminar por calibre, color, etc., agréga más condiciones:
                 && item.AluzincCalibre == aluzincCalibre
                 && item.AluzincMilimetro == aluzincMilimetro
                 && item.AluzincColor == aluzincColor
-                && item.AluzincLargo == aluzincLargo
             );
 
-            // 2) Si existe, solo sumamos la cantidad
-            if (cartItem != null)
+            if (existingItem != null)
             {
-                cartItem.Quantity += quantity;
-                if (cartItem.AluzincLargo.HasValue)
+                // Si ya existe EXACTAMENTE esa variante en el carrito, sumamos la cantidad
+                existingItem.Quantity += quantity;
+
+                // Recalcular total de pies (si se definió el largo)
+                if (existingItem.AluzincLargo.HasValue)
                 {
-                    // Recalcular total de pies
-                    cartItem.TotalPiesAluzinc = cartItem.AluzincLargo.Value * cartItem.Quantity;
+                    existingItem.TotalPiesAluzinc = existingItem.AluzincLargo.Value * existingItem.Quantity;
                 }
             }
             else
             {
-                // 3) Crear un nuevo CartItem con campos extra
+                // 2) Crear un nuevo CartItem
                 var newItem = new CartItem
                 {
                     Product = product,
                     Quantity = quantity,
+
+                    // Asignar los datos de la variante
                     AluzincLargo = aluzincLargo,
                     AluzincCalibre = aluzincCalibre,
                     AluzincMilimetro = aluzincMilimetro,
                     AluzincColor = aluzincColor
                 };
 
-                // Calcular total de pies si aplica
+                // 3) Calcular total de pies si hay largo
                 if (aluzincLargo.HasValue)
                     newItem.TotalPiesAluzinc = aluzincLargo.Value * quantity;
 
+                // 4) Agregar al carrito
                 Items.Add(newItem);
             }
 
-            // Guardar en Local Storage
+            // 5) Guardar en Local Storage y notificar
             await SaveCartAsync();
             NotifyStateChanged();
         }
+
 
         public async Task RemoveFromCartAsync(Products product)
         {
@@ -92,8 +102,24 @@ namespace FerrexWeb.Services
 
         public decimal GetTotalPrice()
         {
-            return Items.Sum(item => item.Product.Precio * item.Quantity);
+            decimal total = 0;
+            foreach (var item in Items)
+            {
+                if (item.Product.NewProductoType?.Contains("Aluzinc", StringComparison.OrdinalIgnoreCase) == true
+                    && item.AluzincLargo.HasValue)
+                {
+                    // precio por pie
+                    total += item.Product.Precio * (item.AluzincLargo.Value * item.Quantity);
+                }
+                else
+                {
+                    // producto normal
+                    total += item.Product.Precio * item.Quantity;
+                }
+            }
+            return total;
         }
+
 
         public async Task SaveCartAsync()
         {

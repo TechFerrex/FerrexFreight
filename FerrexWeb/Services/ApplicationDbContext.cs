@@ -16,6 +16,8 @@ namespace FerrexWeb.Services
         public DbSet<Order> Order { get; set; }
         public DbSet<OrderDetail> OrderDetail { get; set; }
         public DbSet<Visitor> Visitor { get; set; }
+        public DbSet<AluzincVariant> AluzincVariants { get; set; }
+
 
 
         public bool CanConnect()
@@ -39,6 +41,12 @@ namespace FerrexWeb.Services
                 entity.Property(e => e.Unit)
                     .HasColumnName("Unit"); // Mapear la columna si es necesario
             });
+
+
+
+
+
+
 
             modelBuilder.Entity<OrderDetail>()
        .HasKey(od => new { od.OrderId, od.Line });
