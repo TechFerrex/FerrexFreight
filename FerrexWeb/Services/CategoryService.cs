@@ -33,6 +33,7 @@ namespace FerrexWeb.Services
         public async Task<Categories> GetCategoryByIdAsync(int categoryId)
         {
             return await _dbContext.Categories
+                .Include(c => c.SubCategories) // opcional: eager load
                 .FirstOrDefaultAsync(c => c.Id == categoryId);
         }
     }

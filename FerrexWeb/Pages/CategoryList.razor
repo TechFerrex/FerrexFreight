@@ -1,8 +1,9 @@
 ﻿@page "/categories"
 @using FerrexWeb.Models
 @using FerrexWeb.Services
+
 @inject CategoryService CategoryService
-@inject NavigationManager NavigationManager
+@inject CategoryStateContainer CategoryState
 
 <h1 class="text-center my-4">Categorías de Productos</h1>
 
@@ -20,15 +21,32 @@ else
         <div class="row">
             @foreach (var category in categories)
             {
-                <div class="col-6 col-sm-4 col-md-3 mb-4">
-                    <NavLink href="@($"/productlist/{category.Id}")" class="text-decoration-none text-black">
+                var categoryImages = GetImagesForCategory(category.Id);
+                int imageCount = categoryImages.Count;
+                int cycleTime = 5;               
+                int totalDuration = imageCount * cycleTime; 
+
+                <div class="col-12 col-sm-6 col-md-4 mb-4">
+                    <NavLink href="@($"/categories/{category.Id}/subcategories")" class="text-decoration-none text-black">
                         <div class="card category-card h-100 border-0">
-                            <img src="@category.ImageUrl" class="card-img-top" alt="@category.Name">
+                            <div class="card-carousel">
+                                @for (int i = 0; i < imageCount; i++)
+                                {
+                                    <img src="@($"{category.ImageUrl}/{categoryImages[i]}")"
+                                         alt="Imagen de categoría"
+                                         class="carousel-image"
+                                         loading="lazy"
+                                         style="animation-delay: @(i * cycleTime)s;
+                                                animation-duration: @(totalDuration)s;" />
+                                }
+                            </div>
                             <div class="card-body d-flex flex-column">
                                 <h5 class="card-title">@category.Name</h5>
                                 <p class="card-text">@category.Description</p>
                                 <div class="mt-auto">
-                                    <a href="@($"/productlist/{category.Id}")" class="btn custom-btn">Ver Más</a>
+                                    <a href="@($"/categories/{category.Id}/subcategories")" class="btn custom-btn">
+                                        Ver Subcategorías
+                                    </a>
                                 </div>
                             </div>
                         </div>
@@ -44,19 +62,24 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        categories = await CategoryService.GetAllCategoriesAsync();
+        await CategoryState.LoadCategoriesAsync(CategoryService);
+        categories = CategoryState.Categories;
     }
 
-    private void NavigateToCategory(int categoryId)
+    private List<string> GetImagesForCategory(int categoryId)
     {
-        NavigationManager.NavigateTo($"/productlist/{categoryId}");
+        return new List<string> { "shutter1.webp", "shutter2.webp", "shutter3.webp" };
     }
 }
+
+
 <style>
+    /* Altura mínima mientras cargas */
     .full-height {
         height: 50vh;
     }
 
+    /* Efecto hover en la tarjeta */
     .category-card {
         transition: transform 0.3s, box-shadow 0.3s;
         box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
@@ -67,10 +90,57 @@ else
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
         }
 
-    .card-img-top {
+    /* Contenedor de la "galería" dentro de cada tarjeta */
+    .card-carousel {
+        position: relative;
         width: 100%;
-        height: 200px;
+        height: 200px; /* Ajusta según tu diseño */
+        overflow: hidden;
+    }
+
+    /* Configuración de las imágenes que participarán en la animación */
+    .carousel-image {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
         object-fit: cover;
+        opacity: 0; /* todas inician ocultas */
+        animation-name: fade; /* nombre de la animación */
+        animation-timing-function: ease-in-out;
+        animation-iteration-count: infinite;
+        /* animation-delay y animation-duration se inyectan por inline-style desde el .razor */
+    }
+
+    /* Animación para el fade in/out */
+    @@keyframes fade {
+        0%
+
+    {
+        opacity: 0;
+    }
+
+    10% {
+        opacity: 1;
+    }
+
+    30% {
+        opacity: 1;
+    }
+
+    40% {
+        opacity: 0;
+    }
+
+    100% {
+        opacity: 0;
+    }
+
+    }
+
+    .card-body {
+        padding: 1rem;
     }
 
     .card-title {
@@ -83,10 +153,14 @@ else
         margin-bottom: 0.3rem;
     }
 
+    /* Botón personalizado */
     .btn.custom-btn {
         background-color: #F5C144;
         border-color: #F5C144;
         color: #000;
+        text-decoration: none;
+        padding: 0.5rem 1rem;
+        display: inline-block;
     }
 
         .btn.custom-btn:hover {
@@ -94,7 +168,7 @@ else
             border-color: #A7A9AC;
         }
 
-    /* Ajustes Responsivos */
+    /* Responsivo en pantallas muy pequeñas */
     @@media (max-width: 576px) {
         .card-title
 
@@ -106,47 +180,18 @@ else
         font-size: 0.7rem;
     }
 
-    .card-img-top {
-        height: 80px;
-        object-fit: cover;
+    .card-carousel {
+        height: 100px;
     }
 
     .card-body {
         padding: 0.5rem;
     }
 
-    .custom-btn {
+    .btn.custom-btn {
         padding: 5px 10px;
         font-size: 0.8rem;
     }
 
     }
-
-    @@media (min-width: 577px) and (max-width: 768px) {
-        .card-title
-
-    {
-        font-size: 0.9rem;
-    }
-
-    .card-text {
-        font-size: 0.8rem;
-    }
-
-    .card-img-top {
-        height: 100px;
-        object-fit: cover;
-    }
-
-    .card-body {
-        padding: 0.75rem;
-    }
-
-    .custom-btn {
-        padding: 7px 15px;
-        font-size: 0.9rem;
-    }
-
-    }
 </style>
- 

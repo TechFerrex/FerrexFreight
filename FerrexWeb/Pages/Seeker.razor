@@ -5,21 +5,15 @@
 
 <div class="buscador-flotante">
     <div class="search-floating-bar">
-        <!-- Notar que quitamos el @bind y usamos @oninput para manejarlo manualmente -->
-        <input type="text"
-               value="@searchTerm"
-               @oninput="OnSearchTermInput"
+        <input @bind="SearchTerm" @bind:event="oninput"
                placeholder="Buscar..."
                class="floating-search-input" />
-
-        <!-- El botón de búsqueda llama a la misma función de Buscar,
-             para quien guste dar clic en lugar de solo teclear -->
         <button class="floating-search-button" @onclick="BuscarProductosClick">
             <i class="fas fa-search"></i>
         </button>
     </div>
 
-    @if (!string.IsNullOrEmpty(searchTerm) && productos?.Count > 0)
+    @if (!string.IsNullOrWhiteSpace(SearchTerm) && productos?.Count > 0)
     {
         <ul class="search-floating-results">
             @foreach (var p in productos)
@@ -35,75 +29,74 @@
 @code {
     private List<Products> productos = new();
     private string searchTerm = string.Empty;
+    private CancellationTokenSource debounceCts = new();
+    private const int debounceDelay = 300;
 
-    // Timer para “debounce”; con System.Timers
-    private System.Timers.Timer debounceTimer;
-    private const int debounceInterval = 300; // milisegundos de espera
-
-    // Cada vez que el usuario escribe en el input:
-    private void OnSearchTermInput(ChangeEventArgs e)
+    public string SearchTerm
     {
-        searchTerm = e.Value?.ToString() ?? "";
-
-        // Si ya había un timer corriendo, lo detenemos y desechamos
-        debounceTimer?.Stop();
-        debounceTimer?.Dispose();
-
-        // Si el usuario borró todo, limpiamos resultados de una vez
-        if (string.IsNullOrWhiteSpace(searchTerm))
+        get => searchTerm;
+        set
         {
-            productos.Clear();
-            StateHasChanged();
-            return;
+            if (searchTerm != value)
+            {
+                searchTerm = value;
+                DebounceSearch();
+            }
         }
-
-        // Creamos un nuevo timer “debouncer”
-        debounceTimer = new System.Timers.Timer(debounceInterval);
-        debounceTimer.AutoReset = false; // Solo salta una vez
-        debounceTimer.Elapsed += async (s, args) =>
-        {
-            // Cuando pasan los 300ms sin que el usuario teclee, buscamos
-            debounceTimer.Dispose(); // ya no se usa
-            await InvokeAsync(() => BuscarProductosAsync());
-        };
-        debounceTimer.Start();
     }
 
-    // Si el usuario da clic en el botón de buscar
+    private void DebounceSearch()
+    {
+        debounceCts.Cancel();
+        debounceCts.Dispose();
+        debounceCts = new CancellationTokenSource();
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await Task.Delay(debounceDelay, debounceCts.Token);
+                await InvokeAsync(BuscarProductosAsync);
+            }
+            catch (TaskCanceledException) { }
+        });
+    }
+
     private async Task BuscarProductosClick()
     {
-        // Cancelamos el debounce y vamos directo a buscar
-        debounceTimer?.Stop();
-        debounceTimer?.Dispose();
+        debounceCts.Cancel();
+        debounceCts.Dispose();
+        debounceCts = new CancellationTokenSource();
         await BuscarProductosAsync();
     }
 
-    // Llamada principal al servicio
     private async Task BuscarProductosAsync()
     {
-        if (!string.IsNullOrWhiteSpace(searchTerm))
-        {
-            // Buscamos contra la BD
-            var resultados = await SeekerService.GetProductosAsync(searchTerm);
-            productos = resultados;
-        }
-        else
+        if (string.IsNullOrWhiteSpace(SearchTerm))
         {
             productos.Clear();
         }
-        StateHasChanged();
+        else
+        {
+            productos = await SeekerService.GetProductosAsync(SearchTerm);
+        }
+        await InvokeAsync(StateHasChanged);
     }
 
-    private void SeleccionarProducto(Products product)
+    private void SeleccionarProducto(Products producto)
     {
-        // Navegamos al detalle pasando el ID correcto
-        NavigationManager.NavigateTo($"/productdetails/{product.IdProducto}");
-
-        // Limpiamos lista y cuadro de búsqueda para que desaparezca el dropdown
+        NavigationManager.NavigateTo($"/productdetails/{producto.IdProducto}");
         searchTerm = string.Empty;
         productos.Clear();
     }
+
+    public void Dispose()
+    {
+        debounceCts.Cancel();
+        debounceCts.Dispose();
+    }
 }
+
 
 
 
@@ -111,10 +104,11 @@
     * {
         box-sizing: border-box;
     }
+
     .buscador-flotante {
         position: relative;
-        max-width: 400px; 
-        margin: 1rem auto; 
+        max-width: 400px;
+        margin: 1rem auto;
     }
 
     .search-floating-bar {
@@ -123,7 +117,7 @@
         background-color: #fff;
         border-radius: 40px;
         box-shadow: 0 4px 10px rgba(0,0,0,0.15);
-        overflow: hidden; 
+        overflow: hidden;
     }
 
     /* INPUT */
@@ -201,6 +195,7 @@
         background-color: #ccc;
         border-radius: 20px;
     }
+
         .search-floating-results::-webkit-scrollbar-thumb:hover {
             background-color: #aaa;
         }

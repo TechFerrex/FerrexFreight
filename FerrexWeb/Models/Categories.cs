@@ -19,5 +19,9 @@ namespace FerrexWeb.Models
         
         [Column("ImageUrl")]
         public string? ImageUrl { get; set; }
+
+
+        public ICollection<SubCategory> SubCategories { get; set; }
+            = new List<SubCategory>();
     }
 }

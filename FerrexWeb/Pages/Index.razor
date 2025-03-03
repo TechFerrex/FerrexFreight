@@ -14,7 +14,6 @@
     </div>
 </div>
 
-
 <div class="banner-container">
     @if (!mostrarBanner)
     {
@@ -106,7 +105,7 @@
                     style="color: black">
                         <div class="card product-card h-100">
                             <img class="card-img-top"
-                            src="@product.ImageUrl"
+                                 src="@product.id_image"
                             alt="@product.DescProducto"
                             style="height: 200px; object-fit: cover;">
                             <div class="card-body d-flex flex-column">
@@ -209,9 +208,6 @@
         }
     }
 
-    // ===================================================================================
-    // CONFIGURACIÓN DE LOS TIMERS
-    // ===================================================================================
     protected override void OnInitialized()
     {
         base.OnInitialized();

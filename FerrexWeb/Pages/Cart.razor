@@ -32,9 +32,6 @@
     else
     {
         <div class="row">
-            <!-- =================================== -->
-            <!-- Columna de Productos (Tabla grande) -->
-            <!-- =================================== -->
             <div class="col-12 col-lg-8 mb-4">
                 <div class="table-responsive d-none d-lg-block">
                     <table class="table table-hover align-middle">
@@ -51,10 +48,9 @@
                             </tr>
                         </thead>
                         <tbody>
-                            @* Aquí mostraremos cada item en una fila *@
                             @foreach (var item in CartService.Items)
                             {
-                                bool isAluzinc = item.Product.NewProductoType?.Contains("Aluzinc", StringComparison.OrdinalIgnoreCase) == true;
+                                bool isAluzinc = item.Product.Types?.Contains("Aluzinc", StringComparison.OrdinalIgnoreCase) == true;
 
                                 // Calcular Subtotal, ISV, Total de ESTE producto
                                 decimal subtotalProducto = 0m;
@@ -92,10 +88,10 @@
                                         </td>
                                         <td>
                                             <input type="number"
-                                                   class="form-control quantity-input"
-                                                   value="@item.Quantity"
-                                                   min="1"
-                                                   @onchange="(e) => UpdateQuantity(item, e)" />
+                                            class="form-control quantity-input"
+                                            value="@item.Quantity"
+                                            min="1"
+                                            @onchange="(e) => UpdateQuantity(item, e)" />
                                         </td>
                                         <td>@item.Product.Unit</td>
                                         <td>@subtotalProducto.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</td>
@@ -106,10 +102,10 @@
                                     {
                                         <td>
                                             <input type="number"
-                                                   class="form-control quantity-input"
-                                                   value="@item.Quantity"
-                                                   min="1"
-                                                   @onchange="(e) => UpdateQuantity(item, e)" />
+                                            class="form-control quantity-input"
+                                            value="@item.Quantity"
+                                            min="1"
+                                            @onchange="(e) => UpdateQuantity(item, e)" />
                                         </td>
                                         <td>@item.Product.Unit</td>
                                         <td>@item.Product.Precio.ToString("C")</td>          <!-- 4) Precio -->
@@ -128,14 +124,10 @@
                         </tbody>
                     </table>
                 </div>
-
-                <!-- ========================================= -->
-                <!-- Versión "Cards" para pantallas pequeñas  -->
-                <!-- ========================================= -->
                 <div class="d-block d-lg-none">
                     @foreach (var item in CartService.Items)
                     {
-                        bool isAluzinc = item.Product.NewProductoType?.Contains("Aluzinc", StringComparison.OrdinalIgnoreCase) == true;
+                        bool isAluzinc = item.Product.Types?.Contains("Aluzinc", StringComparison.OrdinalIgnoreCase) == true;
 
                         decimal subtotalProducto = 0m;
                         decimal isvProducto = 0m;
@@ -167,10 +159,10 @@
                                 <p>
                                     <strong>Cantidad:</strong>
                                     <input type="number"
-                                           class="form-control quantity-input"
-                                           value="@item.Quantity"
-                                           min="1"
-                                           @onchange="(e) => UpdateQuantity(item, e)" />
+                                    class="form-control quantity-input"
+                                    value="@item.Quantity"
+                                    min="1"
+                                    @onchange="(e) => UpdateQuantity(item, e)" />
                                 </p>
                                 <p><strong>Unidad:</strong> @item.Product.Unit</p>
                                 <p><strong>Subtotal:</strong> @subtotalProducto.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</p>
@@ -212,10 +204,10 @@
                         <div class="form-group mt-3">
                             <label for="deliveryInstructions">Dirección de Entrega e Instrucciones (requerido):</label>
                             <textarea id="deliveryInstructions"
-                                      class="form-control"
-                                      @bind="deliveryInstructions"
-                                      placeholder="Ejemplo: Casa amarilla con portón negro, dejar el producto en la entrada.">
-                                </textarea>
+                            class="form-control"
+                            @bind="deliveryInstructions"
+                            placeholder="Ejemplo: Casa amarilla con portón negro, dejar el producto en la entrada.">
+                            </textarea>
                         </div>
 
                         <button @onclick="CalculateDistanceAndRedirect" class="btn btn-primary mt-3">
@@ -224,10 +216,6 @@
                     </div>
                 </div>
             </div>
-
-            <!-- ================================ -->
-            <!-- Columna de Resumen (Subtotal)   -->
-            <!-- ================================ -->
             <div class="col-12 col-lg-4">
                 @{
                     // Cálculo final del subtotal, pero teniendo en cuenta Aluzinc
@@ -235,7 +223,7 @@
 
                     foreach (var item in CartService.Items)
                     {
-                        bool isAluzinc = item.Product.NewProductoType?.Contains("Aluzinc") == true;
+                        bool isAluzinc = item.Product.Types?.Contains("Aluzinc") == true;
                         decimal subProd = 0m;
                         if (isAluzinc)
                         {
@@ -279,14 +267,14 @@
 
                         <div class="d-grid gap-4 mt-3">
                             <button class="btn btn-success btn-lg"
-                                    @onclick="Cotizar"
-                                    disabled="@(isFreightCalculated && isAuthenticated && !string.IsNullOrWhiteSpace(deliveryInstructions) ? false : true)">
+                            @onclick="Cotizar"
+                            disabled="@(isFreightCalculated && isAuthenticated && !string.IsNullOrWhiteSpace(deliveryInstructions) ? false : true)">
                                 <i class="fas fa-file-invoice"></i> Cotizar
                             </button>
                             <button class="btn truck-button"
-                                    @onclick="IniciarProcesoOrden"
-                                    @ref="ordenarButton"
-                                    disabled="@(isFreightCalculated && isAuthenticated && !string.IsNullOrWhiteSpace(deliveryInstructions) ? false : true)">
+                            @onclick="IniciarProcesoOrden"
+                            @ref="ordenarButton"
+                            disabled="@(isFreightCalculated && isAuthenticated && !string.IsNullOrWhiteSpace(deliveryInstructions) ? false : true)">
                                 <span class="default"><i class="fas fa-shopping-cart"></i> Ordenar</span>
                                 <span class="success">
                                     Ordenado
@@ -327,6 +315,8 @@
         </div>
     }
 </div>
+
+
 @code {
     private bool isFreightCalculated = false;
     private double freightPrice = 0;
@@ -341,9 +331,9 @@
     private bool isMapInitialized = false;
     private bool isSuperAdmin;
 
+
     protected override async Task OnInitializedAsync()
     {
-        // Perform any initializations that do not involve JS interop
         var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
         var user = authState.User;
         isAuthenticated = user.Identity.IsAuthenticated;
@@ -354,7 +344,7 @@
             userName = user.Identity.Name;
         }
         isSuperAdmin = user.IsInRole("SuperAdmin");
-
+ 
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -438,8 +428,8 @@
         {
             item.Quantity = newQuantity;
 
-            // Si es aluzinc, recalcular los pies
-            if (item.Product.NewProductoType?.Contains("Aluzinc", StringComparison.OrdinalIgnoreCase) == true
+            // Si es aluzinc:
+            if (item.Product.Types?.Contains("Aluzinc", StringComparison.OrdinalIgnoreCase) == true
                 && item.AluzincLargo.HasValue)
             {
                 item.TotalPiesAluzinc = item.AluzincLargo.Value * item.Quantity;
@@ -450,6 +440,7 @@
             StateHasChanged();
         }
     }
+
 
 
     private async Task Cotizar()
@@ -487,7 +478,7 @@
             foreach (var item in CartService.Items)
             {
                 string extraDesc = "";
-                if (item.Product.NewProductoType?.Contains("Aluzinc") == true)
+                if (item.Product.Types?.Contains("Aluzinc") == true)
                 {
                     extraDesc = $" | Calibre: {item.AluzincCalibre}"
                               + $" | Milímetro: {item.AluzincMilimetro}"
@@ -656,6 +647,9 @@
         // Redirigir al usuario a los detalles de la orden o página de órdenes
         NavigationManager.NavigateTo($"/orderdetails/{newOrder.Id}");
     }
+
+
+
 }
 
 

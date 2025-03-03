@@ -1,0 +1,154 @@
+﻿@page "/subcategory2list/{SubCategoryId:int}"
+@using FerrexWeb.Models
+@using FerrexWeb.Services
+@inject SubCategory2Service SubCategory2Service
+@inject ProductService ProductService
+@inject NavigationManager NavigationManager
+
+<h1 class="text-center my-4">Subcategorías</h1>
+
+@if (subcategories2 == null || subcat2ProductsMap == null)
+{
+    <div class="d-flex justify-content-center align-items-center full-height">
+        <div class="spinner-border" role="status" style="color: #F5C144;">
+            <span class="visually-hidden">Cargando...</span>
+        </div>
+    </div>
+}
+else
+{
+    <div class="row">
+        @foreach (var subcat in subcategories2)
+        {
+            if (subcat2ProductsMap.TryGetValue(subcat.id_subcategory2, out var products) && products.Any())
+            {
+                var firstProduct = products.First();
+                <div class="col-12 col-md-4 mb-4">
+                    <div class="card product-card h-100">
+                        <img src="@firstProduct.ImageUrl" alt="@subcat.name" class="card-img-top" />
+                        <div class="card-body d-flex flex-column">
+                            <h5 class="card-title">@subcat.name</h5>
+                            <div class="mt-auto">
+                                <a href="@($"/productdetails/{firstProduct.IdProducto}")" class="btn custom-btn">
+                                    Ver Producto
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <div class="col-12 col-md-4 mb-4">
+                    <div class="card product-card h-100">
+                        <div class="card-body d-flex flex-column">
+                            <h5 class="card-title">@subcat.name</h5>
+                            <p class="card-text text-muted">Sin productos</p>
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+    </div>
+}
+
+@code {
+    [Parameter]
+    public int SubCategoryId { get; set; }
+
+    private List<Subcategory2> subcategories2;
+    private Dictionary<int, List<Products>> subcat2ProductsMap;
+
+    protected override async Task OnInitializedAsync()
+    {
+        subcategories2 = await SubCategory2Service.GetSubCategory2BySubCategoryIdAsync(SubCategoryId);
+
+        subcat2ProductsMap = new Dictionary<int, List<Products>>();
+
+        foreach (var sc2 in subcategories2)
+        {
+            var prods = await ProductService.GetProductsBySubCategory2Async(sc2.id_subcategory2);
+            subcat2ProductsMap[sc2.id_subcategory2] = prods;
+        }
+    }
+}
+
+
+<style>
+    .product-card {
+        border: none;
+        transition: transform 0.3s, box-shadow 0.3s;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        border-radius: 8px;
+    }
+
+        .product-card:hover {
+            transform: scale(1.03);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+    .card-img-top {
+        width: 100%;
+        height: 160px;
+        object-fit: cover;
+        border-top-left-radius: 8px;
+        border-top-right-radius: 8px;
+    }
+
+    .card-body {
+        padding: 0.75rem;
+    }
+
+    .card-title {
+        font-size: 0.9rem;
+        margin-bottom: 0.5rem;
+        font-weight: 600;
+        color: #333;
+    }
+
+    .card-text {
+        font-size: 0.8rem;
+        color: #555;
+    }
+
+    .btn.custom-btn {
+        background-color: #F5C144;
+        border: none;
+        color: #000;
+        padding: 0.4rem 0.8rem;
+        font-size: 0.8rem;
+        transition: background-color 0.3s;
+        border-radius: 4px;
+    }
+
+        .btn.custom-btn:hover {
+            background-color: #e0ac35;
+            color: #fff;
+        }
+
+    @@media (max-width: 576px) {
+        .card-img-top
+
+    {
+        height: 100px;
+    }
+
+    .card-title {
+        font-size: 0.85rem;
+    }
+
+    .card-text {
+        font-size: 0.75rem;
+    }
+
+    .btn.custom-btn {
+        padding: 0.3rem 0.6rem;
+        font-size: 0.7rem;
+    }
+
+    .card-body {
+        padding: 0.5rem;
+    }
+
+    }
+</style>

@@ -33,6 +33,7 @@ builder.Services.AddDbContextFactory<ApplicationDbContext>(options =>
 
 builder.Services.AddSingleton<ProductoService>();
 builder.Services.AddSingleton<ProductStateService>();
+builder.Services.AddSingleton<CategoryStateContainer>();
 builder.Services.AddScoped<AuthenticationStateProvider, CustomAuthenticationStateProvider>();
 builder.Services.AddScoped<CategoryService>();
 builder.Services.AddScoped<ShoppingCartService>();
@@ -40,6 +41,8 @@ builder.Services.AddScoped<ProductService>();
 builder.Services.AddScoped<NotificationService>();
 builder.Services.AddScoped<OrderService>();
 builder.Services.AddScoped<ImageService>();
+builder.Services.AddScoped<SubCategoryService>();
+builder.Services.AddScoped<SubCategory2Service>();
 builder.Services.AddScoped<ProductSyncService>();
 builder.Services.AddScoped<QuotationService>();
 builder.Services.AddTransient<SeekerService>();

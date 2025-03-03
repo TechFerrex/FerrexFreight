@@ -105,15 +105,13 @@ namespace FerrexWeb.Services
             decimal total = 0;
             foreach (var item in Items)
             {
-                if (item.Product.NewProductoType?.Contains("Aluzinc", StringComparison.OrdinalIgnoreCase) == true
+                if (item.Product.Types?.Contains("Aluzinc", StringComparison.OrdinalIgnoreCase) == true
                     && item.AluzincLargo.HasValue)
                 {
-                    // precio por pie
                     total += item.Product.Precio * (item.AluzincLargo.Value * item.Quantity);
                 }
                 else
                 {
-                    // producto normal
                     total += item.Product.Precio * item.Quantity;
                 }
             }

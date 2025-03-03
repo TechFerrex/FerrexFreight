@@ -1,4 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace FerrexWeb.Models
@@ -16,9 +17,6 @@ namespace FerrexWeb.Models
         [Column("Product")]
         public string DescProducto { get; set; } 
 
-        [Column("NewProductoType")]
-        public string? NewProductoType { get; set; }
-
         [Column("Types")]
         public string? Types { get; set; }
 
@@ -29,15 +27,37 @@ namespace FerrexWeb.Models
         public decimal Precio { get; set; }
 
         [Column("CategoriaID")]
-        public int CategoriaID { get; set; } // Mapeado a la columna 'CategoriaIDzzzzzzzzzzzzzzzzzzzzzzzzzzz'
+        public int CategoriaID { get; set; } 
 
         [Column("Unit")]
         public string Unit { get; set; }
 
-        [Column("ImageUrl")]
-        public string? ImageUrl { get; set; }
+        [Column("id_subcategory")]
+        public int id_subcategory { get; set; }
+
+        [Column("id_subcategory2")]
+        public int? id_subcategory2 { get; set; }
+
+        [Column("id_image")]
+        public int? id_image { get; set; }
 
         public ICollection<ProductVariant> Variants { get; set; } = new List<ProductVariant>();
+
+        [ForeignKey("id_image")]
+        public Image Image { get; set; }
+
+        private List<Products> productsInSameSubcat = new();
+    
+        [NotMapped]
+        public string ImageUrl
+        {
+            get
+            {
+                return Image != null && !string.IsNullOrEmpty(Image.url)
+                    ? Image.url
+                    : "images/product/default.png";
+            }
+        }
 
     }
 }

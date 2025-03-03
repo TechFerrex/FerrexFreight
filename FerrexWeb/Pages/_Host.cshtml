@@ -49,6 +49,7 @@
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
     <script src="~/js/FileUtil.js"></script>
     <script src="js/site.js"></script>  
+    <script src="~/js/carouselHelper.js"></script>
     <script>
         function scrollToSection(id) {
             var element = document.getElementById(id);
@@ -67,5 +68,32 @@
             });
         };
     </script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            // Selecciona todos los carousels de la página
+            var carousels = document.querySelectorAll('.image-carousel');
+
+            carousels.forEach(function (carousel) {
+                var slides = carousel.querySelectorAll('img');
+                var currentIndex = 0;
+
+                // Muestra la primera imagen
+                slides[currentIndex].classList.add('active');
+
+                // Cambia la imagen cada 3 segundos (3000 ms)
+                setInterval(function () {
+                    // Remueve la clase active de la imagen actual
+                    slides[currentIndex].classList.remove('active');
+
+                    // Calcula el índice de la siguiente imagen
+                    currentIndex = (currentIndex + 1) % slides.length;
+
+                    // Agrega la clase active a la siguiente imagen
+                    slides[currentIndex].classList.add('active');
+                }, 3000);
+            });
+        });
+    </script>
+
 </body>
 </html>

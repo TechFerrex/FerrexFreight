@@ -17,6 +17,8 @@ namespace FerrexWeb.Services
         public DbSet<OrderDetail> OrderDetail { get; set; }
         public DbSet<Visitor> Visitor { get; set; }
         public DbSet<AluzincVariant> AluzincVariants { get; set; }
+        public DbSet<SubCategory> SubCategories { get; set; }
+        public DbSet<Subcategory2> SubCategories2 { get; set; }
 
 
 

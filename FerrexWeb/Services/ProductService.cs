@@ -19,79 +19,62 @@ namespace FerrexWeb.Services
             _hostingEnvironment = hostingEnvironment;
         }
 
-
         public async Task<List<Products>> GetRandomProductsAsync(int count)
         {
             var products = await _dbContext.Products
+                .Include(p => p.Image)
                 .OrderBy(p => Guid.NewGuid())
                 .Take(count)
                 .ToListAsync();
 
-            foreach (var producto in products)
-            {
-                producto.ImageUrl = GetProductImageUrl(producto.ImageUrl);
-            }
-
             return products;
         }
-
 
         public async Task<Products> GetProductByIdAsync(int productId)
         {
             var producto = await _dbContext.Products
+                .Include(p => p.Image)
                 .FirstOrDefaultAsync(p => p.IdProducto == productId);
-
-            if (producto != null)
-            {
-                producto.ImageUrl = GetProductImageUrl(producto.ImageUrl);
-            }
 
             return producto;
         }
-        public string GetProductImageUrl(string imageUrl)
+
+        public string GetProductImageUrl(int imageId)
         {
-            if (string.IsNullOrEmpty(imageUrl))
+            if (imageId <= 0)
                 return "images/product/default.png";
 
+            int imageName = imageId;
+
             var extensions = new[] { ".png", ".jpg", ".jpeg", ".gif" };
-
-            // Si imageUrl ya tiene extensión, retornamos tal cual
-            if (extensions.Any(ext => imageUrl.EndsWith(ext, StringComparison.OrdinalIgnoreCase)))
-            {
-                return imageUrl;
-            }
-
-            // Ruta física de la carpeta de imágenes
-            var imagesFolder = Path.Combine(_hostingEnvironment.WebRootPath, Path.GetDirectoryName(imageUrl) ?? string.Empty);
-            var imageName = Path.GetFileName(imageUrl);
+            var imagesFolder = Path.Combine(_hostingEnvironment.WebRootPath, "images/product");
 
             foreach (var ext in extensions)
             {
                 var fullImagePath = Path.Combine(imagesFolder, imageName + ext);
                 if (System.IO.File.Exists(fullImagePath))
                 {
-                    // Retornamos la URL con la extensión encontrada
-                    return Path.Combine(Path.GetDirectoryName(imageUrl) ?? string.Empty, imageName + ext).Replace("\\", "/");
+                    return $"images/product/{imageName}{ext}";
                 }
             }
 
-            // Si no se encuentra ningún archivo, retornamos una imagen por defecto
             return "images/product/default.png";
         }
 
-        public async Task<List<Products>> GetProductsByNewProductoTypeAsync(string newProductType)
+
+        public async Task<List<Products>> GetProductsByTypeAsync(string type)
         {
             return await _dbContext.Products
-                .Where(p => p.NewProductoType == newProductType)
+                .Include(p => p.Image)
+                .Where(p => p.Types == type)
                 .ToListAsync();
-
         }
 
-        // Nuevo método para obtener una variante específica
-        public async Task<Products> GetVariantAsync(string newProductType, string tipo, string size)
+        public async Task<Products> GetVariantAsync(string type, string tipo, string size)
         {
             return await _dbContext.Products
-                .FirstOrDefaultAsync(p => p.NewProductoType == newProductType
+                .Include(p => p.Image)
+                .FirstOrDefaultAsync(p => p.Types == type
                                        && p.Types == tipo
                                        && p.Size == size);
         }
@@ -99,13 +82,9 @@ namespace FerrexWeb.Services
         public async Task<List<Products>> GetProductsByCategoryAsync(int categoryId)
         {
             var products = await _dbContext.Products
+                .Include(p => p.Image)
                 .Where(p => p.CategoriaID == categoryId)
                 .ToListAsync();
-
-            foreach (var producto in products)
-            {
-                producto.ImageUrl = GetProductImageUrl(producto.ImageUrl);
-            }
 
             return products;
         }
@@ -120,12 +99,66 @@ namespace FerrexWeb.Services
 
         public async Task<AluzincVariant> GetAluzincVariantByIdAsync(int variantId)
         {
-            // Igual aquí:
-            return await _dbContext.AluzincVariants
+             return await _dbContext.AluzincVariants
                 .FirstOrDefaultAsync(v => v.Id == variantId);
         }
 
+        public async Task<List<AluzincVariant>> GetAllAluzincVariantsAsync()
+        {
+            return await _dbContext.AluzincVariants.ToListAsync();
+        }
 
+        public async Task<int> GetProductCountBySubCategoryIdAsync(int subCategoryId)
+        {
+            return await _dbContext.Products
+                .Where(p => p.id_subcategory == subCategoryId)
+                .CountAsync();
+        }
 
+        public async Task<int> GetProductCountBySubCategory2Async(int subCategory2Id)
+        {
+            return await _dbContext.Products
+                .CountAsync(p => p.id_subcategory2 == subCategory2Id);
+        }
+
+        public async Task<Products> GetFirstProductBySubCategory2Async(int subCategory2Id)
+        {
+            return await _dbContext.Products
+                .Include(p => p.Image)
+                .Where(p => p.id_subcategory2 == subCategory2Id)
+                .OrderBy(p => p.IdProducto)
+                .FirstOrDefaultAsync();
+        }
+
+        public async Task<List<Products>> GetProductsBySubCategory2Async(int subCategory2Id)
+        {
+            return await _dbContext.Products
+                .Include(p => p.Image)
+                .Where(p => p.id_subcategory2 == subCategory2Id)
+                .ToListAsync();
+        }
+
+        public async Task<int> GetProductCountBySubCategoryAsync(int subCategoryId)
+        {
+            return await _dbContext.Products
+                .CountAsync(p => p.id_subcategory == subCategoryId);
+        }
+
+        public async Task<Products> GetFirstProductBySubCategoryAsync(int subCategoryId)
+        {
+            return await _dbContext.Products
+                .Include(p => p.Image)
+                .Where(p => p.id_subcategory == subCategoryId)
+                .OrderBy(p => p.IdProducto)
+                .FirstOrDefaultAsync();
+        }
+
+        public async Task<List<Products>> GetProductsBySubCategoryAsync(int subCategoryId)
+        {
+            return await _dbContext.Products
+                .Include(p => p.Image)
+                .Where(p => p.id_subcategory == subCategoryId)
+                .ToListAsync();
+        }
     }
 }
