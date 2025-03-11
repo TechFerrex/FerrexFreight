@@ -32,7 +32,7 @@ else
                                     <!-- Si tiene sub-cat2, vas a la página subcategory2list -->
                                     <a href="@($"/subcategory2list/{subcat.id_subcategory}")"
                                        class="btn custom-btn">
-                                        Ver Subcategoría 2
+                                        Ver Mas
                                     </a>
                                 }
                                 else
@@ -68,10 +68,8 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        // Obtenemos las subcategorías para la categoría dada
         subCategories = await SubCategoryService.GetSubCategoriesByCategoryIdAsync(CategoryId);
 
-        // Buscamos el "primer" producto de cada subcategoría
         foreach (var subcat in subCategories)
         {
             var firstProd = await ProductService.GetFirstProductBySubCategoryAsync(subcat.id_subcategory);

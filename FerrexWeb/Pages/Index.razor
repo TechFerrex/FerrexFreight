@@ -5,7 +5,6 @@
 @inject ProductService ProductService
 @inject ApplicationDbContext DbContext
 <!--   <PageTitle>Bienvenido a Ferrexpress</PageTitle>-->
-
 <div class="container mt-5">
     <div class="jumbotron text-center">
         <p class="lead">Ofrecemos los mejores productos para ti. Explora nuestras categorías y encuentra lo que necesitas.</p>
@@ -13,7 +12,6 @@
         <p>Busca los productos que necesitas para tu construcción</p>
     </div>
 </div>
-
 <div class="banner-container">
     @if (!mostrarBanner)
     {
@@ -39,8 +37,6 @@
         </NavLink>
     }
 </div>
-
-
 <div class="container mt-5">
     <h2 class="mt-5">Categorías Destacadas</h2>
     <div class="row">
@@ -56,6 +52,11 @@
         {
             @foreach (var category in categories)
             {
+                var categoryImages = GetImagesForCategory(category.Id);
+                int imageCount = categoryImages.Count;
+                int cycleTime = 5;
+                int totalDuration = imageCount * cycleTime;
+
                 <div class="col-12 col-sm-6 col-md-4 mb-4">
                     <NavLink href="@($"productlist/{category.Id}")"
                     class="text-decoration-none"
@@ -64,7 +65,15 @@
                             <div class="card-inner" style="--clr:#ffffff;">
                                 <div class="box">
                                     <div class="imgBox">
-                                        <img src="@category.ImageUrl" alt="@category.Name">
+                                        @for (int i = 0; i < imageCount; i++)
+                                        {
+                                            <img src="@($"{category.ImageUrl}/{categoryImages[i]}")"
+                                                 alt="Imagen de categoría"
+                                                 class="carousel-image"
+                                                 loading="lazy"
+                                                 style="animation-delay: @(i * cycleTime)s;
+                                                animation-duration: @(totalDuration)s;" />
+                                        }
                                     </div>
                                     <div class="icon">
                                         <a href="productlist/@category.Id" class="iconBox">
@@ -105,7 +114,7 @@
                     style="color: black">
                         <div class="card product-card h-100">
                             <img class="card-img-top"
-                                 src="@product.id_image"
+                                 src="@product.ImageUrl"
                             alt="@product.DescProducto"
                             style="height: 200px; object-fit: cover;">
                             <div class="card-body d-flex flex-column">
@@ -127,8 +136,6 @@
         }
     </div>
 </div>
-
-
 @code {
 
     private List<Categories> categories;
@@ -150,6 +157,11 @@
 
 
 
+    private List<string> GetImagesForCategory(int categoryId)
+    {
+        return new List<string> { "shutter1.webp"};
+    }
+
     private string GetProductLink(string imagePath)
     {
 
@@ -160,52 +172,27 @@
             return ImageProductLinks[imagePath];
 
         }
-
         return "/";
-
     }
-
-
     private int currentIndex = 0;
     private string CurrentImage => ImagePaths[currentIndex];
     private string PreviousImage;
     private bool IsFading = false;
     private System.Timers.Timer timer;
-
     private bool mostrarBanner = false;              
     private System.Timers.Timer _delayTimer;         
 
     protected override async Task OnInitializedAsync()
     {
-        try
+
+        isConnected = await DbContext.Database.CanConnectAsync();
+        if (isConnected)
         {
-            isConnected = await DbContext.Database.CanConnectAsync();
-            if (isConnected)
-            {
-                categories = await CategoryService.GetRandomCategoriesAsync(3);
-                featuredProducts = await ProductService.GetRandomProductsAsync(3);
-            }
-            else
-            {
-                Console.WriteLine("No se pudo conectar a la base de datos. Intentando obtener más detalles...");
-                try
-                {
-                    categories = await CategoryService.GetRandomCategoriesAsync(3);
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine("Error de conexión a la base de datos:");
-                    Console.WriteLine($"Mensaje de error: {ex.Message}");
-                    Console.WriteLine("Detalles de la excepción: " + ex.ToString());
-                }
-            }
+            categories = await CategoryService.GetRandomCategoriesAsync(3);
+            featuredProducts = await ProductService.GetRandomProductsAsync(3);
         }
-        catch (Exception ex)
-        {
-            Console.WriteLine("Ocurrió un error general:");
-            Console.WriteLine($"Mensaje de error: {ex.Message}");
-            Console.WriteLine("Detalles de la excepción: " + ex.ToString());
-        }
+        categories = await CategoryService.GetRandomCategoriesAsync(3);
+           
     }
 
     protected override void OnInitialized()
@@ -220,14 +207,14 @@
         };
 
         // 2) Timer para retrasar la APARICIÓN del banner (1s por ejemplo)
-        _delayTimer = new System.Timers.Timer(1000);  // <-- NUEVO (1 segundo)
+        _delayTimer = new System.Timers.Timer(1000); 
         _delayTimer.Elapsed += (sender, e) =>
         {
             _delayTimer.Stop();
             InvokeAsync(() =>
             {
-                mostrarBanner = true;  // Ahora ya se va a mostrar el banner
-                timer.Start();         // Iniciamos la rotación justo cuando aparece
+                mostrarBanner = true;
+                timer.Start();         
                 StateHasChanged();
             });
         };
@@ -241,7 +228,6 @@
         PreviousImage = CurrentImage;
         StateHasChanged();
 
-        // Esperar que termine la transición del fade-out (0.5s)
         await Task.Delay(500);
 
         currentIndex = (currentIndex + 1) % ImagePaths.Count;
@@ -253,19 +239,17 @@
     public void Dispose()
     {
         timer?.Dispose();
-        _delayTimer?.Dispose();  // <-- NUEVO
+        _delayTimer?.Dispose();  
     }
 }
 
 <style>
-    /* Reset de márgenes y padding */
     * {
         margin: 0;
         padding: 0;
         box-sizing: border-box;
     }
 
-    /* Estilos del cuerpo */
     body {
         background: url("/images/GrayWall.png") no-repeat center/cover;
         font-family: "Lato", sans-serif;
@@ -273,7 +257,6 @@
         font-style: normal;
     }
 
-    /* Contenedor principal */
     .container {
         width: 100%;
         max-width: 1140px;
@@ -316,7 +299,6 @@
         margin: 1rem 0;
     }
 
-    /* Sistema de cuadrícula */
     .row {
         display: flex;
         flex-wrap: wrap;
@@ -344,7 +326,6 @@
         }
     }
 
-    /* Flex utilities */
     .d-flex {
         display: flex;
     }
@@ -483,7 +464,6 @@
             color: #F5C144;
         }
 
-    /* Estilos para las imágenes del banner */
     .banner-container {
         position: relative;
         width: 100%;
@@ -526,7 +506,6 @@
         }
     }
 
-    /* Enlaces sin decoración */
     .text-decoration-none {
         text-decoration: none;
     }

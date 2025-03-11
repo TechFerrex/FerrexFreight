@@ -1,7 +1,6 @@
 ﻿@page "/categories"
 @using FerrexWeb.Models
 @using FerrexWeb.Services
-
 @inject CategoryService CategoryService
 @inject CategoryStateContainer CategoryState
 
@@ -25,7 +24,6 @@ else
                 int imageCount = categoryImages.Count;
                 int cycleTime = 5;               
                 int totalDuration = imageCount * cycleTime; 
-
                 <div class="col-12 col-sm-6 col-md-4 mb-4">
                     <NavLink href="@($"/categories/{category.Id}/subcategories")" class="text-decoration-none text-black">
                         <div class="card category-card h-100 border-0">
@@ -45,7 +43,7 @@ else
                                 <p class="card-text">@category.Description</p>
                                 <div class="mt-auto">
                                     <a href="@($"/categories/{category.Id}/subcategories")" class="btn custom-btn">
-                                        Ver Subcategorías
+                                        Ver Mas
                                     </a>
                                 </div>
                             </div>
@@ -74,12 +72,10 @@ else
 
 
 <style>
-    /* Altura mínima mientras cargas */
     .full-height {
         height: 50vh;
     }
 
-    /* Efecto hover en la tarjeta */
     .category-card {
         transition: transform 0.3s, box-shadow 0.3s;
         box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
@@ -90,15 +86,13 @@ else
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
         }
 
-    /* Contenedor de la "galería" dentro de cada tarjeta */
     .card-carousel {
         position: relative;
         width: 100%;
-        height: 200px; /* Ajusta según tu diseño */
+        height: 200px; 
         overflow: hidden;
     }
 
-    /* Configuración de las imágenes que participarán en la animación */
     .carousel-image {
         position: absolute;
         top: 0;
@@ -106,14 +100,12 @@ else
         width: 100%;
         height: 100%;
         object-fit: cover;
-        opacity: 0; /* todas inician ocultas */
-        animation-name: fade; /* nombre de la animación */
+        opacity: 0; 
+        animation-name: fade; 
         animation-timing-function: ease-in-out;
         animation-iteration-count: infinite;
-        /* animation-delay y animation-duration se inyectan por inline-style desde el .razor */
     }
 
-    /* Animación para el fade in/out */
     @@keyframes fade {
         0%
 

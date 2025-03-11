@@ -7,7 +7,7 @@
 
 @if (producto == null)
 {
-    <p>No se seleccionó ningún producto.</p>
+    <p>No se selecciono ningun producto.</p>
 }
 else
 {
@@ -140,6 +140,7 @@ else
     private List<Products> productsWithSameType = new List<Products>();
     private List<string> AvailableTypes = new List<string>();
     private List<string> AvailableSizes = new List<string>();
+    private AluzincVariant selectedAluzincVariant { get; set; }
 
     private string selectedType;
     private string selectedSize;
@@ -258,8 +259,6 @@ else
         }
     }
 
-
-
     private bool IsSinTipo(string types)
     {
         if (string.IsNullOrWhiteSpace(types)) return true;
@@ -298,10 +297,21 @@ else
 
         if (variant != null && selectedLargo > 0)
         {
+            selectedAluzincVariant = variant;
+
             producto.Precio = variant.PricePerPie * selectedLargo;
+
+           // Opcionalmente actualiza la imagen o descripción según la variante
+            producto.DescProducto = $"{producto.DescProducto} {variant.Color} {variant.Calibre} {variant.Milimetros} {variant.PerfilCrestas}";
         }
+        else
+        {
+            selectedAluzincVariant = null;
+        }
+
         StateHasChanged();
     }
+
 
     private void ActualizarProductoVariant()
     {
@@ -342,7 +352,6 @@ else
         StateHasChanged();
     }
 
-
     private async Task AgregarAlCarrito()
     {
         if (producto == null) return;
@@ -353,14 +362,23 @@ else
         }
         else
         {
-            await CartService.AddToCartAsync(
-                product: producto,
-                quantity: 1,
-                aluzincLargo: selectedLargo,
-                aluzincCalibre: selectedCalibre,
-                aluzincMilimetro: selectedMilimetro,
-                aluzincColor: selectedColor
-            );
+            var variant = selectedAluzincVariant;
+            if (variant != null && selectedLargo > 0)
+            {
+                await CartService.AddToCartAsync(
+                    product: producto,
+                    quantity: cantidad,
+                    aluzincLargo: selectedLargo,
+                    aluzincCalibre: variant.Calibre,
+                    aluzincMilimetro: variant.Milimetros,
+                    aluzincColor: variant.Color
+                );
+            }
+            else
+            {
+                errorMessage = "Selecciona una variante válida y especifica un largo mayor a 0.";
+                return;
+            }
         }
     }
 

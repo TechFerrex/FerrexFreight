@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using FerrexWeb.Models;
 using Microsoft.EntityFrameworkCore;
+using static iTextSharp.tool.xml.html.HTML;
 
 namespace FerrexWeb.Services
 {
@@ -18,11 +19,11 @@ namespace FerrexWeb.Services
 
         public async Task<List<Categories>> GetRandomCategoriesAsync(int count)
         {
-            // Obtiene categorías aleatorias
             return await _dbContext.Categories
-                .OrderBy(c => Guid.NewGuid())
-                .Take(count)
-                .ToListAsync();
+        .Where(c => c.IsActive)            // Solo categorías activas
+        .OrderBy(c => Guid.NewGuid())      // Orden aleatorio
+        .Take(count)                       // Toma n (ej. 3)
+        .ToListAsync();
         }
 
         public async Task<List<Categories>> GetAllCategoriesAsync()
@@ -36,5 +37,11 @@ namespace FerrexWeb.Services
                 .Include(c => c.SubCategories) // opcional: eager load
                 .FirstOrDefaultAsync(c => c.Id == categoryId);
         }
+
+        public async Task<List<Categories>> GetActiveCategoriesAsync()
+        {
+            return await _dbContext.Categories.Where(c => c.IsActive).ToListAsync();
+        }
+
     }
 }

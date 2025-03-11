@@ -9,10 +9,9 @@ namespace FerrexWeb.Services
 
         public async Task LoadCategoriesAsync(CategoryService categoryService)
         {
-            // Solo cargamos las categorías si aún no existen en memoria
             if (Categories == null)
             {
-                Categories = await categoryService.GetAllCategoriesAsync();
+                Categories = await categoryService.GetActiveCategoriesAsync();
             }
         }
     }
