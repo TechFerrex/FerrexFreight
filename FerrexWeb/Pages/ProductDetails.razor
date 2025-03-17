@@ -52,7 +52,38 @@ else
                     <div class="error-message">@errorMessage</div>
                 }
             }
-            else
+            @if (IsViga)
+            {
+                <hr />
+                <h5>Opciones para Viga</h5>
+                <div class="selector">
+                    <label for="vigaSizeSelect">Tamaño (ej. 6, 8, etc.):</label>
+                    <select id="vigaSizeSelect" @bind="selectedVigaSize">
+                        <option value="">--Seleccione--</option>
+                        @foreach (var size in vigaSizes)
+                        {
+                            <option value="@size">@size</option>
+                        }
+                    </select>
+                </div>
+                <div class="selector">
+                    <label for="vigaWeightSelect">Peso por pie (lb/ft):</label>
+                    <select id="vigaWeightSelect" @bind="selectedVigaWeight">
+                        <option value="0">--Seleccione--</option>
+                        @foreach (var weight in vigaWeightOptions)
+                        {
+                            <option value="@weight">@weight</option>
+                        }
+                    </select>
+                </div>
+                <div class="selector">
+                    <label for="vigaLengthInput">Largo (en pies):</label>
+                    <input id="vigaLengthInput" type="number" step="0.01" @bind="selectedVigaLength" />
+                </div>
+            }
+
+
+            else if (IsAluzinc)
             {
                 <hr />
                 <h5>Opciones de Lámina Aluzinc</h5>
@@ -129,6 +160,7 @@ else
 @code {
     [Parameter]
     public int productId { get; set; }
+    private const decimal VigaWeightPerFoot = 2.50m; // Ajusta el valor según corresponda
 
     private List<Products> productsInSameSubcat = new();
     private string descOriginal = "";
@@ -143,7 +175,20 @@ else
     private string selectedType;
     private string selectedSize;
     private string customVariantDescription;
-    // Propiedades para las opciones de variante
+
+    // Listado de tamaños predefinidos para vigas
+    private List<string> vigaSizes = new List<string> { "6", "8", "10" }; // Ajusta según tus necesidades
+
+    // Listado de opciones para el peso por pie (lb/ft)
+    private List<decimal> vigaWeightOptions = new List<decimal> { 31m, 32m, 33m }; // Por ejemplo, el usuario podrá elegir 31 lb/ft, etc.
+
+    // Variables para almacenar la selección del usuario
+    private string selectedVigaSize = "";
+    private decimal selectedVigaWeight = 0;
+    private decimal selectedVigaLength = 0;
+
+
+
     private string _selectedColor = "";
     public string selectedColor
     {
@@ -270,7 +315,6 @@ else
                 selectedCrestas = "";
                 selectedLargo = 0;
             }
-
             ActualizarProductoVariant();
         }
         catch (Exception ex)
@@ -379,16 +423,53 @@ else
 
         StateHasChanged();
     }
-
+    
     private async Task AgregarAlCarrito()
     {
         if (producto == null) return;
 
-        if (!IsAluzinc)
+        if (!IsAluzinc && !IsViga)
         {
             await CartService.AddToCartAsync(producto, cantidad);
         }
-        else
+        if (producto == null)
+            return;
+
+        if (IsViga)
+        {
+            if (string.IsNullOrEmpty(selectedVigaSize))
+            {
+                errorMessage = "Selecciona un tamaño válido para la viga.";
+                return;
+            }
+            if (selectedVigaWeight <= 0)
+            {
+                errorMessage = "Selecciona un peso válido para la viga.";
+                return;
+            }
+            if (selectedVigaLength <= 0)
+            {
+                errorMessage = "El largo debe ser mayor a 0.";
+                return;
+            }
+            // Cálculo del precio unitario para VIGA:
+            // Precio Unitario = (Largo en pies) x (Peso por pie seleccionado) x (Precio por libra del producto)
+            decimal unitPriceForViga = selectedVigaLength * selectedVigaWeight * producto.Precio;
+            // Ejemplo: 39 * 31 * 18 = 21,762
+
+            // Se arma la descripción que mostrará el detalle del producto en el carrito.
+            string finalDesc = $"{producto.DescProducto} - Tamaño: {selectedVigaSize} - Peso: {selectedVigaWeight} lb/ft - Largo: {selectedVigaLength} ft";
+
+            await CartService.AddToCartAsync(
+                product: producto,
+                quantity: cantidad,
+                customDescription: finalDesc,
+                customPricePerPie: unitPriceForViga
+            );
+            errorMessage = "";
+        }
+        // Caso Aluzinc: el usuario debe seleccionar la variante y el largo
+        else if (IsAluzinc)
         {
             if (selectedAluzincVariant == null)
             {
@@ -414,9 +495,7 @@ else
                 aluzincColor: selectedAluzincVariant.Color,
                 customDescription: finalDesc,
                 customPricePerPie: pricePerPieForVariant
-                );
-
-
+            );
             errorMessage = "";
         }
     }
@@ -425,6 +504,8 @@ else
     private void DecrementarCantidad() { if (cantidad > 1) cantidad--; }
 
     private bool IsAluzinc => producto?.Types?.Contains("Aluzinc", StringComparison.OrdinalIgnoreCase) == true;
+    private bool IsViga => producto?.Types?.Contains("WF GR50", StringComparison.OrdinalIgnoreCase) == true;
+
 }
 
 

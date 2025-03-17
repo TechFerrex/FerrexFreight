@@ -41,6 +41,7 @@ namespace FerrexWeb.Services
      string? customDescription = null,
      decimal? customPricePerPie = null
  )
+
         {
             // Crea un clon completo del producto para que no se sobrescriba en otros ítems.
             var productClone = new Products
@@ -80,11 +81,10 @@ namespace FerrexWeb.Services
                     AluzincCalibre = aluzincCalibre,
                     AluzincMilimetro = aluzincMilimetro,
                     AluzincColor = aluzincColor,
-                    BasePrice = customPricePerPie  // Guarda el precio base para láminas
+                    BasePrice = customPricePerPie 
                 };
 
-                if (aluzincLargo.HasValue)
-                    newItem.TotalPiesAluzinc = aluzincLargo.Value * quantity;
+                if (aluzincLargo.HasValue)newItem.TotalPiesAluzinc = aluzincLargo.Value * quantity;
 
                 Items.Add(newItem);
             }

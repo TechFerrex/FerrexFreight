@@ -1,719 +1,719 @@
-﻿@page "/cart"
-@using FerrexWeb.Services
-@using FerrexWeb.Models
-@using Blazored.LocalStorage
-@using System.Security.Claims
-@using Microsoft.AspNetCore.Components.Authorization
-@inject OrderService OrderService
-@inject AuthenticationStateProvider AuthenticationStateProvider
-@inject IJSRuntime JSRuntime
-@inject ShoppingCartService CartService
-@inject QuotationService QuotationService
-@inject NavigationManager NavigationManager
-@inject ILocalStorageService LocalStorage
+﻿    @page "/cart"
+    @using FerrexWeb.Services
+    @using FerrexWeb.Models
+    @using Blazored.LocalStorage
+    @using System.Security.Claims
+    @using Microsoft.AspNetCore.Components.Authorization
+    @inject OrderService OrderService
+    @inject AuthenticationStateProvider AuthenticationStateProvider
+    @inject IJSRuntime JSRuntime
+    @inject ShoppingCartService CartService
+    @inject QuotationService QuotationService
+    @inject NavigationManager NavigationManager
+    @inject ILocalStorageService LocalStorage
 
-<div class="container my-5">
-    <h1 class="text-center mb-4">
-        @(CartService.CurrentQuotationId.HasValue ? "Editar Cotización" : "Carrito de Compras")
-    </h1>
+    <div class="container my-5">
+        <h1 class="text-center mb-4">
+            @(CartService.CurrentQuotationId.HasValue ? "Editar Cotización" : "Carrito de Compras")
+        </h1>
 
-    @if (isLoading)
-    {
-        <div class="text-center">
-            <p>Cargando...</p>
-        </div>
-    }
-    else if (CartService.Items.Count == 0)
-    {
-        <div class="alert alert-warning text-center">
-            <strong>No hay productos en el carrito.</strong>
-        </div>
-    }
-    else
-    {
-        <div class="row">
-            <div class="col-12 col-lg-8 mb-4">
-                <div class="table-responsive d-none d-lg-block">
-                    <table class="table table-hover align-middle">
-                        <thead class="table-dark">
-                            <tr>
-                                <th>Producto</th>
-                                <th>Cantidad</th>
-                                <th>Unidad</th>
-                                <th>Precio</th>
-                                <th>Subtotal</th>
-                                <th>ISV</th>
-                                <th>Total</th>
-                                <th></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                                @foreach (var item in CartService.Items)
-                                {
-                                    bool isAluzinc = item.Product.Types?.Contains("Aluzinc", StringComparison.OrdinalIgnoreCase) == true;
-
-                                    decimal subtotalProducto;
-                                    if (isAluzinc)
-                                    {
-                                        //
-                                        decimal pricePerPie = /* (aquí recuperas el precio por pie) */ item.Product.Precio;
-                                        decimal totalPies = (item.AluzincLargo ?? 0) * item.Quantity;
-                                        subtotalProducto = pricePerPie * totalPies;
-                                    }
-                                    else
-                                    {
-                                        // Producto normal
-                                        subtotalProducto = item.Product.Precio * item.Quantity;
-                                    }
-                                    decimal isvProducto = subtotalProducto * 0.15m;
-                                    decimal totalProducto = subtotalProducto + isvProducto;
-
-                                <tr>
-                                    <td>
-                                        <div><strong>@item.Product.DescProducto</strong></div>
-                                            @if (isAluzinc)
-                                            {
-                                            <div><strong>Largo (pies):</strong> @item.AluzincLargo</div>
-                                            <div><strong>Calibre:</strong> @item.AluzincCalibre</div>
-                                            <div><strong>Milímetro:</strong> @item.AluzincMilimetro</div>
-                                            <div><strong>Color:</strong> @item.AluzincColor</div>
-                                            }
-                                    </td>
-
-                                    <td>
-                                        <input type="number"
-                                               class="form-control quantity-input"
-                                               value="@item.Quantity"
-                                               min="1"
-                                               @onchange="(e) => UpdateQuantity(item, e)" />
-                                    </td>
-
-                                    <!-- 3) Unidad -->
-                                    <td>@item.Product.Unit</td>
-
-                                    <!-- 4) Precio Unitario (puedes mostrar item.Product.Precio o un property del CartItem) -->
-                                    <td>
-                                            @if (isAluzinc)
-                                            {
-                                            <!-- Ejemplo: Mostrar "Precio/ft:  L. @item.PricePerPie"
-                                                 o si lo guardaste en item.Product.Precio, mostrarlo directo. -->
-                                                @item.Product.Precio.ToString("C")
-                                            }
-                                            else
-                                            {
-                                                @item.Product.Precio.ToString("C")
-                                            }
-                                    </td>
-
-                                    <!-- 5) Subtotal -->
-                                    <td>@subtotalProducto.ToString("C")</td>
-
-                                    <!-- 6) ISV -->
-                                    <td>@isvProducto.ToString("C")</td>
-
-                                    <!-- 7) Total -->
-                                    <td>@totalProducto.ToString("C")</td>
-
-                                    <!-- 8) Botón Eliminar -->
-                                    <td>
-                                        <button class="btn btn-danger" @onclick="() => RemoveFromCart(item.Product)">
-                                            <i class="fas fa-trash-alt"></i>
-                                        </button>
-                                    </td>
-                                </tr>
-                                }
-                        </tbody>
-                    </table>
-                </div>
-                <div class="d-block d-lg-none">
-                    @foreach (var item in CartService.Items)
-                    {
-                        bool isAluzinc = item.Product.Types?.Contains("Aluzinc", StringComparison.OrdinalIgnoreCase) == true;
-
-                        decimal subtotalProducto = 0m;
-                        decimal isvProducto = 0m;
-                        decimal totalProducto = 0m;
-
-                        if (isAluzinc)
-                        {
-                            decimal pricePerPie = item.Product.Precio;
-                            decimal totalPies = (item.AluzincLargo ?? 0) * item.Quantity;
-                            subtotalProducto = pricePerPie * totalPies;
-                        }
-                        else
-                        {
-                            subtotalProducto = item.Product.Precio * item.Quantity;
-                        }
-                        isvProducto = subtotalProducto * 0.15m;
-                        totalProducto = subtotalProducto + isvProducto;
-
-                        <div class="card mb-3">
-                            <div class="card-body">
-                                <h5 class="card-title">@item.Product.DescProducto</h5>
-                                @if (isAluzinc)
-                                {
-                                    <p><strong>Largo (pies):</strong> @item.AluzincLargo</p>
-                                    <p><strong>Calibre:</strong> @item.AluzincCalibre</p>
-                                    <p><strong>Milímetro:</strong> @item.AluzincMilimetro</p>
-                                    <p><strong>Color:</strong> @item.AluzincColor</p>
-                                }
-                                <p>
-                                    <strong>Cantidad:</strong>
-                                    <input type="number"
-                                    class="form-control quantity-input"
-                                    value="@item.Quantity"
-                                    min="1"
-                                    @onchange="(e) => UpdateQuantity(item, e)" />
-                                </p>
-                                <p><strong>Unidad:</strong> @item.Product.Unit</p>
-                                <p><strong>Subtotal:</strong> @subtotalProducto.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</p>
-                                <p><strong>ISV:</strong> @isvProducto.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</p>
-                                <p><strong>Total:</strong> @totalProducto.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</p>
-
-                                <button class="btn btn-danger" @onclick="() => RemoveFromCart(item.Product)">
-                                    <i class="fas fa-trash-alt"></i> Eliminar
-                                </button>
-                            </div>
-                        </div>
-                    }
-                </div>
-
-                <!-- ========================= -->
-                <!-- Sección del Mapa y Flete -->
-                <!-- ========================= -->
-                <div class="card mt-4">
-                    <div class="card-header bg-dark text-white">
-                        <h5 class="mb-0">Selecciona tu Ubicación de Entrega</h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="alert alert-info mb-3">
-                            <strong>¿Cómo seleccionar tu ubicación?</strong><br />
-                            1. Haz clic en el mapa para colocar un marcador en tu dirección de entrega.<br />
-                            2. Una vez colocado el marcador, presiona el botón <strong>"Calcular Flete"</strong> para obtener el costo de envío.<br />
-                            3. Luego, escribe tus instrucciones adicionales en el recuadro de abajo.
-                        </div>
-
-                        <div id="map" style="height: 300px; width: 100%; border: 1px solid #ccc;"></div>
-
-                        @if (!isFreightCalculated)
-                        {
-                            <p class="text-danger mt-2">
-                                Primero debes seleccionar tu ubicación en el mapa para calcular el flete.
-                            </p>
-                        }
-
-                        <div class="form-group mt-3">
-                            <label for="deliveryInstructions">Dirección de Entrega e Instrucciones (requerido):</label>
-                            <textarea id="deliveryInstructions"
-                            class="form-control"
-                            @bind="deliveryInstructions"
-                            placeholder="Ejemplo: Casa amarilla con portón negro, dejar el producto en la entrada.">
-                            </textarea>
-                        </div>
-
-                        <button @onclick="CalculateDistanceAndRedirect" class="btn btn-primary mt-3">
-                            <i class="fas fa-map-marker-alt"></i> Calcular Flete
-                        </button>
-                    </div>
-                </div>
-            </div>
-            <div class="col-12 col-lg-4">
-                @{
-                    // Cálculo final del subtotal, pero teniendo en cuenta Aluzinc
-                    decimal subtotalGeneral = 0m;
-
-                    foreach (var item in CartService.Items)
-                    {
-                        bool isAluzinc = item.Product.Types?.Contains("Aluzinc") == true;
-                        decimal subProd = 0m;
-                        if (isAluzinc)
-                        {
-                            decimal pricePerPie = item.Product.Precio;
-                            decimal totalPies = (item.AluzincLargo ?? 0) * item.Quantity;
-                            subProd = pricePerPie * totalPies;
-                        }
-                        else
-                        {
-                            subProd = item.Product.Precio * item.Quantity;
-                        }
-                        subtotalGeneral += subProd;
-                    }
-
-                    var freightDecimal = (decimal)freightPrice;
-                    var isvGeneral = (subtotalGeneral + freightDecimal) * 0.15m;
-                    var totalGeneral = subtotalGeneral + freightDecimal + isvGeneral;
-                }
-
-                <div class="card">
-                    <div class="card-body">
-                        <h4>Resumen</h4>
-                        <ul class="list-group list-group-flush">
-                            <li class="list-group-item d-flex justify-content-between">
-                                <span>Subtotal:</span>
-                                <strong>@subtotalGeneral.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</strong>
-                            </li>
-                            <li class="list-group-item d-flex justify-content-between">
-                                <span>ISV (15%):</span>
-                                <strong>@isvGeneral.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</strong>
-                            </li>
-                            <li class="list-group-item d-flex justify-content-between">
-                                <span>Flete:</span>
-                                <strong>@freightPrice.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</strong>
-                            </li>
-                            <li class="list-group-item d-flex justify-content-between">
-                                <span>Total:</span>
-                                <strong>@totalGeneral.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</strong>
-                            </li>
-                        </ul>
-
-                        <div class="d-grid gap-4 mt-3">
-                            <button class="btn btn-success btn-lg"
-                            @onclick="Cotizar"
-                            disabled="@(isFreightCalculated && isAuthenticated && !string.IsNullOrWhiteSpace(deliveryInstructions) ? false : true)">
-                                <i class="fas fa-file-invoice"></i> Cotizar
-                            </button>
-                            <button class="btn truck-button"
-                            @onclick="IniciarProcesoOrden"
-                            @ref="ordenarButton"
-                            disabled="@(isFreightCalculated && isAuthenticated && !string.IsNullOrWhiteSpace(deliveryInstructions) ? false : true)">
-                                <span class="default"><i class="fas fa-shopping-cart"></i> Ordenar</span>
-                                <span class="success">
-                                    Ordenado
-                                    <svg viewBox="0 0 12 10">
-                                        <polyline points="1.5 6 4.5 9 10.5 1"></polyline>
-                                    </svg>
-                                </span>
-                                <div class="truck">
-                                    <div class="wheel"></div>
-                                    <div class="back"></div>
-                                    <div class="front"></div>
-                                    <div class="box"></div>
-                                </div>
-                            </button>
-                        </div>
-
-                        @if (!isFreightCalculated)
-                        {
-                            <p class="text-danger mt-2 text-center">
-                                Debes seleccionar tu ubicación en el mapa y calcular el flete antes de cotizar u ordenar.
-                            </p>
-                        }
-                        else if (!isAuthenticated)
-                        {
-                            <p class="text-danger mt-2 text-center">
-                                Debes iniciar sesión para cotizar u ordenar.
-                            </p>
-                        }
-                        else if (string.IsNullOrWhiteSpace(deliveryInstructions))
-                        {
-                            <p class="text-danger mt-2 text-center">
-                                Debes ingresar las instrucciones de entrega antes de cotizar u ordenar.
-                            </p>
-                        }
-                    </div>
-                </div>
-            </div>
-        </div>
-    }
-</div>
-
-
-@code {
-    private bool isFreightCalculated = false;
-    private double freightPrice = 0;
-    private bool isAuthenticated;
-    private string userId;
-    private string userName;
-    private double selectedLatitude;
-    private double selectedLongitude;
-    private string deliveryInstructions;
-    private Quotation quotation;
-    private bool isLoading = true;
-    private bool isMapInitialized = false;
-    private bool isSuperAdmin;
-
-
-    protected override async Task OnInitializedAsync()
-    {
-        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
-        var user = authState.User;
-        isAuthenticated = user.Identity.IsAuthenticated;
-
-        if (isAuthenticated)
+        @if (isLoading)
         {
-            userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            userName = user.Identity.Name;
+            <div class="text-center">
+                <p>Cargando...</p>
+            </div>
         }
-        isSuperAdmin = user.IsInRole("SuperAdmin");
- 
-    }
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (firstRender)
+        else if (CartService.Items.Count == 0)
         {
-            await CartService.EnsureInitializedAsync();
-            CartService.OnChange += StateHasChanged;
-
-            isLoading = false;
-
-            // Update the UI
-            StateHasChanged();
+            <div class="alert alert-warning text-center">
+                <strong>No hay productos en el carrito.</strong>
+            </div>
         }
         else
         {
-            if (CartService.Items.Count > 0 && !isMapInitialized)
-            {
-                try
-                {
-                    await JSRuntime.InvokeVoidAsync("initLeafletMap");
-                    await JSRuntime.InvokeVoidAsync("iniciarAnimacion");
-                    isMapInitialized = true;
-                }
-                catch (JSException jsEx)
-                {
-                    // Handle the exception as needed
-                    Console.Error.WriteLine(jsEx.Message);
-                }
-            }
+            <div class="row">
+                <div class="col-12 col-lg-8 mb-4">
+                    <div class="table-responsive d-none d-lg-block">
+                        <table class="table table-hover align-middle">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Producto</th>
+                                    <th>Cantidad</th>
+                                    <th>Unidad</th>
+                                    <th>Precio</th>
+                                    <th>Subtotal</th>
+                                    <th>ISV</th>
+                                    <th>Total</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                    @foreach (var item in CartService.Items)
+                                    {
+                                        bool isAluzinc = item.Product.Types?.Contains("Aluzinc", StringComparison.OrdinalIgnoreCase) == true;
+
+                                        decimal subtotalProducto;
+                                        if (isAluzinc)
+                                        {
+                                            //
+                                            decimal pricePerPie = /* (aquí recuperas el precio por pie) */ item.Product.Precio;
+                                            decimal totalPies = (item.AluzincLargo ?? 0) * item.Quantity;
+                                            subtotalProducto = pricePerPie * totalPies;
+                                        }
+                                        else
+                                        {
+                                            // Producto normal
+                                            subtotalProducto = item.Product.Precio * item.Quantity;
+                                        }
+                                        decimal isvProducto = subtotalProducto * 0.15m;
+                                        decimal totalProducto = subtotalProducto + isvProducto;
+
+                                    <tr>
+                                        <td>
+                                            <div><strong>@item.Product.DescProducto</strong></div>
+                                                @if (isAluzinc)
+                                                {
+                                                <div><strong>Largo (pies):</strong> @item.AluzincLargo</div>
+                                                <div><strong>Calibre:</strong> @item.AluzincCalibre</div>
+                                                <div><strong>Milímetro:</strong> @item.AluzincMilimetro</div>
+                                                <div><strong>Color:</strong> @item.AluzincColor</div>
+                                                }
+                                        </td>
+
+                                        <td>
+                                            <input type="number"
+                                                   class="form-control quantity-input"
+                                                   value="@item.Quantity"
+                                                   min="1"
+                                                   @onchange="(e) => UpdateQuantity(item, e)" />
+                                        </td>
+
+                                        <!-- 3) Unidad -->
+                                        <td>@item.Product.Unit</td>
+
+                                        <!-- 4) Precio Unitario (puedes mostrar item.Product.Precio o un property del CartItem) -->
+                                        <td>
+                                                @if (isAluzinc)
+                                                {
+                                                <!-- Ejemplo: Mostrar "Precio/ft:  L. @item.PricePerPie"
+                                                     o si lo guardaste en item.Product.Precio, mostrarlo directo. -->
+                                                    @item.Product.Precio.ToString("C")
+                                                }
+                                                else
+                                                {
+                                                    @item.Product.Precio.ToString("C")
+                                                }
+                                        </td>
+
+                                        <!-- 5) Subtotal -->
+                                        <td>@subtotalProducto.ToString("C")</td>
+
+                                        <!-- 6) ISV -->
+                                        <td>@isvProducto.ToString("C")</td>
+
+                                        <!-- 7) Total -->
+                                        <td>@totalProducto.ToString("C")</td>
+
+                                        <!-- 8) Botón Eliminar -->
+                                        <td>
+                                            <button class="btn btn-danger" @onclick="() => RemoveFromCart(item.Product)">
+                                                <i class="fas fa-trash-alt"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    }
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="d-block d-lg-none">
+                        @foreach (var item in CartService.Items)
+                        {
+                            bool isAluzinc = item.Product.Types?.Contains("Aluzinc", StringComparison.OrdinalIgnoreCase) == true;
+
+                            decimal subtotalProducto = 0m;
+                            decimal isvProducto = 0m;
+                            decimal totalProducto = 0m;
+
+                            if (isAluzinc)
+                            {
+                                decimal pricePerPie = item.Product.Precio;
+                                decimal totalPies = (item.AluzincLargo ?? 0) * item.Quantity;
+                                subtotalProducto = pricePerPie * totalPies;
+                            }
+                            else
+                            {
+                                subtotalProducto = item.Product.Precio * item.Quantity;
+                            }
+                            isvProducto = subtotalProducto * 0.15m;
+                            totalProducto = subtotalProducto + isvProducto;
+
+                            <div class="card mb-3">
+                                <div class="card-body">
+                                    <h5 class="card-title">@item.Product.DescProducto</h5>
+                                    @if (isAluzinc)
+                                    {
+                                        <p><strong>Largo (pies):</strong> @item.AluzincLargo</p>
+                                        <p><strong>Calibre:</strong> @item.AluzincCalibre</p>
+                                        <p><strong>Milímetro:</strong> @item.AluzincMilimetro</p>
+                                        <p><strong>Color:</strong> @item.AluzincColor</p>
+                                    }
+                                    <p>
+                                        <strong>Cantidad:</strong>
+                                        <input type="number"
+                                        class="form-control quantity-input"
+                                        value="@item.Quantity"
+                                        min="1"
+                                        @onchange="(e) => UpdateQuantity(item, e)" />
+                                    </p>
+                                    <p><strong>Unidad:</strong> @item.Product.Unit</p>
+                                    <p><strong>Subtotal:</strong> @subtotalProducto.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</p>
+                                    <p><strong>ISV:</strong> @isvProducto.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</p>
+                                    <p><strong>Total:</strong> @totalProducto.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</p>
+
+                                    <button class="btn btn-danger" @onclick="() => RemoveFromCart(item.Product)">
+                                        <i class="fas fa-trash-alt"></i> Eliminar
+                                    </button>
+                                </div>
+                            </div>
+                        }
+                    </div>
+
+                    <!-- ========================= -->
+                    <!-- Sección del Mapa y Flete -->
+                    <!-- ========================= -->
+                    <div class="card mt-4">
+                        <div class="card-header bg-dark text-white">
+                            <h5 class="mb-0">Selecciona tu Ubicación de Entrega</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="alert alert-info mb-3">
+                                <strong>¿Cómo seleccionar tu ubicación?</strong><br />
+                                1. Haz clic en el mapa para colocar un marcador en tu dirección de entrega.<br />
+                                2. Una vez colocado el marcador, presiona el botón <strong>"Calcular Flete"</strong> para obtener el costo de envío.<br />
+                                3. Luego, escribe tus instrucciones adicionales en el recuadro de abajo.
+                            </div>
+
+                            <div id="map" style="height: 300px; width: 100%; border: 1px solid #ccc;"></div>
+
+                            @if (!isFreightCalculated)
+                            {
+                                <p class="text-danger mt-2">
+                                    Primero debes seleccionar tu ubicación en el mapa para calcular el flete.
+                                </p>
+                            }
+
+                            <div class="form-group mt-3">
+                                <label for="deliveryInstructions">Dirección de Entrega e Instrucciones (requerido):</label>
+                                <textarea id="deliveryInstructions"
+                                class="form-control"
+                                @bind="deliveryInstructions"
+                                placeholder="Ejemplo: Casa amarilla con portón negro, dejar el producto en la entrada.">
+                                </textarea>
+                            </div>
+
+                            <button @onclick="CalculateDistanceAndRedirect" class="btn btn-primary mt-3">
+                                <i class="fas fa-map-marker-alt"></i> Calcular Flete
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-12 col-lg-4">
+                    @{
+                        // Cálculo final del subtotal, pero teniendo en cuenta Aluzinc
+                        decimal subtotalGeneral = 0m;
+
+                        foreach (var item in CartService.Items)
+                        {
+                            bool isAluzinc = item.Product.Types?.Contains("Aluzinc") == true;
+                            decimal subProd = 0m;
+                            if (isAluzinc)
+                            {
+                                decimal pricePerPie = item.Product.Precio;
+                                decimal totalPies = (item.AluzincLargo ?? 0) * item.Quantity;
+                                subProd = pricePerPie * totalPies;
+                            }
+                            else
+                            {
+                                subProd = item.Product.Precio * item.Quantity;
+                            }
+                            subtotalGeneral += subProd;
+                        }
+
+                        var freightDecimal = (decimal)freightPrice;
+                        var isvGeneral = (subtotalGeneral + freightDecimal) * 0.15m;
+                        var totalGeneral = subtotalGeneral + freightDecimal + isvGeneral;
+                    }
+
+                    <div class="card">
+                        <div class="card-body">
+                            <h4>Resumen</h4>
+                            <ul class="list-group list-group-flush">
+                                <li class="list-group-item d-flex justify-content-between">
+                                    <span>Subtotal:</span>
+                                    <strong>@subtotalGeneral.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</strong>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between">
+                                    <span>ISV (15%):</span>
+                                    <strong>@isvGeneral.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</strong>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between">
+                                    <span>Flete:</span>
+                                    <strong>@freightPrice.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</strong>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between">
+                                    <span>Total:</span>
+                                    <strong>@totalGeneral.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</strong>
+                                </li>
+                            </ul>
+
+                            <div class="d-grid gap-4 mt-3">
+                                <button class="btn btn-success btn-lg"
+                                @onclick="Cotizar"
+                                disabled="@(isFreightCalculated && isAuthenticated && !string.IsNullOrWhiteSpace(deliveryInstructions) ? false : true)">
+                                    <i class="fas fa-file-invoice"></i> Cotizar
+                                </button>
+                                <button class="btn truck-button"
+                                @onclick="IniciarProcesoOrden"
+                                @ref="ordenarButton"
+                                disabled="@(isFreightCalculated && isAuthenticated && !string.IsNullOrWhiteSpace(deliveryInstructions) ? false : true)">
+                                    <span class="default"><i class="fas fa-shopping-cart"></i> Ordenar</span>
+                                    <span class="success">
+                                        Ordenado
+                                        <svg viewBox="0 0 12 10">
+                                            <polyline points="1.5 6 4.5 9 10.5 1"></polyline>
+                                        </svg>
+                                    </span>
+                                    <div class="truck">
+                                        <div class="wheel"></div>
+                                        <div class="back"></div>
+                                        <div class="front"></div>
+                                        <div class="box"></div>
+                                    </div>
+                                </button>
+                            </div>
+
+                            @if (!isFreightCalculated)
+                            {
+                                <p class="text-danger mt-2 text-center">
+                                    Debes seleccionar tu ubicación en el mapa y calcular el flete antes de cotizar u ordenar.
+                                </p>
+                            }
+                            else if (!isAuthenticated)
+                            {
+                                <p class="text-danger mt-2 text-center">
+                                    Debes iniciar sesión para cotizar u ordenar.
+                                </p>
+                            }
+                            else if (string.IsNullOrWhiteSpace(deliveryInstructions))
+                            {
+                                <p class="text-danger mt-2 text-center">
+                                    Debes ingresar las instrucciones de entrega antes de cotizar u ordenar.
+                                </p>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
         }
-    }
+    </div>
 
-    public void Dispose()
-    {
-        CartService.OnChange -= StateHasChanged;
-    }
-    private async Task CalculateDistanceAndRedirect()
-    {
-        try
+
+    @code {
+        private bool isFreightCalculated = false;
+        private double freightPrice = 0;
+        private bool isAuthenticated;
+        private string userId;
+        private string userName;
+        private double selectedLatitude;
+        private double selectedLongitude;
+        private string deliveryInstructions;
+        private Quotation quotation;
+        private bool isLoading = true;
+        private bool isMapInitialized = false;
+        private bool isSuperAdmin;
+
+
+        protected override async Task OnInitializedAsync()
         {
-            var result = await JSRuntime.InvokeAsync<JSResult>("calculateLeafletDistance");
+            var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var user = authState.User;
+            isAuthenticated = user.Identity.IsAuthenticated;
 
-            var distance = result.DistanceKm;
-            selectedLatitude = result.Latitude;
-            selectedLongitude = result.Longitude;
-
-            if (distance >= 23)
+            if (isAuthenticated)
             {
-                freightPrice = distance * 20;
+                userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                userName = user.Identity.Name;
+            }
+            isSuperAdmin = user.IsInRole("SuperAdmin");
+ 
+        }
+
+        protected override async Task OnAfterRenderAsync(bool firstRender)
+        {
+            if (firstRender)
+            {
+                await CartService.EnsureInitializedAsync();
+                CartService.OnChange += StateHasChanged;
+
+                isLoading = false;
+
+                // Update the UI
+                StateHasChanged();
             }
             else
             {
-                freightPrice = distance * 50;
+                if (CartService.Items.Count > 0 && !isMapInitialized)
+                {
+                    try
+                    {
+                        await JSRuntime.InvokeVoidAsync("initLeafletMap");
+                        await JSRuntime.InvokeVoidAsync("iniciarAnimacion");
+                        isMapInitialized = true;
+                    }
+                    catch (JSException jsEx)
+                    {
+                        // Handle the exception as needed
+                        Console.Error.WriteLine(jsEx.Message);
+                    }
+                }
             }
+        }
 
-            if (freightPrice < 350)
+        public void Dispose()
+        {
+            CartService.OnChange -= StateHasChanged;
+        }
+        private async Task CalculateDistanceAndRedirect()
+        {
+            try
             {
-                freightPrice = 350;
+                var result = await JSRuntime.InvokeAsync<JSResult>("calculateLeafletDistance");
+
+                var distance = result.DistanceKm;
+                selectedLatitude = result.Latitude;
+                selectedLongitude = result.Longitude;
+
+                if (distance >= 23)
+                {
+                    freightPrice = distance * 20;
+                }
+                else
+                {
+                    freightPrice = distance * 50;
+                }
+
+                if (freightPrice < 350)
+                {
+                    freightPrice = 350;
+                }
+
+                isFreightCalculated = true;
+                StateHasChanged();
             }
-
-            isFreightCalculated = true;
-            StateHasChanged();
-        }
-        catch (JSException jsEx)
-        {
-            // Mostrar mensaje al usuario
-            await JSRuntime.InvokeVoidAsync("alert", jsEx.Message);
-        }
-    }
-    private async Task RemoveFromCart(Products product)
-    {
-        await CartService.RemoveFromCartAsync(product);
-    }
-    private async Task UpdateQuantity(CartItem item, ChangeEventArgs e)
-    {
-        if (int.TryParse(e.Value?.ToString(), out int newQuantity))
-        {
-            item.Quantity = newQuantity;
-
-            // Si es aluzinc:
-            if (item.Product.Types?.Contains("Aluzinc", StringComparison.OrdinalIgnoreCase) == true
-                && item.AluzincLargo.HasValue)
+            catch (JSException jsEx)
             {
-                item.TotalPiesAluzinc = item.AluzincLargo.Value * item.Quantity;
+                // Mostrar mensaje al usuario
+                await JSRuntime.InvokeVoidAsync("alert", jsEx.Message);
             }
-
-            // Guardar en localStorage
-            await CartService.SaveCartAsync();
-            StateHasChanged();
         }
-    }
-    private async Task Cotizar()
-    {
-        if (!isAuthenticated)
+        private async Task RemoveFromCart(Products product)
         {
-            NavigationManager.NavigateTo("/login?returnUrl=/cart");
-            return;
+            await CartService.RemoveFromCartAsync(product);
         }
-
-        if (CartService.CurrentQuotationId.HasValue)
+        private async Task UpdateQuantity(CartItem item, ChangeEventArgs e)
         {
-            // Estamos editando una cotización existente
-            quotation = await QuotationService.GetQuotationByIdAsync(CartService.CurrentQuotationId.Value);
-
-            if (quotation == null)
+            if (int.TryParse(e.Value?.ToString(), out int newQuantity))
             {
-                // Manejar el caso donde la cotización no existe
+                item.Quantity = newQuantity;
+
+                // Si es aluzinc:
+                if (item.Product.Types?.Contains("Aluzinc", StringComparison.OrdinalIgnoreCase) == true
+                    && item.AluzincLargo.HasValue)
+                {
+                    item.TotalPiesAluzinc = item.AluzincLargo.Value * item.Quantity;
+                }
+
+                // Guardar en localStorage
+                await CartService.SaveCartAsync();
+                StateHasChanged();
+            }
+        }
+        private async Task Cotizar()
+        {
+            if (!isAuthenticated)
+            {
+                NavigationManager.NavigateTo("/login?returnUrl=/cart");
                 return;
             }
 
-            // Actualizar los campos de la cotización
-            quotation.Date = DateTime.Now;
-            quotation.Subtotal = CartService.GetTotalPrice();
-            quotation.Freight = (decimal)freightPrice;
-            quotation.ISV = (quotation.Subtotal + quotation.Freight) * 0.15m;
-            quotation.Total = quotation.Subtotal + quotation.ISV + quotation.Freight;
-            quotation.DeliveryInstructions = deliveryInstructions;
-            quotation.FreightLatitude = selectedLatitude;
-            quotation.FreightLongitude = selectedLongitude;
-
-            // Limpiar los detalles antiguos y agregar los nuevos
-            quotation.QuotedItems.Clear();
-            int lineNumber = 1;
-            foreach (var item in CartService.Items)
+            if (CartService.CurrentQuotationId.HasValue)
             {
-                bool isAluzinc = item.Product.Types?.Contains("Aluzinc", StringComparison.OrdinalIgnoreCase) == true;
+                // Estamos editando una cotización existente
+                quotation = await QuotationService.GetQuotationByIdAsync(CartService.CurrentQuotationId.Value);
 
-                decimal unitPrice;
-                string customDescription;
-
-                if (isAluzinc)
+                if (quotation == null)
                 {
-                    unitPrice = item.Product.Precio; // precio por pie
-                    customDescription = $"Lámina Aluzinc | Calibre: {item.AluzincCalibre} | Milímetro: {item.AluzincMilimetro}mm | Color: {item.AluzincColor} | Largo: {item.AluzincLargo}ft";
-                }
-                else
-                {
-                    unitPrice = item.Product.Precio;
-                    customDescription = item.Product.DescProducto;
+                    // Manejar el caso donde la cotización no existe
+                    return;
                 }
 
-                var detalle = new QuotationDetail
-                    {
-                        QuotationId = quotation.Id,
-                        Line = lineNumber++,
-                        ProductId = item.Product.IdProducto,
-                        Quantity = item.Quantity,
-                        Price = unitPrice,
-                        CustomDescription = customDescription
-                    };
+                // Actualizar los campos de la cotización
+                quotation.Date = DateTime.Now;
+                quotation.Subtotal = CartService.GetTotalPrice();
+                quotation.Freight = (decimal)freightPrice;
+                quotation.ISV = (quotation.Subtotal + quotation.Freight) * 0.15m;
+                quotation.Total = quotation.Subtotal + quotation.ISV + quotation.Freight;
+                quotation.DeliveryInstructions = deliveryInstructions;
+                quotation.FreightLatitude = selectedLatitude;
+                quotation.FreightLongitude = selectedLongitude;
 
-                detalle.Product = null; // ¡Importante!
-                quotation.QuotedItems.Add(detalle);
-            }
-
-
-
-            await QuotationService.UpdateQuotationAsync(quotation);
-        }
-        else
-        {
-
-            if (!isSuperAdmin)
-            {
-                // APLICA SOLO PARA USUARIOS NORMALES
-                var userIdInt = int.Parse(userId);
-                var userQuotations = await QuotationService.GetQuotationsByUserIdAsync(userIdInt);
-
-                // Count solo las no ordenadas (o todas si prefieres).
-                var activeQuotations = userQuotations.Where(q => !q.IsOrdered).ToList();
-
-                if (activeQuotations.Count >= 5)
+                // Limpiar los detalles antiguos y agregar los nuevos
+                quotation.QuotedItems.Clear();
+                int lineNumber = 1;
+                foreach (var item in CartService.Items)
                 {
-                    bool userWantsToDelete = await JSRuntime.InvokeAsync<bool>(
-                        "confirm",
-                        "Ya tienes 5 cotizaciones activas. Se eliminará la más antigua para crear la nueva. ¿Continuar?"
-                    );
+                    bool isAluzinc = item.Product.Types?.Contains("Aluzinc", StringComparison.OrdinalIgnoreCase) == true;
 
-                    if (!userWantsToDelete)
+                    decimal unitPrice;
+                    string customDescription;
+
+                    if (isAluzinc)
                     {
-                        // El usuario canceló, no creamos la cotización
-                        return;
+                        unitPrice = item.Product.Precio; // precio por pie
+                        customDescription = $"Lámina Aluzinc | Calibre: {item.AluzincCalibre} | Milímetro: {item.AluzincMilimetro}mm | Color: {item.AluzincColor} | Largo: {item.AluzincLargo}ft";
+                    }
+                    else
+                    {
+                        unitPrice = item.Product.Precio;
+                        customDescription = item.Product.DescProducto;
                     }
 
-                    // Eliminar la más antigua
-                    await QuotationService.DeleteOldestQuotationForUserAsync(userIdInt);
+                    var detalle = new QuotationDetail
+                        {
+                            QuotationId = quotation.Id,
+                            Line = lineNumber++,
+                            ProductId = item.Product.IdProducto,
+                            Quantity = item.Quantity,
+                            Price = unitPrice,
+                            CustomDescription = customDescription
+                        };
+
+                    detalle.Product = null; // ¡Importante!
+                    quotation.QuotedItems.Add(detalle);
                 }
+
+
+
+                await QuotationService.UpdateQuotationAsync(quotation);
             }
-
-            var nuevoNumeroCotizacion = $"COTP-{Guid.NewGuid().ToString().Substring(0, 8)}";
-
-            decimal subtotalGeneral = 0m;
-
-            foreach (var item in CartService.Items)
+            else
             {
-                bool isAluzinc = item.Product.Types?.Contains("Aluzinc", StringComparison.OrdinalIgnoreCase) == true;
-                decimal lineSubtotal = 0m;
 
-                if (isAluzinc)
+                if (!isSuperAdmin)
                 {
-                    // precio por pie * largo en pies * cantidad
-                    lineSubtotal = item.Product.Precio * (item.AluzincLargo ?? 0) * item.Quantity;
-                }
-                else
-                {
-                    // producto “normal”
-                    lineSubtotal = item.Product.Precio * item.Quantity;
+                    // APLICA SOLO PARA USUARIOS NORMALES
+                    var userIdInt = int.Parse(userId);
+                    var userQuotations = await QuotationService.GetQuotationsByUserIdAsync(userIdInt);
+
+                    // Count solo las no ordenadas (o todas si prefieres).
+                    var activeQuotations = userQuotations.Where(q => !q.IsOrdered).ToList();
+
+                    if (activeQuotations.Count >= 5)
+                    {
+                        bool userWantsToDelete = await JSRuntime.InvokeAsync<bool>(
+                            "confirm",
+                            "Ya tienes 5 cotizaciones activas. Se eliminará la más antigua para crear la nueva. ¿Continuar?"
+                        );
+
+                        if (!userWantsToDelete)
+                        {
+                            // El usuario canceló, no creamos la cotización
+                            return;
+                        }
+
+                        // Eliminar la más antigua
+                        await QuotationService.DeleteOldestQuotationForUserAsync(userIdInt);
+                    }
                 }
 
-                subtotalGeneral += lineSubtotal;
+                var nuevoNumeroCotizacion = $"COTP-{Guid.NewGuid().ToString().Substring(0, 8)}";
+
+                decimal subtotalGeneral = 0m;
+
+                foreach (var item in CartService.Items)
+                {
+                    bool isAluzinc = item.Product.Types?.Contains("Aluzinc", StringComparison.OrdinalIgnoreCase) == true;
+                    decimal lineSubtotal = 0m;
+
+                    if (isAluzinc)
+                    {
+                        // precio por pie * largo en pies * cantidad
+                        lineSubtotal = item.Product.Precio * (item.AluzincLargo ?? 0) * item.Quantity;
+                    }
+                    else
+                    {
+                        // producto “normal”
+                        lineSubtotal = item.Product.Precio * item.Quantity;
+                    }
+
+                    subtotalGeneral += lineSubtotal;
+                }
+
+                var freight = (decimal)freightPrice;
+                var isvGeneral = (subtotalGeneral + freight) * 0.15m;
+                var totalCotizacion = subtotalGeneral + freight + isvGeneral;
+
+                quotation = new Quotation
+                    {
+                        Client = userName,
+                        Date = DateTime.Now,
+                        Subtotal = subtotalGeneral,
+                        Freight = freight,
+                        ISV = isvGeneral,
+                        Total = totalCotizacion,
+                        UserID = int.Parse(userId),
+                        QuotationNumber = nuevoNumeroCotizacion,
+                        FreightLatitude = selectedLatitude,
+                        FreightLongitude = selectedLongitude,
+                        DeliveryInstructions = deliveryInstructions,
+                        QuotedItems = new List<QuotationDetail>()
+                    };
+
+                await QuotationService.SaveQuotationAsync(quotation);
+
+                int lineNumber = 1;
+                foreach (var item in CartService.Items)
+                {
+                    bool isAluzinc = item.Product.Types?.Contains("Aluzinc", StringComparison.OrdinalIgnoreCase) == true;
+
+                    // Base price, por ejemplo, si guardaste un precio base en item.BasePrice
+                    // Si no, usa item.Product.Precio directamente.
+                    decimal unitPrice = item.BasePrice ?? item.Product.Precio;
+                    string productDescription;
+
+                    if (isAluzinc)
+                    {
+                        // Construimos la descripción COMPLETA para la BD
+                        productDescription =
+                            $"Lámina Aluzinc | Calibre: {item.AluzincCalibre} | " +
+                            $"Milímetro: {item.AluzincMilimetro}mm | " +
+                            $"Color: {item.AluzincColor} | " +
+                            $"Largo: {item.AluzincLargo}ft";
+                    }
+                    else
+                    {
+                        productDescription = item.Product.DescProducto;
+                    }
+
+                    var detalle = new QuotationDetail
+                        {
+                            QuotationId = quotation.Id,
+                            Line = lineNumber++,
+                            ProductId = item.Product.IdProducto,
+                            Quantity = item.Quantity,
+                            Price = unitPrice,
+                            CustomDescription = productDescription
+                        };
+
+                    // Asignar a nulo para evitar tracking excesivo
+                    detalle.Product = null;
+
+                    // Añadimos el detalle a la lista
+                    quotation.QuotedItems.Add(detalle);
+                }
+
+
+                await QuotationService.SaveQuotationDetailsAsync(quotation.QuotedItems);
+
+                // Limpiamos carrito
+                await CartService.ClearCartAsync();
+                CartService.CurrentQuotationId = null;
+
+                // Redirigir
+                NavigationManager.NavigateTo($"/quotationdetails/{quotation.Id}");
             }
+        }
 
-            var freight = (decimal)freightPrice;
-            var isvGeneral = (subtotalGeneral + freight) * 0.15m;
-            var totalCotizacion = subtotalGeneral + freight + isvGeneral;
 
-            quotation = new Quotation
+        private ElementReference ordenarButton;
+
+        private async Task IniciarProcesoOrden()
+        {
+            await JSRuntime.InvokeVoidAsync("iniciarAnimacion", ordenarButton);
+            await Task.Delay(5000);
+            await Ordenar();
+        }
+
+        private async Task Ordenar()
+        {
+            if (!isAuthenticated)
+            {
+                NavigationManager.NavigateTo("/login?returnUrl=/cart");
+                return;
+            }
+            var newOrderNumber = $"ORD-{Guid.NewGuid().ToString().Substring(0, 8)}";
+            var subtotal = CartService.GetTotalPrice();
+            var tax = subtotal * 0.15m;
+            var totalOrder = subtotal + tax + (decimal)freightPrice;
+            // Ejemplo dentro de IniciarProcesoOrden()
+            var newOrder = new Order
                 {
-                    Client = userName,
-                    Date = DateTime.Now,
-                    Subtotal = subtotalGeneral,
-                    Freight = freight,
-                    ISV = isvGeneral,
-                    Total = totalCotizacion,
-                    UserID = int.Parse(userId),
-                    QuotationNumber = nuevoNumeroCotizacion,
+                    OrderNumber = newOrderNumber,
+                    UserId = int.Parse(userId),
+                    OrderDate = DateTime.Now,
+                    Subtotal = subtotal,
+                    Tax = tax,
+                    Freight = (decimal)freightPrice,
+                    Total = totalOrder,
+                    DeliveryInstructions = deliveryInstructions,
                     FreightLatitude = selectedLatitude,
                     FreightLongitude = selectedLongitude,
-                    DeliveryInstructions = deliveryInstructions,
-                    QuotedItems = new List<QuotationDetail>()
+                    Status = "Pending",
+                    OrderedItems = new List<OrderDetail>()
                 };
-
-            await QuotationService.SaveQuotationAsync(quotation);
 
             int lineNumber = 1;
             foreach (var item in CartService.Items)
             {
+                // Detecta si es Aluzinc
                 bool isAluzinc = item.Product.Types?.Contains("Aluzinc", StringComparison.OrdinalIgnoreCase) == true;
 
-                // Base price, por ejemplo, si guardaste un precio base en item.BasePrice
-                // Si no, usa item.Product.Precio directamente.
-                decimal unitPrice = item.BasePrice ?? item.Product.Precio;
-                string productDescription;
+                // Construimos la descripción final
+                string finalDesc = isAluzinc
+                    ? $"Lámina Aluzinc | Calibre: {item.AluzincCalibre} | " +
+                      $"Milímetro: {item.AluzincMilimetro}mm | " +
+                      $"Color: {item.AluzincColor} | Largo: {item.AluzincLargo}ft"
+                    : item.Product.DescProducto;
 
-                if (isAluzinc)
-                {
-                    // Construimos la descripción COMPLETA para la BD
-                    productDescription =
-                        $"Lámina Aluzinc | Calibre: {item.AluzincCalibre} | " +
-                        $"Milímetro: {item.AluzincMilimetro}mm | " +
-                        $"Color: {item.AluzincColor} | " +
-                        $"Largo: {item.AluzincLargo}ft";
-                }
-                else
-                {
-                    productDescription = item.Product.DescProducto;
-                }
-
-                var detalle = new QuotationDetail
+                var orderDetail = new OrderDetail
                     {
-                        QuotationId = quotation.Id,
                         Line = lineNumber++,
                         ProductId = item.Product.IdProducto,
                         Quantity = item.Quantity,
-                        Price = unitPrice,
-                        CustomDescription = productDescription
+                    // Este Price es tu “precio unitario base”
+                    // NO multiplica por largo ni cantidad aún
+                        Price = item.Product.Precio,
+                    // Aquí guardas la descripción
+                        CustomDescription1 = finalDesc
                     };
 
-                // Asignar a nulo para evitar tracking excesivo
-                detalle.Product = null;
-
-                // Añadimos el detalle a la lista
-                quotation.QuotedItems.Add(detalle);
+                newOrder.OrderedItems.Add(orderDetail);
             }
 
+            // Guardar en DB
+            await OrderService.SaveOrderAsync(newOrder);
 
-            await QuotationService.SaveQuotationDetailsAsync(quotation.QuotedItems);
-
-            // Limpiamos carrito
+            // Limpiar el carrito
             await CartService.ClearCartAsync();
             CartService.CurrentQuotationId = null;
 
-            // Redirigir
-            NavigationManager.NavigateTo($"/quotationdetails/{quotation.Id}");
-        }
-    }
-
-
-    private ElementReference ordenarButton;
-
-    private async Task IniciarProcesoOrden()
-    {
-        await JSRuntime.InvokeVoidAsync("iniciarAnimacion", ordenarButton);
-        await Task.Delay(5000);
-        await Ordenar();
-    }
-
-    private async Task Ordenar()
-    {
-        if (!isAuthenticated)
-        {
-            NavigationManager.NavigateTo("/login?returnUrl=/cart");
-            return;
-        }
-        var newOrderNumber = $"ORD-{Guid.NewGuid().ToString().Substring(0, 8)}";
-        var subtotal = CartService.GetTotalPrice();
-        var tax = subtotal * 0.15m;
-        var totalOrder = subtotal + tax + (decimal)freightPrice;
-        // Ejemplo dentro de IniciarProcesoOrden()
-        var newOrder = new Order
-            {
-                OrderNumber = newOrderNumber,
-                UserId = int.Parse(userId),
-                OrderDate = DateTime.Now,
-                Subtotal = subtotal,
-                Tax = tax,
-                Freight = (decimal)freightPrice,
-                Total = totalOrder,
-                DeliveryInstructions = deliveryInstructions,
-                FreightLatitude = selectedLatitude,
-                FreightLongitude = selectedLongitude,
-                Status = "Pending",
-                OrderedItems = new List<OrderDetail>()
-            };
-
-        int lineNumber = 1;
-        foreach (var item in CartService.Items)
-        {
-            // Detecta si es Aluzinc
-            bool isAluzinc = item.Product.Types?.Contains("Aluzinc", StringComparison.OrdinalIgnoreCase) == true;
-
-            // Construimos la descripción final
-            string finalDesc = isAluzinc
-                ? $"Lámina Aluzinc | Calibre: {item.AluzincCalibre} | " +
-                  $"Milímetro: {item.AluzincMilimetro}mm | " +
-                  $"Color: {item.AluzincColor} | Largo: {item.AluzincLargo}ft"
-                : item.Product.DescProducto;
-
-            var orderDetail = new OrderDetail
-                {
-                    Line = lineNumber++,
-                    ProductId = item.Product.IdProducto,
-                    Quantity = item.Quantity,
-                // Este Price es tu “precio unitario base”
-                // NO multiplica por largo ni cantidad aún
-                    Price = item.Product.Precio,
-                // Aquí guardas la descripción
-                    CustomDescription1 = finalDesc
-                };
-
-            newOrder.OrderedItems.Add(orderDetail);
+            // Redirigir al usuario a los detalles de la orden o página de órdenes
+            NavigationManager.NavigateTo($"/orderdetails/{newOrder.Id}");
         }
 
-        // Guardar en DB
-        await OrderService.SaveOrderAsync(newOrder);
 
-        // Limpiar el carrito
-        await CartService.ClearCartAsync();
-        CartService.CurrentQuotationId = null;
 
-        // Redirigir al usuario a los detalles de la orden o página de órdenes
-        NavigationManager.NavigateTo($"/orderdetails/{newOrder.Id}");
     }
-
-
-
-}
 
 
 <style>

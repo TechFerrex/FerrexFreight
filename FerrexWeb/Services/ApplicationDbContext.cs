@@ -19,6 +19,7 @@ namespace FerrexWeb.Services
         public DbSet<AluzincVariant> AluzincVariants { get; set; }
         public DbSet<SubCategory> SubCategories { get; set; }
         public DbSet<Subcategory2> SubCategories2 { get; set; }
+        public DbSet<VigaVariant> VigaVariants { get; set; }
 
 
 

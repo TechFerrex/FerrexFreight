@@ -169,5 +169,11 @@ namespace FerrexWeb.Services
                 .Where(p => p.id_subcategory == subCategoryId)
                 .ToListAsync();
         }
+
+        public async Task<List<VigaVariant>> GetVigaVariantsAsync()
+        {
+            return await _dbContext.VigaVariants.ToListAsync();
+        }
+
     }
 }
