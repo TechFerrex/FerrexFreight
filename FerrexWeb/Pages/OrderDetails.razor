@@ -55,15 +55,50 @@
                 <tbody>
                     @foreach (var item in order.OrderedItems)
                     {
+                        // Detectar si es Aluzinc revisando la cadena
+                        bool isAluzinc = !string.IsNullOrEmpty(item.CustomDescription1)
+                        && item.CustomDescription1.Contains("Aluzinc");
+
+                        decimal totalCalculado = 0m;
+                        if (isAluzinc)
+                        {
+                            // Extraer "Largo: ##ft" con una expresión regular
+                            var match = System.Text.RegularExpressions.Regex.Match(
+                            item.CustomDescription1, @"Largo:\s*(\d+(\.\d+)?)\s*ft");
+
+                            if (match.Success)
+                            {
+                                decimal largo = decimal.Parse(match.Groups[1].Value);
+                                // "Price" es tu precio unitario por PIE
+                                totalCalculado = item.Price * largo * item.Quantity;
+                            }
+                            else
+                            {
+                                // fallback
+                                totalCalculado = item.Price * item.Quantity;
+                            }
+                        }
+                        else
+                        {
+                            totalCalculado = item.Price * item.Quantity;
+                        }
+
                         <tr>
-                            <td data-label="Producto">@item.Product.DescProducto</td>
+                            <td data-label="Producto">
+                                @(!string.IsNullOrEmpty(item.CustomDescription1)
+                                    ? item.CustomDescription1
+                                    : item.Product.DescProducto)
+                            </td>
                             <td data-label="Cantidad">@item.Quantity</td>
-                            <td data-label="Unidad">@item.Product.Unit</td>
+                            <td data-label="Unidad">
+                                @(isAluzinc ? "Pie" : (item.Product?.Unit ?? "N/A"))
+                            </td>
                             <td data-label="Precio">@item.Price.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</td>
-                            <td data-label="Total">@((item.Price * item.Quantity).ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN")))</td>
+                            <td data-label="Total">@totalCalculado.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</td>
                         </tr>
                     }
                 </tbody>
+
             </table>
         </div>
     }

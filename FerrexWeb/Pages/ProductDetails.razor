@@ -40,7 +40,7 @@ else
                     <div class="selector">
                         <label for="sizeSelect">Tamaño:</label>
                         <select id="sizeSelect" value="@selectedSize" onchange="@OnSizeChanged">
-                            @foreach (var size in AvailableSizes)
+                            @foreach (var size in AvailableSizes)   
                             {
                                 <option value="@size">@size</option>
                             }
@@ -54,59 +54,52 @@ else
             }
             else
             {
-                @if (IsAluzinc)
-                {
-                    <hr />
-                    <h5>Opciones de Lámina Aluzinc</h5>
-                    <div class="selector">
-                        <label for="variantColor">Color:</label>
-                        <select id="variantColor" @bind="selectedColor">
-                            <option value="">--Seleccione--</option>
-                            @foreach (var v in aluzincVariants.Select(v => v.Color).Distinct())
-                            {
-                                <option value="@v">@v</option>
-                            }
-                        </select>
-                    </div>
-
-                    <div class="selector">
-                        <label for="variantCalibre">Calibre:</label>
-                        <select id="variantCalibre" @bind="selectedCalibre">
-                            <option value="">--Seleccione--</option>
-                            @foreach (var v in aluzincVariants.Select(v => v.Calibre).Distinct())
-                            {
-                                <option value="@v">@v</option>
-                            }
-                        </select>
-                    </div>
-
-                    <div class="selector">
-                        <label for="variantMm">Milímetro:</label>
-                        <select id="variantMm" @bind="selectedMilimetro">
-                            <option value="">--Seleccione--</option>
-                            @foreach (var v in aluzincVariants.Select(v => v.Milimetros).Distinct())
-                            {
-                                <option value="@v">@v</option>
-                            }
-                        </select>
-                    </div>
-
-                    <div class="selector">
-                        <label for="variantCrestas">Perfil/Crestas:</label>
-                        <select id="variantCrestas" @bind="selectedCrestas">
-                            <option value="">--Seleccione--</option>
-                            @foreach (var v in aluzincVariants.Select(v => v.PerfilCrestas).Distinct())
-                            {
-                                <option value="@v">@v</option>
-                            }
-                        </select>
-                    </div>
-
-                    <div class="selector">
-                        <label for="largoInput">Largo (en pies):</label>
-                        <input id="largoInput" type="number" step="0.01" @bind="selectedLargo" />
-                    </div>
-                }
+                <hr />
+                <h5>Opciones de Lámina Aluzinc</h5>
+                <div class="selector">
+                    <label for="variantColor">Color:</label>
+                    <select id="variantColor" @bind="selectedColor">
+                        <option value="">--Seleccione--</option>
+                        @foreach (var v in aluzincVariants.Select(v => v.Color).Distinct())
+                        {
+                            <option value="@v">@v</option>
+                        }
+                    </select>
+                </div>
+                <div class="selector">
+                    <label for="variantCalibre">Calibre:</label>
+                    <select id="variantCalibre" @bind="selectedCalibre">
+                        <option value="">--Seleccione--</option>
+                        @foreach (var v in aluzincVariants.Select(v => v.Calibre).Distinct())
+                        {
+                            <option value="@v">@v</option>
+                        }
+                    </select>
+                </div>
+                <div class="selector">
+                    <label for="variantMm">Milímetro:</label>
+                    <select id="variantMm" @bind="selectedMilimetro">
+                        <option value="">--Seleccione--</option>
+                        @foreach (var v in aluzincVariants.Select(v => v.Milimetros).Distinct())
+                        {
+                            <option value="@v">@v</option>
+                        }
+                    </select>
+                </div>
+                <div class="selector">
+                    <label for="variantCrestas">Perfil/Crestas:</label>
+                    <select id="variantCrestas" @bind="selectedCrestas">
+                        <option value="">--Seleccione--</option>
+                        @foreach (var v in aluzincVariants.Select(v => v.PerfilCrestas).Distinct())
+                        {
+                            <option value="@v">@v</option>
+                        }
+                    </select>
+                </div>
+                <div class="selector">
+                    <label for="largoInput">Largo (en pies):</label>
+                    <input id="largoInput" type="number" step="0.01" @bind="selectedLargo" />
+                </div>
             }
 
             <div class="product-quantity">
@@ -125,6 +118,10 @@ else
             <button class="btn btn-primary" @onclick="AgregarAlCarrito" disabled="@(!string.IsNullOrEmpty(errorMessage))">
                 Agregar al carrito
             </button>
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <div class="error-message">@errorMessage</div>
+            }
         </div>
     </div>
 }
@@ -134,6 +131,7 @@ else
     public int productId { get; set; }
 
     private List<Products> productsInSameSubcat = new();
+    private string descOriginal = "";
 
     private Products producto = null;
     private int cantidad = 1;
@@ -141,12 +139,12 @@ else
     private List<string> AvailableTypes = new List<string>();
     private List<string> AvailableSizes = new List<string>();
     private AluzincVariant selectedAluzincVariant { get; set; }
-
+    private string errorMessage = "";
     private string selectedType;
     private string selectedSize;
-    private string errorMessage = "";
-
-    private string _selectedColor;
+    private string customVariantDescription;
+    // Propiedades para las opciones de variante
+    private string _selectedColor = "";
     public string selectedColor
     {
         get => _selectedColor;
@@ -160,7 +158,7 @@ else
         }
     }
 
-    private string _selectedCalibre;
+    private string _selectedCalibre = "";
     public string selectedCalibre
     {
         get => _selectedCalibre;
@@ -174,7 +172,7 @@ else
         }
     }
 
-    private string _selectedMilimetro;
+    private string _selectedMilimetro = "";
     public string selectedMilimetro
     {
         get => _selectedMilimetro;
@@ -188,7 +186,7 @@ else
         }
     }
 
-    private string _selectedCrestas;
+    private string _selectedCrestas = "";
     public string selectedCrestas
     {
         get => _selectedCrestas;
@@ -201,8 +199,19 @@ else
             }
         }
     }
-
-    private decimal selectedLargo = 0;
+    private decimal _selectedLargo;
+    public decimal selectedLargo
+    {
+        get => _selectedLargo;
+        set
+        {
+            if (_selectedLargo != value)
+            {
+                _selectedLargo = value;
+                ActualizarVarianteAluzinc();
+            }
+        }
+    }
     private List<AluzincVariant> aluzincVariants = new();
 
     protected override async Task OnParametersSetAsync()
@@ -216,6 +225,7 @@ else
                 return;
             }
 
+            // Cargar productos de la misma subcategoría
             productsInSameSubcat = await ProductService.GetProductsBySubCategoryAsync(producto.id_subcategory);
             if (producto.id_subcategory2.HasValue)
             {
@@ -224,21 +234,32 @@ else
                     .ToList();
             }
 
-            AvailableTypes = productsInSameSubcat
-                .Select(p => IsSinTipo(p.Types) ? "Sin tipo" : p.Types)
-                .Distinct()
-                .ToList();
+            // Si se obtuvieron productos, usamos esos datos; de lo contrario, usamos los datos del producto actual
+            if (productsInSameSubcat != null && productsInSameSubcat.Any())
+            {
+                AvailableTypes = productsInSameSubcat
+                    .Select(p => string.IsNullOrWhiteSpace(p.Types) || p.Types.Trim().Equals("N/A", StringComparison.OrdinalIgnoreCase)
+                                    ? "Sin tipo"
+                                    : p.Types.Trim())
+                    .Distinct()
+                    .ToList();
 
-            AvailableSizes = productsInSameSubcat
-                .Where(p => !string.IsNullOrEmpty(p.Size) && p.Size != "N/A")
-                .Select(p => p.Size.Trim()) // Trim por si hay espacios
-                .Distinct()
-                .ToList();
+                AvailableSizes = productsInSameSubcat
+                    .Where(p => !string.IsNullOrWhiteSpace(p.Size) && !p.Size.Trim().Equals("N/A", StringComparison.OrdinalIgnoreCase))
+                    .Select(p => p.Size.Trim())
+                    .Distinct()
+                    .ToList();
+            }
+            else
+            {
+                AvailableTypes = new List<string> { !string.IsNullOrWhiteSpace(producto.Types) ? producto.Types.Trim() : "Sin tipo" };
+                AvailableSizes = new List<string> { !string.IsNullOrWhiteSpace(producto.Size) ? producto.Size.Trim() : "N/A" };
+            }
 
-            selectedType = !IsSinTipo(producto.Types) ? producto.Types : "Sin tipo";
-            selectedSize = (!string.IsNullOrEmpty(producto.Size) && producto.Size != "N/A")
-                           ? producto.Size.Trim()
-                           : (AvailableSizes.Any() ? AvailableSizes.First() : null);
+            selectedType = !IsSinTipo(producto.Types) ? producto.Types.Trim() : "Sin tipo";
+            selectedSize = (!string.IsNullOrEmpty(producto.Size) && !producto.Size.Trim().Equals("N/A", StringComparison.OrdinalIgnoreCase))
+                               ? producto.Size.Trim()
+                               : (AvailableSizes.Any() ? AvailableSizes.First() : null);
 
             if (IsAluzinc)
             {
@@ -291,25 +312,32 @@ else
     }
 
 
+    private decimal pricePerPieForVariant = 0m;  // propiedad local en la página
+
     private void ActualizarVarianteAluzinc()
     {
-        var variant = GetSelectedAluzincVariant();
+        errorMessage = "";
+        var variant = aluzincVariants.FirstOrDefault(v =>
+            v.Color == selectedColor &&
+            v.Calibre == selectedCalibre &&
+            v.Milimetros == selectedMilimetro &&
+            v.PerfilCrestas == selectedCrestas
+        );
 
-        if (variant != null && selectedLargo > 0)
-        {
-            selectedAluzincVariant = variant;
-
-            producto.Precio = variant.PricePerPie * selectedLargo;
-
-           // Opcionalmente actualiza la imagen o descripción según la variante
-            producto.DescProducto = $"{producto.DescProducto} {variant.Color} {variant.Calibre} {variant.Milimetros} {variant.PerfilCrestas}";
-        }
-        else
+        if (variant == null)
         {
             selectedAluzincVariant = null;
+            errorMessage = "Selecciona una variante válida.";
+            return;
         }
 
-        StateHasChanged();
+        // Guardamos el precio por pie en una variable local
+        pricePerPieForVariant = variant.PricePerPie;
+
+        // Construimos descripción local
+        customVariantDescription = $"{descOriginal} - {variant.Color} {variant.Calibre} {variant.Milimetros} {variant.PerfilCrestas}";
+
+        selectedAluzincVariant = variant;
     }
 
 
@@ -362,23 +390,34 @@ else
         }
         else
         {
-            var variant = selectedAluzincVariant;
-            if (variant != null && selectedLargo > 0)
+            if (selectedAluzincVariant == null)
             {
-                await CartService.AddToCartAsync(
-                    product: producto,
-                    quantity: cantidad,
-                    aluzincLargo: selectedLargo,
-                    aluzincCalibre: variant.Calibre,
-                    aluzincMilimetro: variant.Milimetros,
-                    aluzincColor: variant.Color
-                );
-            }
-            else
-            {
-                errorMessage = "Selecciona una variante válida y especifica un largo mayor a 0.";
+                errorMessage = "Selecciona una variante válida.";
                 return;
             }
+            if (selectedLargo <= 0)
+            {
+                errorMessage = "Selecciona un largo mayor a 0.";
+                return;
+            }
+
+            var finalDesc = $"{descOriginal} - {selectedAluzincVariant.Color} " +
+                            $"{selectedAluzincVariant.Calibre} {selectedAluzincVariant.Milimetros} " +
+                            $"{selectedAluzincVariant.PerfilCrestas}, Largo: {selectedLargo} pies";
+
+            await CartService.AddToCartAsync(
+                product: producto,
+                quantity: cantidad,
+                aluzincLargo: selectedLargo,
+                aluzincCalibre: selectedAluzincVariant.Calibre,
+                aluzincMilimetro: selectedAluzincVariant.Milimetros,
+                aluzincColor: selectedAluzincVariant.Color,
+                customDescription: finalDesc,
+                customPricePerPie: pricePerPieForVariant
+                );
+
+
+            errorMessage = "";
         }
     }
 

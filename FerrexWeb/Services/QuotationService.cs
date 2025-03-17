@@ -25,9 +25,9 @@ namespace FerrexWeb.Services
         public async Task<Quotation> GetQuotationByIdAsync(int id)
         {
             return await _dbContext.Quotations
-        .Include(q => q.QuotedItems)
-            .ThenInclude(qd => qd.Product)
-        .FirstOrDefaultAsync(q => q.Id == id);
+                .Include(q => q.QuotedItems)
+                    .ThenInclude(qi => qi.Product)
+                .FirstOrDefaultAsync(q => q.Id == id);
         }
 
         public async Task SaveQuotationAsync(Quotation quotation)
@@ -43,9 +43,23 @@ namespace FerrexWeb.Services
         }
         public async Task SaveQuotationDetailsAsync(List<QuotationDetail> quotationDetails)
         {
+            // Disconnect all Product navigation properties before saving
+            foreach (var detail in quotationDetails)
+            {
+                // Store the custom description if it exists
+                if (string.IsNullOrEmpty(detail.CustomDescription) && detail.Product != null)
+                {
+                    detail.CustomDescription = detail.Product.DescProducto;
+                }
+
+                // Explicitly set the navigation property to null
+                detail.Product = null;
+            }
+
             _dbContext.QuotationDetails.AddRange(quotationDetails);
             await _dbContext.SaveChangesAsync();
         }
+
         public async Task<List<Quotation>> GetQuotationsByUserIdAsync(int userId)
         {
             return await _dbContext.Quotations

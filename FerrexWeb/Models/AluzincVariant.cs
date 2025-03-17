@@ -19,6 +19,7 @@ namespace FerrexWeb.Models
 
         // Precio por pie para esta combinación
         public decimal PricePerPie { get; set; }
+        public int id_image { get; set; }
 
         // Relación con Products (opcional, si quieres navegar EF)
         //[ForeignKey(nameof(ProductId))]

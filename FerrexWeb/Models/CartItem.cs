@@ -4,7 +4,7 @@
     {
         public Products Product { get; set; }
         public int Quantity { get; set; }
-
+        public decimal? BasePrice { get; set; } // Nuevo campo para lamina Aluzinc
         public decimal? AluzincLargo { get; set; }
         public decimal? TotalPiesAluzinc { get; set; }
 

@@ -17,5 +17,8 @@ namespace FerrexWeb.Models
         // Propiedades de navegación
         public Order Order { get; set; }
         public Products Product { get; set; }
+
+        public string CustomDescription1 { get; set; }
+
     }
 }

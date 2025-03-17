@@ -49,12 +49,38 @@
                 <tbody>
                     @foreach (var item in quotation.QuotedItems)
                     {
+                        bool isAluzinc = !string.IsNullOrEmpty(item.CustomDescription) && item.CustomDescription.Contains("Aluzinc");
+                        decimal total = 0m;
+                        decimal largo = 0m;
+
+                        if (isAluzinc)
+                        {
+                            var matchLargo = System.Text.RegularExpressions.Regex.Match(item.CustomDescription, @"Largo:\s*(\d+(\.\d+)?)\s*ft");
+                            if (matchLargo.Success)
+                            {
+                                largo = decimal.Parse(matchLargo.Groups[1].Value);
+                                total = item.Price * largo * item.Quantity;
+                            }
+                            else
+                            {
+                                total = item.Price * item.Quantity;
+                            }
+                        }
+                        else
+                        {
+                            total = item.Price * item.Quantity;
+                        }
+
                         <tr>
-                            <td data-label="Producto">@item.Product.DescProducto</td>
+                            <td data-label="Producto">
+                                @(!string.IsNullOrEmpty(item.CustomDescription) ? item.CustomDescription : (item.Product?.DescProducto ?? "Sin descripción"))
+                            </td>
                             <td data-label="Cantidad">@item.Quantity</td>
-                            <td data-label="Unidad">@item.Product.Unit</td>
+                            <td data-label="Unidad">
+                                @(isAluzinc ? "Pie" : (item.Product?.Unit ?? "N/A"))
+                            </td>
                             <td data-label="Precio Unitario">@item.Price.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</td>
-                            <td data-label="Total">@((item.Price * item.Quantity).ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN")))</td>
+                            <td data-label="Total">@total.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</td>
                         </tr>
                     }
                 </tbody>

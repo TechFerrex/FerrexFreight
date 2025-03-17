@@ -32,61 +32,67 @@ namespace FerrexWeb.Services
             }
         }
         public async Task AddToCartAsync(
-    Products product,
-    int quantity,
-    decimal? aluzincLargo = null,
-    string? aluzincCalibre = null,
-    string? aluzincMilimetro = null,
-    string? aluzincColor = null
-)
+     Products product,
+     int quantity,
+     decimal? aluzincLargo = null,
+     string? aluzincCalibre = null,
+     string? aluzincMilimetro = null,
+     string? aluzincColor = null,
+     string? customDescription = null,
+     decimal? customPricePerPie = null
+ )
         {
-            // 1) Verificar si YA existe un ítem con la MISMA variante Aluzinc
-            //    (Coincide ID del producto, calibre, milímetros y color).
+            // Crea un clon completo del producto para que no se sobrescriba en otros ítems.
+            var productClone = new Products
+            {
+                IdProducto = product.IdProducto,           // Asegúrate de copiar el Id
+                Codigo = product.Codigo,
+                Unit = product.Unit,
+                Types = product.Types,
+                // Si se pasó un precio base personalizado, lo usamos; de lo contrario, se usa el precio normal
+                Precio = customPricePerPie ?? product.Precio,
+                // Si se pasó una descripción personalizada (que incluya detalles), la usamos
+                DescProducto = !string.IsNullOrEmpty(customDescription) ? customDescription : product.DescProducto,
+                // Copia otras propiedades necesarias (por ejemplo, ImageUrl, etc.)
+            };
+
+            // Busca si ya existe un ítem con la misma combinación (por ejemplo, misma variante Aluzinc)
             var existingItem = Items.FirstOrDefault(item =>
-                item.Product.IdProducto == product.IdProducto
-                && item.AluzincCalibre == aluzincCalibre
-                && item.AluzincMilimetro == aluzincMilimetro
-                && item.AluzincColor == aluzincColor
+                item.Product.IdProducto == productClone.IdProducto &&
+                item.AluzincCalibre == aluzincCalibre &&
+                item.AluzincMilimetro == aluzincMilimetro &&
+                item.AluzincColor == aluzincColor
             );
 
             if (existingItem != null)
             {
-                // Si ya existe EXACTAMENTE esa variante en el carrito, sumamos la cantidad
                 existingItem.Quantity += quantity;
-
-                // Recalcular total de pies (si se definió el largo)
                 if (existingItem.AluzincLargo.HasValue)
-                {
                     existingItem.TotalPiesAluzinc = existingItem.AluzincLargo.Value * existingItem.Quantity;
-                }
             }
             else
             {
-                // 2) Crear un nuevo CartItem
                 var newItem = new CartItem
                 {
-                    Product = product,
+                    Product = productClone,
                     Quantity = quantity,
-
-                    // Asignar los datos de la variante
                     AluzincLargo = aluzincLargo,
                     AluzincCalibre = aluzincCalibre,
                     AluzincMilimetro = aluzincMilimetro,
-                    AluzincColor = aluzincColor
+                    AluzincColor = aluzincColor,
+                    BasePrice = customPricePerPie  // Guarda el precio base para láminas
                 };
 
-                // 3) Calcular total de pies si hay largo
                 if (aluzincLargo.HasValue)
                     newItem.TotalPiesAluzinc = aluzincLargo.Value * quantity;
 
-                // 4) Agregar al carrito
                 Items.Add(newItem);
             }
 
-            // 5) Guardar en Local Storage y notificar
             await SaveCartAsync();
             NotifyStateChanged();
         }
+
 
 
         public async Task RemoveFromCartAsync(Products product)

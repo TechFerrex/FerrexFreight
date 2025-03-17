@@ -97,6 +97,7 @@ namespace FerrexWeb.Services
                 .ToListAsync();
         }
 
+
         public async Task<AluzincVariant> GetAluzincVariantByIdAsync(int variantId)
         {
              return await _dbContext.AluzincVariants
@@ -107,6 +108,14 @@ namespace FerrexWeb.Services
         {
             return await _dbContext.AluzincVariants.ToListAsync();
         }
+
+        public async Task<List<AluzincVariant>> GetAluzincVariantsByCodeAsync(string productCode)
+        {
+            return await _dbContext.AluzincVariants
+                .Where(a => a.ProductId == productCode)
+                .ToListAsync();
+        }
+
 
         public async Task<int> GetProductCountBySubCategoryIdAsync(int subCategoryId)
         {

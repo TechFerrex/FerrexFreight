@@ -48,79 +48,80 @@
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach (var item in CartService.Items)
-                            {
-                                bool isAluzinc = item.Product.Types?.Contains("Aluzinc", StringComparison.OrdinalIgnoreCase) == true;
-
-                                // Calcular Subtotal, ISV, Total de ESTE producto
-                                decimal subtotalProducto = 0m;
-                                decimal isvProducto = 0m;
-                                decimal totalProducto = 0m;
-
-                                if (isAluzinc)
+                                @foreach (var item in CartService.Items)
                                 {
-                                    // "precio por pie"
-                                    decimal pricePerPie = item.Product.Precio;
-                                    decimal totalPies = (item.AluzincLargo ?? 0) * item.Quantity;
+                                    bool isAluzinc = item.Product.Types?.Contains("Aluzinc", StringComparison.OrdinalIgnoreCase) == true;
 
-                                    subtotalProducto = pricePerPie * totalPies;
-                                    isvProducto = subtotalProducto * 0.15m;
-                                    totalProducto = subtotalProducto + isvProducto;
-                                }
-                                else
-                                {
-                                    // Producto normal
-                                    subtotalProducto = item.Product.Precio * item.Quantity;
-                                    isvProducto = subtotalProducto * 0.15m;
-                                    totalProducto = subtotalProducto + isvProducto;
-                                }
+                                    decimal subtotalProducto;
+                                    if (isAluzinc)
+                                    {
+                                        //
+                                        decimal pricePerPie = /* (aquí recuperas el precio por pie) */ item.Product.Precio;
+                                        decimal totalPies = (item.AluzincLargo ?? 0) * item.Quantity;
+                                        subtotalProducto = pricePerPie * totalPies;
+                                    }
+                                    else
+                                    {
+                                        // Producto normal
+                                        subtotalProducto = item.Product.Precio * item.Quantity;
+                                    }
+                                    decimal isvProducto = subtotalProducto * 0.15m;
+                                    decimal totalProducto = subtotalProducto + isvProducto;
 
                                 <tr>
-                                    <td>@item.Product.DescProducto</td>
-
-                                    @if (isAluzinc)
-                                    {
-                                        <td>
+                                    <td>
+                                        <div><strong>@item.Product.DescProducto</strong></div>
+                                            @if (isAluzinc)
+                                            {
                                             <div><strong>Largo (pies):</strong> @item.AluzincLargo</div>
                                             <div><strong>Calibre:</strong> @item.AluzincCalibre</div>
                                             <div><strong>Milímetro:</strong> @item.AluzincMilimetro</div>
                                             <div><strong>Color:</strong> @item.AluzincColor</div>
-                                        </td>
-                                        <td>
-                                            <input type="number"
-                                            class="form-control quantity-input"
-                                            value="@item.Quantity"
-                                            min="1"
-                                            @onchange="(e) => UpdateQuantity(item, e)" />
-                                        </td>
-                                        <td>@item.Product.Unit</td>
-                                        <td>@subtotalProducto.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</td>
-                                        <td>@isvProducto.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</td>
-                                        <td>@totalProducto.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</td>
-                                    }
-                                    else
-                                    {
-                                        <td>
-                                            <input type="number"
-                                            class="form-control quantity-input"
-                                            value="@item.Quantity"
-                                            min="1"
-                                            @onchange="(e) => UpdateQuantity(item, e)" />
-                                        </td>
-                                        <td>@item.Product.Unit</td>
-                                        <td>@item.Product.Precio.ToString("C")</td>          <!-- 4) Precio -->
-                                        <td>@subtotalProducto.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</td>
-                                        <td>@isvProducto.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</td>
-                                        <td>@totalProducto.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</td>
-                                    }
+                                            }
+                                    </td>
 
+                                    <td>
+                                        <input type="number"
+                                               class="form-control quantity-input"
+                                               value="@item.Quantity"
+                                               min="1"
+                                               @onchange="(e) => UpdateQuantity(item, e)" />
+                                    </td>
+
+                                    <!-- 3) Unidad -->
+                                    <td>@item.Product.Unit</td>
+
+                                    <!-- 4) Precio Unitario (puedes mostrar item.Product.Precio o un property del CartItem) -->
+                                    <td>
+                                            @if (isAluzinc)
+                                            {
+                                            <!-- Ejemplo: Mostrar "Precio/ft:  L. @item.PricePerPie"
+                                                 o si lo guardaste en item.Product.Precio, mostrarlo directo. -->
+                                                @item.Product.Precio.ToString("C")
+                                            }
+                                            else
+                                            {
+                                                @item.Product.Precio.ToString("C")
+                                            }
+                                    </td>
+
+                                    <!-- 5) Subtotal -->
+                                    <td>@subtotalProducto.ToString("C")</td>
+
+                                    <!-- 6) ISV -->
+                                    <td>@isvProducto.ToString("C")</td>
+
+                                    <!-- 7) Total -->
+                                    <td>@totalProducto.ToString("C")</td>
+
+                                    <!-- 8) Botón Eliminar -->
                                     <td>
                                         <button class="btn btn-danger" @onclick="() => RemoveFromCart(item.Product)">
                                             <i class="fas fa-trash-alt"></i>
                                         </button>
                                     </td>
                                 </tr>
-                            }
+                                }
                         </tbody>
                     </table>
                 </div>
@@ -382,7 +383,6 @@
     {
         CartService.OnChange -= StateHasChanged;
     }
-
     private async Task CalculateDistanceAndRedirect()
     {
         try
@@ -416,12 +416,10 @@
             await JSRuntime.InvokeVoidAsync("alert", jsEx.Message);
         }
     }
-
     private async Task RemoveFromCart(Products product)
     {
         await CartService.RemoveFromCartAsync(product);
     }
-
     private async Task UpdateQuantity(CartItem item, ChangeEventArgs e)
     {
         if (int.TryParse(e.Value?.ToString(), out int newQuantity))
@@ -440,9 +438,6 @@
             StateHasChanged();
         }
     }
-
-
-
     private async Task Cotizar()
     {
         if (!isAuthenticated)
@@ -477,24 +472,36 @@
             int lineNumber = 1;
             foreach (var item in CartService.Items)
             {
-                string extraDesc = "";
-                if (item.Product.Types?.Contains("Aluzinc") == true)
+                bool isAluzinc = item.Product.Types?.Contains("Aluzinc", StringComparison.OrdinalIgnoreCase) == true;
+
+                decimal unitPrice;
+                string customDescription;
+
+                if (isAluzinc)
                 {
-                    extraDesc = $" | Calibre: {item.AluzincCalibre}"
-                              + $" | Milímetro: {item.AluzincMilimetro}"
-                              + $" | Color: {item.AluzincColor}"
-                              + $" | Largo: {item.AluzincLargo}ft";
+                    unitPrice = item.Product.Precio; // precio por pie
+                    customDescription = $"Lámina Aluzinc | Calibre: {item.AluzincCalibre} | Milímetro: {item.AluzincMilimetro}mm | Color: {item.AluzincColor} | Largo: {item.AluzincLargo}ft";
+                }
+                else
+                {
+                    unitPrice = item.Product.Precio;
+                    customDescription = item.Product.DescProducto;
                 }
 
                 var detalle = new QuotationDetail
                     {
                         QuotationId = quotation.Id,
+                        Line = lineNumber++,
                         ProductId = item.Product.IdProducto,
                         Quantity = item.Quantity,
+                        Price = unitPrice,
+                        CustomDescription = customDescription
                     };
 
+                detalle.Product = null; // ¡Importante!
                 quotation.QuotedItems.Add(detalle);
             }
+
 
 
             await QuotationService.UpdateQuotationAsync(quotation);
@@ -531,10 +538,30 @@
 
             var nuevoNumeroCotizacion = $"COTP-{Guid.NewGuid().ToString().Substring(0, 8)}";
 
-            var subtotalGeneral = CartService.Items.Sum(item => item.Product.Precio * item.Quantity);
+            decimal subtotalGeneral = 0m;
+
+            foreach (var item in CartService.Items)
+            {
+                bool isAluzinc = item.Product.Types?.Contains("Aluzinc", StringComparison.OrdinalIgnoreCase) == true;
+                decimal lineSubtotal = 0m;
+
+                if (isAluzinc)
+                {
+                    // precio por pie * largo en pies * cantidad
+                    lineSubtotal = item.Product.Precio * (item.AluzincLargo ?? 0) * item.Quantity;
+                }
+                else
+                {
+                    // producto “normal”
+                    lineSubtotal = item.Product.Precio * item.Quantity;
+                }
+
+                subtotalGeneral += lineSubtotal;
+            }
+
             var freight = (decimal)freightPrice;
             var isvGeneral = (subtotalGeneral + freight) * 0.15m;
-            var totalCotizacion = subtotalGeneral + isvGeneral + freight;
+            var totalCotizacion = subtotalGeneral + freight + isvGeneral;
 
             quotation = new Quotation
                 {
@@ -554,19 +581,47 @@
 
             await QuotationService.SaveQuotationAsync(quotation);
 
-            int lineNum = 1;
+            int lineNumber = 1;
             foreach (var item in CartService.Items)
             {
+                bool isAluzinc = item.Product.Types?.Contains("Aluzinc", StringComparison.OrdinalIgnoreCase) == true;
+
+                // Base price, por ejemplo, si guardaste un precio base en item.BasePrice
+                // Si no, usa item.Product.Precio directamente.
+                decimal unitPrice = item.BasePrice ?? item.Product.Precio;
+                string productDescription;
+
+                if (isAluzinc)
+                {
+                    // Construimos la descripción COMPLETA para la BD
+                    productDescription =
+                        $"Lámina Aluzinc | Calibre: {item.AluzincCalibre} | " +
+                        $"Milímetro: {item.AluzincMilimetro}mm | " +
+                        $"Color: {item.AluzincColor} | " +
+                        $"Largo: {item.AluzincLargo}ft";
+                }
+                else
+                {
+                    productDescription = item.Product.DescProducto;
+                }
+
                 var detalle = new QuotationDetail
                     {
                         QuotationId = quotation.Id,
-                        Line = lineNum++,
+                        Line = lineNumber++,
                         ProductId = item.Product.IdProducto,
                         Quantity = item.Quantity,
-                        Price = item.Product.Precio
+                        Price = unitPrice,
+                        CustomDescription = productDescription
                     };
+
+                // Asignar a nulo para evitar tracking excesivo
+                detalle.Product = null;
+
+                // Añadimos el detalle a la lista
                 quotation.QuotedItems.Add(detalle);
             }
+
 
             await QuotationService.SaveQuotationDetailsAsync(quotation.QuotedItems);
 
@@ -584,13 +639,8 @@
 
     private async Task IniciarProcesoOrden()
     {
-        // Agregar la clase CSS para iniciar la animación
         await JSRuntime.InvokeVoidAsync("iniciarAnimacion", ordenarButton);
-
-        // Esperar la duración de la animación (por ejemplo, 3 segundos)
         await Task.Delay(5000);
-
-        // Llamar al método Ordenar
         await Ordenar();
     }
 
@@ -601,43 +651,56 @@
             NavigationManager.NavigateTo("/login?returnUrl=/cart");
             return;
         }
-
         var newOrderNumber = $"ORD-{Guid.NewGuid().ToString().Substring(0, 8)}";
-
         var subtotal = CartService.GetTotalPrice();
         var tax = subtotal * 0.15m;
         var totalOrder = subtotal + tax + (decimal)freightPrice;
-
+        // Ejemplo dentro de IniciarProcesoOrden()
         var newOrder = new Order
-        {
-            OrderNumber = newOrderNumber,
-            UserId = int.Parse(userId),
-            OrderDate = DateTime.Now,
-            Subtotal = subtotal,
-            Tax = tax,
-            Freight = (decimal)freightPrice,
-            Total = totalOrder,
-            DeliveryInstructions = deliveryInstructions,
-            FreightLatitude = selectedLatitude,
-            FreightLongitude = selectedLongitude,
-            Status = "Pending",
-            OrderedItems = new List<OrderDetail>()
-        };
+            {
+                OrderNumber = newOrderNumber,
+                UserId = int.Parse(userId),
+                OrderDate = DateTime.Now,
+                Subtotal = subtotal,
+                Tax = tax,
+                Freight = (decimal)freightPrice,
+                Total = totalOrder,
+                DeliveryInstructions = deliveryInstructions,
+                FreightLatitude = selectedLatitude,
+                FreightLongitude = selectedLongitude,
+                Status = "Pending",
+                OrderedItems = new List<OrderDetail>()
+            };
 
         int lineNumber = 1;
         foreach (var item in CartService.Items)
         {
+            // Detecta si es Aluzinc
+            bool isAluzinc = item.Product.Types?.Contains("Aluzinc", StringComparison.OrdinalIgnoreCase) == true;
+
+            // Construimos la descripción final
+            string finalDesc = isAluzinc
+                ? $"Lámina Aluzinc | Calibre: {item.AluzincCalibre} | " +
+                  $"Milímetro: {item.AluzincMilimetro}mm | " +
+                  $"Color: {item.AluzincColor} | Largo: {item.AluzincLargo}ft"
+                : item.Product.DescProducto;
+
             var orderDetail = new OrderDetail
-            {
-                Line = lineNumber++,
-                ProductId = item.Product.IdProducto,
-                Quantity = item.Quantity,
-                Price = item.Product.Precio
-            };
+                {
+                    Line = lineNumber++,
+                    ProductId = item.Product.IdProducto,
+                    Quantity = item.Quantity,
+                // Este Price es tu “precio unitario base”
+                // NO multiplica por largo ni cantidad aún
+                    Price = item.Product.Precio,
+                // Aquí guardas la descripción
+                    CustomDescription1 = finalDesc
+                };
+
             newOrder.OrderedItems.Add(orderDetail);
         }
 
-        // Guardar la orden
+        // Guardar en DB
         await OrderService.SaveOrderAsync(newOrder);
 
         // Limpiar el carrito
@@ -1003,10 +1066,6 @@
         .quantity-input {
             width: 60px;
         }
-
-@*         .btn {
-            font-size: 14px;
-        } *@
 
         .card-body h4 {
             font-size: 1.5rem;
