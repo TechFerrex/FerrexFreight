@@ -4,7 +4,6 @@
 @inject CategoryService CategoryService
 @inject ProductService ProductService
 @inject ApplicationDbContext DbContext
-<!--   <PageTitle>Bienvenido a Ferrexpress</PageTitle>-->
 <div class="container mt-5">
     <div class="jumbotron text-center">
         <p class="lead">Ofrecemos los mejores productos para ti. Explora nuestras categorías y encuentra lo que necesitas.</p>
@@ -58,7 +57,7 @@
                 int totalDuration = imageCount * cycleTime;
 
                 <div class="col-12 col-sm-6 col-md-4 mb-4">
-                    <NavLink href="@($"productlist/{category.Id}")"
+                    <NavLink href="@($"/categories/{category.Id}/subcategories")"
                     class="text-decoration-none"
                     style="color: black">
                         <div class="card">
@@ -76,7 +75,7 @@
                                         }
                                     </div>
                                     <div class="icon">
-                                        <a href="productlist/@category.Id" class="iconBox">
+                                        <a href="categories/@category.Id/subcategories" class="iconBox">
                                             <span class="material-symbols-outlined">
                                                 open_in_new
                                             </span>

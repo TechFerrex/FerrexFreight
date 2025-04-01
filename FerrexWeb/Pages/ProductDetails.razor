@@ -20,7 +20,6 @@ else
             <p class="product-price">
                 Precio: @producto.Precio.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))
             </p>
-
             @if (!IsAluzinc)
             {
                 @if (AvailableTypes.Any())
@@ -33,7 +32,7 @@ else
                                 <option value="@type">@type</option>
                             }
                         </select>
-                    </div>
+                    </div>  
                 }
                 @if (AvailableSizes.Any())
                 {
@@ -50,7 +49,7 @@ else
                 @if (!string.IsNullOrEmpty(errorMessage))
                 {
                     <div class="error-message">@errorMessage</div>
-                }
+                }   
             }
             @if (IsViga)
             {
@@ -81,8 +80,6 @@ else
                     <input id="vigaLengthInput" type="number" step="0.01" @bind="selectedVigaLength" />
                 </div>
             }
-
-
             else if (IsAluzinc)
             {
                 <hr />
@@ -132,7 +129,6 @@ else
                     <input id="largoInput" type="number" step="0.01" @bind="selectedLargo" />
                 </div>
             }
-
             <div class="product-quantity">
                 <label for="cantidad">Cantidad (@producto.Unit):</label>
                 <div class="quantity-control">
@@ -160,14 +156,14 @@ else
 @code {
     [Parameter]
     public int productId { get; set; }
-    private const decimal VigaWeightPerFoot = 2.50m; // Ajusta el valor según corresponda
+   // private const decimal VigaWeightPerFoot = 2.50m; // Ajusta el valor según corresponda
 
     private List<Products> productsInSameSubcat = new();
     private string descOriginal = "";
 
     private Products producto = null;
     private int cantidad = 1;
-    private List<Products> productsWithSameType = new List<Products>();
+   // private List<Products> productsWithSameType = new List<Products>();
     private List<string> AvailableTypes = new List<string>();
     private List<string> AvailableSizes = new List<string>();
     private AluzincVariant selectedAluzincVariant { get; set; }
@@ -175,14 +171,8 @@ else
     private string selectedType;
     private string selectedSize;
     private string customVariantDescription;
-
-    // Listado de tamaños predefinidos para vigas
-    private List<string> vigaSizes = new List<string> { "6", "8", "10" }; // Ajusta según tus necesidades
-
-    // Listado de opciones para el peso por pie (lb/ft)
-    private List<decimal> vigaWeightOptions = new List<decimal> { 31m, 32m, 33m }; // Por ejemplo, el usuario podrá elegir 31 lb/ft, etc.
-
-    // Variables para almacenar la selección del usuario
+    private List<string> vigaSizes = new List<string> { "6", "8", "10" };
+    private List<decimal> vigaWeightOptions = new List<decimal> { 31m, 32m, 33m };
     private string selectedVigaSize = "";
     private decimal selectedVigaWeight = 0;
     private decimal selectedVigaLength = 0;
