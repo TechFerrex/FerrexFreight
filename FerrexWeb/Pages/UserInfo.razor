@@ -14,6 +14,21 @@
 @inject AuthenticationStateProvider AuthenticationStateProvider
 
 <div class="main">
+    @if (showErrorModal)
+    {
+        <div class="modal-overlay">
+            <div class="modal-box">
+                <h3 style="color:red">¡Error!</h3>
+                <p>@errorModalMessage</p>
+                <div style="text-align:right">
+                    <button class="user-button" @onclick="CloseErrorModal">
+                        Cerrar
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+
     @if (showPolicyDialog)
     {
         <div class="modal-overlay">
@@ -25,11 +40,11 @@
                 </p>
                 <div style="text-align: right;">
                     <button class="user-button" @onclick="AcceptPolicy"
-                            style="display:inline-block; width:auto; margin-right:10px;">
+                    style="display:inline-block; width:auto; margin-right:10px;">
                         Aceptar
                     </button>
                     <button class="user-button" @onclick="DeclinePolicy"
-                            style="display:inline-block; width:auto; background-color:red;">
+                    style="display:inline-block; width:auto; background-color:red;">
                         Cancelar
                     </button>
                 </div>
@@ -41,39 +56,35 @@
     <div class="signup">
         <form @onsubmit:preventDefault="true">
             <label for="chk" aria-hidden="true">Registrarse</label>
-
-            @if (!string.IsNullOrEmpty(registerMessage))
-            {
-                <p style="color: red;">@registerMessage</p>
-            }
-
             <input type="text" class="user-input" name="name" placeholder="Tu Nombre" @bind="registerModel.Name" required>
             <input type="email" class="user-input" name="email" placeholder="Correo" @bind="registerModel.Email" required>
             <input type="text" class="user-input" name="phoneNumber" placeholder="Número de Teléfono" @bind="registerModel.PhoneNumber" required>
             <input type="password" class="user-input" name="password" placeholder="Contraseña" @bind="registerModel.Password" required
-                   minlength="8"
-                   pattern="^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^\w])[A-Za-z\d\S]{8,}$"
-                   title="La contraseña debe tener al menos 8 caracteres, incluyendo una mayúscula, un número y un carácter especial." />
-
-            <!-- NOTA: type="button" en lugar de "submit" -->
-            <button class="user-button" type="button" @onclick="OnRegisterClick">
-                Registrarse
+            minlength="8"
+            pattern="^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^\w])[A-Za-z\d\S]{8,}$"
+            title="La contraseña debe tener al menos 8 caracteres, incluyendo una mayúscula, un número y un carácter especial." />
+            <button class="user-button"
+                    type="button"
+                    @onclick="OnRegisterClick"
+                    disabled="@isRegistering">
+                @(isRegistering ? "Registrando..." : "Registrarse")
             </button>
         </form>
     </div>
 
-
+    <!-- FORMULARIO DE LOGIN -->
     <div class="login">
-        <form @onsubmit="HandleLogin">
-            <label style="padding-top: 50px" for="chk" aria-hidden="true">Inicio de Sesion</label>
+        <form @onsubmit:preventDefault="true">
+            <label style="padding-top: 50px" for="chk" aria-hidden="true">Inicio de Sesión</label>
             <input type="email" class="user-input" name="email" placeholder="Correo" @bind="loginModel.Email" required />
             <input type="password" class="user-input" name="password" placeholder="Contraseña" @bind="loginModel.Password" required />
-            <button class="user-button" type="submit">Iniciar sesión</button>
+            <button class="user-button"
+            type="button"
+            @onclick="HandleLogin"
+            disabled="@isLoggingIn">
+                @(isLoggingIn ? "Iniciando..." : "Iniciar sesión")
+            </button>
         </form>
-        @if (loginFailed)
-        {
-            <p style="color: red;">Correo o contraseña incorrectos.</p>
-        }
     </div>
 </div>
 
@@ -83,36 +94,49 @@
     private bool loginFailed;
     private bool registerFailed;
 
-    private string registerMessage;
-    private bool showPolicyDialog = false;
+    private string loginMessage;
 
+    private bool isLoggingIn = false;
+    private bool isRegistering = false;
+    private bool showPolicyDialog = false;
+    private bool showErrorModal = false;
+    private string errorModalMessage = string.Empty;
+
+
+    private string registerMessage;
 
     private static Dictionary<string, int> loginAttempts = new Dictionary<string, int>();
     private static Dictionary<string, DateTime> lockouts = new Dictionary<string, DateTime>();
 
     private async Task HandleLogin()
     {
-        loginFailed = false;
+        if (isLoggingIn) return;
+        isLoggingIn = true;
 
-        if (lockouts.ContainsKey(loginModel.Email) && lockouts[loginModel.Email] > DateTime.Now)
+        try
         {
-            loginFailed = true;
-            return;
-        }
+            // Aquí va tu lógica existente de lockout, intentos,
+            // consulta a DbContext, generación de token y navegación.
 
-        if (loginAttempts.ContainsKey(loginModel.Email) && loginAttempts[loginModel.Email] >= 5)
-        {
-            lockouts[loginModel.Email] = DateTime.Now.AddMinutes(10);
-            loginFailed = true;
-            return;
-        }
+            if (lockouts.ContainsKey(loginModel.Email) && lockouts[loginModel.Email] > DateTime.Now)
+            {
+                ShowError("Correo o contraseña incorrectos.");
+                return;
+            }
 
-        var user = await DbContext.Users
-            .FirstOrDefaultAsync(u => u.Email == loginModel.Email);
+            if (loginAttempts.ContainsKey(loginModel.Email) && loginAttempts[loginModel.Email] >= 5)
+            {
+                lockouts[loginModel.Email] = DateTime.Now.AddMinutes(10);
+                ShowError("Correo o contraseña incorrectos.");
+                return;
+            }
 
-        if (user != null && BCrypt.Net.BCrypt.Verify(loginModel.Password, user.Password))
-        {
-            var claims = new List<Claim>
+            var user = await DbContext.Users
+                .FirstOrDefaultAsync(u => u.Email == loginModel.Email);
+
+            if (user != null && BCrypt.Net.BCrypt.Verify(loginModel.Password, user.Password))
+            {
+                var claims = new List<Claim>
             {
                 new Claim(ClaimTypes.Name, user.Name),
                 new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
@@ -121,34 +145,44 @@
                 new Claim(ClaimTypes.Role, user.Role)
             };
 
-            var authToken = SerializeClaims(claims);
+                var authToken = SerializeClaims(claims);
 
-            if (AuthenticationStateProvider is CustomAuthenticationStateProvider customAuthStateProvider)
-            {
-                await customAuthStateProvider.SignIn(authToken);
-            }
+                if (AuthenticationStateProvider is CustomAuthenticationStateProvider customAuthStateProvider)
+                {
+                    await customAuthStateProvider.SignIn(authToken);
+                }
 
-            NavigationManager.NavigateTo("/");
-            loginAttempts.Remove(loginModel.Email);
-        }
-        else
-        {
-            loginFailed = true;
-            if (loginAttempts.ContainsKey(loginModel.Email))
-            {
-                loginAttempts[loginModel.Email]++;
+                NavigationManager.NavigateTo("/");
+                loginAttempts.Remove(loginModel.Email);
             }
             else
             {
-                loginAttempts[loginModel.Email] = 1;
+                loginFailed = true;
+                if (loginAttempts.ContainsKey(loginModel.Email))
+                {
+                    loginAttempts[loginModel.Email]++;
+                }
+                else
+                {
+                    loginAttempts[loginModel.Email] = 1;
+                    ShowError("Correo o contraseña incorrectos.");
+                    return;
+                }
             }
         }
+        catch (Exception ex)
+        {
+            ShowError("Correo o contraseña incorrectos.");
+            Console.WriteLine(ex.Message);
+        }
+        finally
+        {
+            isLoggingIn = false;
+        }
     }
-
     private void OnRegisterClick()
     {
-        // Antes de procesar el registro, mostramos la política
-        // de modo que el usuario decida si la acepta o no.
+        if (isRegistering) return;
         showPolicyDialog = true;
     }
 
@@ -171,45 +205,47 @@
 
     private async Task HandleRegister()
     {
+        if (isRegistering) return;
+        isRegistering = true;
         registerFailed = false;
         registerMessage = string.Empty;
 
-        if (string.IsNullOrEmpty(registerModel.Name) ||
-            string.IsNullOrEmpty(registerModel.Email) ||
-            string.IsNullOrEmpty(registerModel.Password))
+        try
         {
-            registerFailed = true;
-            registerMessage = "Por favor, rellena todos los campos.";
-            return;
-        }
-
-        var existingUser = await DbContext.Users
-            .FirstOrDefaultAsync(u => u.Email == registerModel.Email);
-
-        if (existingUser != null)
-        {
-            registerFailed = true;
-            registerMessage = "El correo electrónico ya está en uso.";
-            return;
-        }
-
-        var hashedPassword = BCrypt.Net.BCrypt.HashPassword(registerModel.Password);
-
-        var newUser = new User
+            if (string.IsNullOrEmpty(registerModel.Name) ||
+                string.IsNullOrEmpty(registerModel.Email) ||
+                string.IsNullOrEmpty(registerModel.Password))
             {
-                Name = registerModel.Name,
-                Email = registerModel.Email,
-                PhoneNumber = registerModel.PhoneNumber,
-                Password = hashedPassword,
-                CreateTime = DateTime.Now,
-                Role = "User",
-                PolicyUser = registerModel.PolicyAccepted // Se guarda en la BD
-            };
+                ShowError("Por favor, rellena todos los campos.");
+                return;
+            }
 
-        DbContext.Users.Add(newUser);
-        await DbContext.SaveChangesAsync();
+            var existingUser = await DbContext.Users
+                .FirstOrDefaultAsync(u => u.Email == registerModel.Email);
 
-        var claims = new List<Claim>
+            if (existingUser != null)
+            {
+                ShowError("El correo ya está en uso.");
+                return;
+            }
+
+            var hashedPassword = BCrypt.Net.BCrypt.HashPassword(registerModel.Password);
+
+            var newUser = new User
+                {
+                    Name = registerModel.Name,
+                    Email = registerModel.Email,
+                    PhoneNumber = registerModel.PhoneNumber,
+                    Password = hashedPassword,
+                    CreateTime = DateTime.Now,
+                    Role = "User",
+                    PolicyUser = registerModel.PolicyAccepted // Se guarda en la BD
+                };
+
+            DbContext.Users.Add(newUser);
+            await DbContext.SaveChangesAsync();
+
+            var claims = new List<Claim>
         {
             new Claim(ClaimTypes.Name, newUser.Name),
             new Claim(ClaimTypes.NameIdentifier, newUser.Id.ToString()),
@@ -218,13 +254,23 @@
             new Claim(ClaimTypes.Role, newUser.Role)
         };
 
-        var authToken = SerializeClaims(claims);
-        if (AuthenticationStateProvider is CustomAuthenticationStateProvider customAuthStateProvider)
-        {
-            await customAuthStateProvider.SignIn(authToken);
-        }
+            var authToken = SerializeClaims(claims);
+            if (AuthenticationStateProvider is CustomAuthenticationStateProvider customAuthStateProvider)
+            {
+                await customAuthStateProvider.SignIn(authToken);
+            }
 
-        NavigationManager.NavigateTo("/");
+            NavigationManager.NavigateTo("/");
+        }
+        catch (Exception ex)
+        {
+            ShowError( "Error al registrarse. Inténtalo de nuevo más tarde.");
+            Console.WriteLine(ex);
+        }
+        finally
+        {
+            isRegistering = false;
+        }
     }
 
     private string SerializeClaims(List<Claim> claims)
@@ -254,9 +300,27 @@
         public string Email { get; set; }
         public string PhoneNumber { get; set; }
         public string Password { get; set; }
-        public bool PolicyAccepted { get; set; }  
+        public bool PolicyAccepted { get; set; }
 
     }
+ 
+
+    // Método para abrir el modal
+    private void ShowError(string message)
+    {
+        errorModalMessage = message;
+        showErrorModal = true;
+    }
+
+    // Método para cerrarlo
+    private void CloseErrorModal()
+    {
+        showErrorModal = false;
+        // Opcionalmente: limpiar flags de fallo
+        loginFailed = false;
+        registerFailed = false;
+    }
+
 }
 
 <style>

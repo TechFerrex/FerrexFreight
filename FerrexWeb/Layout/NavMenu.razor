@@ -10,9 +10,9 @@
 <nav class="navbar navbar-expand-lg navbar-light bg-white top-navbar">
     <div class="container-fluid">
         <!-- Buscador -->
-        <div class="search-container">
+       @*  <div class="search-container">
             <Seeker />
-        </div>
+        </div> *@
 
         <!-- Íconos Centrales para Escritorio -->
         <div class="d-none d-lg-flex central-icons">
@@ -23,6 +23,17 @@
                         <i class="fas fa-home" title="Inicio"></i>
                     </NavLink>
                 </li>
+                <li class="nav-item mx-2">
+                    <NavLink class="nav-link" href="freight">
+                        <span class="material-symbols-outlined" title="Delivery Truck Speed" style="font-size:2rem;">
+                            delivery_truck_speed
+                        </span>
+                    </NavLink>
+                </li>
+
+
+
+
 @*                 <!-- Servicios -->
                 <li class="nav-item mx-2">
                     <NavLink class="nav-link nav-service-link" href="service">
@@ -31,16 +42,16 @@
                 </li> *@
                 <!-- Mis Cotizaciones -->
                 <li class="nav-item mx-2">
-                    <NavLink class="nav-link" href="quotations">
+                    <NavLink class="nav-link" href="freightquotations">
                         <i class="fas fa-file-invoice-dollar" title="Tus Cotizaciones"></i>
                     </NavLink>
                 </li>
                 <!-- Categoría -->
-                <li class="nav-item mx-2">
+                @* <li class="nav-item mx-2">
                     <NavLink class="nav-link" href="categories">
                         <i class="fas fa-th-list" title="Categorías"></i>
                     </NavLink>
-                </li>
+                </li> *@
                 <!-- Contáctanos -->
                 <li class="nav-item mx-2">
                     <NavLink class="nav-link" href="contact">
@@ -61,7 +72,7 @@
         <div class="d-flex align-items-center right-icons">
             <ul class="navbar-nav flex-row">
                 <!-- Icono del Carrito -->
-                <li class="nav-item position-relative">
+                @* <li class="nav-item position-relative">
                     <a class="nav-link" href="cart">
                         <Icon Name="IconName.Cart2" title="Carrito" />
                         @if (CartItemCount > 0)
@@ -72,7 +83,7 @@
                             </span>
                         }
                     </a>
-                </li>
+                </li> *@
                 <!-- Icono del Usuario -->
                 <li class="nav-item">
                     <AuthorizeView>
@@ -116,9 +127,16 @@
                 </NavLink>
             </li>
             <!-- Categoría -->
-            <li class="nav-item mx-2">
+            @* <li class="nav-item mx-2">
                 <NavLink class="nav-link" href="categories">
                     <i class="fas fa-th-list" title="Categorías"></i>
+                </NavLink>
+            </li> *@
+            <li class="nav-item mx-2">
+                <NavLink class="nav-link" href="freight">
+                    <span class="material-symbols-outlined" title="Delivery Truck Speed" style="font-size:2rem;">
+                        delivery_truck_speed
+                    </span>
                 </NavLink>
             </li>
             <!-- Contáctanos -->
@@ -142,34 +160,35 @@
 @code {
     private bool navMenuVisible;
     private bool isSuperAdmin;
-    private int CartItemCount = 0;
+   // private int CartItemCount = 0;
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (firstRender)
-        {
-            await CartService.EnsureInitializedAsync();
-            UpdateCartCount();
-            CartService.OnChange += UpdateCartCount;
-            StateHasChanged();
-        }
-    }
-    private void UpdateCartCount()
-    {
-        CartItemCount = CartService.Items.Count;
-        InvokeAsync(StateHasChanged);
-    }
+   // protected override async Task OnAfterRenderAsync(bool firstRender)
+    //{
+        // if (firstRender)
+        // {
+        //     await CartService.EnsureInitializedAsync();
+        //     UpdateCartCount();
+        //     CartService.OnChange += UpdateCartCount;
+        //     StateHasChanged();
+        // }
+    //}
+   // private void UpdateCartCount()
+    //{
+        // CartItemCount = CartService.Items.Count;
+        // InvokeAsync(StateHasChanged);
+   // }
 
-    public void Dispose()
-    {
-        CartService.OnChange -= UpdateCartCount;
-    }
+   // public void Dispose()
+    //{
+       // CartService.OnChange -= UpdateCartCount;
+   // }
     [Inject] NavigationManager NavManager { get; set; }
 }
 
 
 <style>
     /* Aplica el color por defecto */
+ 
     .service-icon {
     filter: brightness(0) saturate(100%) invert(46%) sepia(5%) saturate(294%) hue-rotate(155deg) brightness(96%) contrast(92%);
     transition: filter 0.3s ease-in-out;
@@ -237,6 +256,7 @@ filter: brightness(0) saturate(100%) invert(6%) sepia(1%) saturate(4221%) hue-ro
 
         }
 
+
 /* Barra superior */
 .top-navbar {
     position: static;
@@ -250,6 +270,7 @@ filter: brightness(0) saturate(100%) invert(6%) sepia(1%) saturate(4221%) hue-ro
             align-items: center;
             justify-content: space-between;
             flex-wrap: nowrap; /* Evita que en móvil se haga “wrap” */
+            position: relative; /* Para que los hijos absolutos se posicionen respecto a este contenedor */
         }
 
     .search-container {
@@ -262,6 +283,10 @@ filter: brightness(0) saturate(100%) invert(6%) sepia(1%) saturate(4221%) hue-ro
     }
 /* Íconos Centrales en la Barra Superior */
     .central-icons {
+        position: absolute;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
         justify-content: center; /* Centra los elementos en el contenedor .central-icons */
     }
 

@@ -104,17 +104,9 @@
                                                     @item.Product.Precio.ToString("C")
                                                 }
                                         </td>
-
-                                        <!-- 5) Subtotal -->
                                         <td>@subtotalProducto.ToString("C")</td>
-
-                                        <!-- 6) ISV -->
                                         <td>@isvProducto.ToString("C")</td>
-
-                                        <!-- 7) Total -->
                                         <td>@totalProducto.ToString("C")</td>
-
-                                        <!-- 8) Botón Eliminar -->
                                         <td>
                                             <button class="btn btn-danger" @onclick="() => RemoveFromCart(item.Product)">
                                                 <i class="fas fa-trash-alt"></i>
@@ -178,9 +170,6 @@
                         }
                     </div>
 
-                    <!-- ========================= -->
-                    <!-- Sección del Mapa y Flete -->
-                    <!-- ========================= -->
                     <div class="card mt-4">
                         <div class="card-header bg-dark text-white">
                             <h5 class="mb-0">Selecciona tu Ubicación de Entrega</h5>
@@ -301,7 +290,7 @@
                             else if (!isAuthenticated)
                             {
                                 <p class="text-danger mt-2 text-center">
-                                    Debes iniciar sesión para cotizar u ordenar.
+                                    Debesx iniciar sesión para cotizar u ordenar.
                                 </p>
                             }
                             else if (string.IsNullOrWhiteSpace(deliveryInstructions))

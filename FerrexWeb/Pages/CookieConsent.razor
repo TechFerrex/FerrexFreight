@@ -7,16 +7,17 @@
 
 @if (!policyAccepted)
 {
-    <div class="alert alert-warning" style="position: fixed; bottom: 0; width: 100%;">
+    <div class="alert alert-warning" style="position: fixed; bottom: 0; width: 100%; z-index: 10000;">
         <div class="d-flex align-items-center justify-content-between">
             <span>
-                Usamos cookies para mejorar la experiencia de usuario. Al seguir usando la pagina web asumimos aceptamos las cookies automaticamente.
+                Usamos cookies para mejorar la experiencia de usuario. Al seguir usando la página web asumimos que aceptas las cookies automáticamente.
                 <a href="/politica-cookies" target="_blank">Ver detalles</a>.
             </span>
             <button class="btn btn-primary" @onclick="AcceptCookies">Acepto</button>
         </div>
     </div>
 }
+
 @code {
     private bool policyAccepted = false;
     private string sessionId = string.Empty;

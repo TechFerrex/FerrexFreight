@@ -4,242 +4,213 @@
 @inject CategoryService CategoryService
 @inject ProductService ProductService
 @inject ApplicationDbContext DbContext
+
 <div class="container mt-5">
     <div class="jumbotron text-center">
-        <p class="lead">Ofrecemos los mejores productos para ti. Explora nuestras categorías y encuentra lo que necesitas.</p>
+        <h1>¿Listo para revolucionar tus envíos?</h1>
+        <p class="lead">Descubre cómo transformar tu logística con un servicio de fletes hecho a tu medida.</p>
         <hr class="my-4" />
-        <p>Busca los productos que necesitas para tu construcción</p>
+        <p>Confía en nosotros para llevar tus productos de forma rápida y segura a donde los necesites.</p>
     </div>
 </div>
+
+<div class="container text-center mt-5 mb-5">
+    <NavLink href="/freight" class="btn custom-btn btn-lg">
+        <i class="fa-solid fa-truck animated-truck"></i> COTIZA TU FLETE
+    </NavLink>
+</div>
+
+@* <!-- Banner rotatorio -->
+<!-- Componente de banner optimizado -->
 <div class="banner-container">
-    @if (!mostrarBanner)
+    @if (!isLoaded)
     {
-        <p style="text-align:center; margin-top:2rem;">Cargando banner...</p>
+        <!-- Placeholder minimalista mientras carga -->
+        <div class="banner-placeholder">
+            <div class="spinner-sm"></div>
+        </div>
     }
     else
     {
-        @if (IsFading && !string.IsNullOrEmpty(PreviousImage))
-        {
-            <NavLink href="@GetProductLink(PreviousImage)">
-                <img src="@PreviousImage" class="banner-image fade-out" alt="Banner Anterior" />
-            </NavLink>
-        }
+        <!-- Banner rotatorio optimizado -->
         <NavLink href="@GetProductLink(CurrentImage)">
-            <img src="@CurrentImage"
-            class="banner-image @(IsFading ? "" : "fade-in")"
-            alt="Banner Actual"
-            width="1920"
-            height="400"
-            loading="lazy"
-            fetchpriority="low"
-            decoding="async" />
+            <img srcset="@GetImagePath(CurrentImage, "sm") 640w,
+                        @GetImagePath(CurrentImage, "md") 1024w,
+                        @CurrentImage 1920w"
+                 sizes="(max-width: 640px) 640px,
+                       (max-width: 1024px) 1024px,
+                       1920px"
+                 src="@GetImagePath(CurrentImage, "md")"
+                 class="banner-image @(isTransitioning ? "fade-out" : "fade-in")"
+                 alt="Banner promocional"
+                 width="1920"
+                 height="400"
+                 loading="lazy"
+                 fetchpriority="high"
+                 decoding="async" />
         </NavLink>
     }
-</div>
+</div> *@
+
 <div class="container mt-5">
-    <h2 class="mt-5">Categorías Destacadas</h2>
-    <div class="row">
-        @if (categories == null)
-        {
-            <div class="d-flex justify-content-center align-items-center" style="height: 50vh;">
-                <div class="spinner" role="status">
-                    <span class="visually-hidden">Cargando...</span>
-                </div>
-            </div>
-        }
-        else
-        {
-            @foreach (var category in categories)
-            {
-                var categoryImages = GetImagesForCategory(category.Id);
-                int imageCount = categoryImages.Count;
-                int cycleTime = 5;
-                int totalDuration = imageCount * cycleTime;
-
-                <div class="col-12 col-sm-6 col-md-4 mb-4">
-                    <NavLink href="@($"/categories/{category.Id}/subcategories")"
-                    class="text-decoration-none"
-                    style="color: black">
-                        <div class="card">
-                            <div class="card-inner" style="--clr:#ffffff;">
-                                <div class="box">
-                                    <div class="imgBox">
-                                        @for (int i = 0; i < imageCount; i++)
-                                        {
-                                            <img src="@($"{category.ImageUrl}/{categoryImages[i]}")"
-                                                 alt="Imagen de categoría"
-                                                 class="carousel-image"
-                                                 loading="lazy"
-                                                 style="animation-delay: @(i * cycleTime)s;
-                                                animation-duration: @(totalDuration)s;" />
-                                        }
-                                    </div>
-                                    <div class="icon">
-                                        <a href="categories/@category.Id/subcategories" class="iconBox">
-                                            <span class="material-symbols-outlined">
-                                                open_in_new
-                                            </span>
-                                        </a>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="content">
-                                <h3>@category.Name</h3>
-                                <p>@category.Description</p>
-                            </div>
-                        </div>
-                    </NavLink>
-                </div>
-            }
-        }
-    </div>
-    <h2 class="mt-5">Productos Destacados</h2>
-    <div class="row">
-        @if (featuredProducts == null)
-        {
-            <div class="d-flex justify-content-center align-items-center" style="height: 50vh;">
-                <div class="spinner" role="status">
-                    <span class="visually-hidden">Cargando...</span>
-                </div>
-            </div>
-        }
-        else
-        {
-            @foreach (var product in featuredProducts)
-            {
-                <div class="col-12 col-sm-6 col-md-4 mb-4">
-                    <NavLink href="@($"productdetails/{product.IdProducto}")"
-                    class="text-decoration-none"
-                    style="color: black">
-                        <div class="card product-card h-100">
-                            <img class="card-img-top"
-                                 src="@product.ImageUrl"
-                            alt="@product.DescProducto"
-                            style="height: 200px; object-fit: cover;">
-                            <div class="card-body d-flex flex-column">
-                                <h5 class="card-title">@product.DescProducto</h5>
-                                <p class="card-text">
-                                    @product.Precio.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))
-                                </p>
-                                <div class="mt-auto">
-                                    <a href="productdetails/@product.IdProducto"
-                                    class="btn custom-btn">
-                                        Ver
-                                    </a>
-                                </div>
-                            </div>
-                        </div>
-                    </NavLink>
-                </div>
-            }
-        }
+    <div class="info-banner text-center">
+       @*  <img src="/images/freight-info-banner.webp" alt="Información de Fletes" class="img-fluid" /> *@
+        <p class="mt-3">Descubre cómo nuestros servicios de fletes optimizan tus envíos y mejoran la logística de tu negocio.</p>
     </div>
 </div>
-@code {
 
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <!-- Tarjeta 1 -->
+        <div class="col-md-4 mb-4">
+            <div class="custom-card text-center">
+                <div class="icon-wrapper">
+                    <i class="bi bi-truck custom-icon"></i>
+                </div>
+                <div class="card-content p-4">
+                    <h5 class="card-title custom-title">Transporte</h5>
+                    <p class="card-text">Tu envío seguro y rápido.</p>
+                    <!-- Contenido extra informativo que aparece en hover -->
+                    <div class="more-info">
+                        <small>Más información sobre nuestros envíos seguros.</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tarjeta 2 -->
+        <div class="col-md-4 mb-4">
+            <div class="custom-card text-center">
+                <div class="icon-wrapper">
+                    <i class="bi bi-globe custom-icon"></i>
+                </div>
+                <div class="card-content p-4">
+                    <h5 class="card-title custom-title">Cobertura</h5>
+                    <p class="card-text">Llegamos a todo el país.</p>
+                    <div class="more-info">
+                        <small>Conectamos cada rincón con nuestro servicio.</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tarjeta 3 -->
+        <div class="col-md-4 mb-4">
+            <div class="custom-card text-center">
+                <div class="icon-wrapper">
+                    <i class="bi bi-compass custom-icon"></i>
+                </div>
+                <div class="card-content p-4">
+                    <h5 class="card-title custom-title">Rutas</h5>
+                    <p class="card-text">Planificación óptima.</p>
+                    <div class="more-info">
+                        <small>Optimización de rutas para eficiencia máxima.</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    // // Variables para las imágenes y enlaces
+    // private List<string> ImagePaths = new List<string>
+    // {
+    //     "/images/banner1.webp",
+    //     "/images/banner2.webp",
+    //     "/images/banner3.webp"
+    // };
+
+    // private Dictionary<string, string> ImageProductLinks = new Dictionary<string, string>
+    // {
+    //     { "/images/banner1.webp", "productdetails/7119" },
+    //     { "/images/banner2.webp", "productdetails/7226" },
+    //     { "/images/banner3.webp", "productdetails/7150" }
+    // };
+
+    // Variables para controlar el estado del banner
+    private int currentIndex = 0;
+   // private string CurrentImage => ImagePaths[currentIndex];
+    private bool isLoaded = false;
+    private bool isTransitioning = false;
+    //private System.Timers.Timer rotationTimer;
+    private bool isConnected;
     private List<Categories> categories;
     private List<Products> featuredProducts;
-    private bool isConnected;
-    private List<string> ImagePaths = new List<string>
+
+    // Métodos para obtener datos
+    // private string GetProductLink(string imagePath)
+    // {
+    //     if (ImageProductLinks.ContainsKey(imagePath))
+    //     {
+    //         return ImageProductLinks[imagePath];
+    //     }
+    //     return "/";
+    // }
+
+    private string GetImagePath(string basePath, string size = "")
     {
-        "/images/banner1.webp",
-        "/images/banner2.webp",
-        "/images/banner3.webp"
-    };  
+        if (string.IsNullOrEmpty(size))
+            return basePath;
 
-    private Dictionary<string, string> ImageProductLinks = new Dictionary<string, string>
-    {
-        { "/images/banner1.webp", "productdetails/7119" },
-        { "/images/banner2.webp", "productdetails/7226" },
-        { "/images/banner3.webp", "productdetails/7150" }
-    };
-
-
-
-    private List<string> GetImagesForCategory(int categoryId)
-    {
-        return new List<string> { "shutter1.webp"};
+        return basePath.Replace(".webp", $"-{size}.webp");
     }
 
-    private string GetProductLink(string imagePath)
-    {
-
-        if (ImageProductLinks.ContainsKey(imagePath))
-
-        {
-
-            return ImageProductLinks[imagePath];
-
-        }
-        return "/";
-    }
-    private int currentIndex = 0;
-    private string CurrentImage => ImagePaths[currentIndex];
-    private string PreviousImage;
-    private bool IsFading = false;
-    private System.Timers.Timer timer;
-    private bool mostrarBanner = false;              
-    private System.Timers.Timer _delayTimer;         
-
+    // Eventos del ciclo de vida
     protected override async Task OnInitializedAsync()
     {
-
         isConnected = await DbContext.Database.CanConnectAsync();
-        if (isConnected)
-        {
-            categories = await CategoryService.GetRandomCategoriesAsync(3);
-            featuredProducts = await ProductService.GetRandomProductsAsync(3);
-        }
-        categories = await CategoryService.GetRandomCategoriesAsync(3);
-           
     }
 
     protected override void OnInitialized()
     {
         base.OnInitialized();
 
-        // 1) Timer para rotar las imágenes del banner cada 5s
-        timer = new System.Timers.Timer(5000);
-        timer.Elapsed += (sender, e) =>
-        {
-            InvokeAsync(ChangeImage);
-        };
-
-        // 2) Timer para retrasar la APARICIÓN del banner (1s por ejemplo)
-        _delayTimer = new System.Timers.Timer(1000); 
-        _delayTimer.Elapsed += (sender, e) =>
-        {
-            _delayTimer.Stop();
-            InvokeAsync(() =>
-            {
-                mostrarBanner = true;
-                timer.Start();         
-                StateHasChanged();
-            });
-        };
-        _delayTimer.Start();
+        // // Configurar el timer para rotar imágenes
+        // rotationTimer = new System.Timers.Timer(5000);
+        // rotationTimer.Elapsed += (sender, e) =>
+        // {
+        //     InvokeAsync(RotateImage);
+        // };
     }
 
-    // Método para cambiar de imagen con fade
-    private async void ChangeImage()
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        IsFading = true;
-        PreviousImage = CurrentImage;
-        StateHasChanged();
+        // if (firstRender)
+        // {
+        //     // Pequeña demora para permitir que la interfaz se cargue primero
+        //     await Task.Delay(300);
 
-        await Task.Delay(500);
+        //     // Marcar como cargada la primera imagen
+        //     isLoaded = true;
+        //     StateHasChanged();
 
-        currentIndex = (currentIndex + 1) % ImagePaths.Count;
-        IsFading = false;
-        StateHasChanged();
+        //     // Iniciar rotación después de que la página esté completamente cargada
+        //     await Task.Delay(1500);
+        //     rotationTimer.Start();
+        // }
     }
 
-    // Liberar los timers cuando el componente se destruya
-    public void Dispose()
-    {
-        timer?.Dispose();
-        _delayTimer?.Dispose();  
-    }
+    // // Método optimizado para cambiar imágenes
+    // private async void RotateImage()
+    // {
+    //     if (isTransitioning) return;
+
+    //     isTransitioning = true;
+    //     StateHasChanged();
+
+    //     await Task.Delay(300); // Tiempo reducido para la transición
+
+    //     currentIndex = (currentIndex + 1) % ImagePaths.Count;
+    //     isTransitioning = false;
+    //     StateHasChanged();
+    // }
+
+    // Limpieza al destruir el componente
+    // public void Dispose()
+    // {
+    //     rotationTimer?.Dispose();
+    // }
 }
 
 <style>
@@ -267,8 +238,8 @@
         margin-top: 3rem;
     }
 
-    .mb-4 {
-        margin-bottom: 1.5rem;
+    .mb-5 {
+        margin-bottom: 3rem;
     }
 
     .my-4 {
@@ -278,6 +249,29 @@
 
     .text-center {
         text-align: center;
+    }
+
+    .animated-truck {
+        margin-right: 8px;
+        display: inline-block;
+        animation: drive 2s linear infinite;
+    }
+
+    @@keyframes drive {
+        0%
+
+    {
+        transform: translateX(0);
+    }
+
+    50% {
+        transform: translateX(5px);
+    }
+
+    100% {
+        transform: translateX(0);
+    }
+
     }
 
     .lead {
@@ -314,15 +308,21 @@
     }
 
     @@media (min-width: 576px) {
-        .col-sm-6 {
-            width: 50%;
-        }
+        .col-sm-6
+
+    {
+        width: 50%;
+    }
+
     }
 
     @@media (min-width: 768px) {
-        .col-md-4 {
-            width: 33.3333%;
-        }
+        .col-md-4
+
+    {
+        width: 33.3333%;
+    }
+
     }
 
     .d-flex {
@@ -356,9 +356,12 @@
     }
 
     @@keyframes spin {
-        to {
-            transform: rotate(360deg);
-        }
+        to
+
+    {
+        transform: rotate(360deg);
+    }
+
     }
 
     .visually-hidden {
@@ -470,6 +473,24 @@
         overflow: hidden;
         margin: 0;
         padding: 0;
+        background-color: #f0f0f0; /* Color de fondo mientras carga */
+    }
+
+    .banner-placeholder {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .spinner-sm {
+        width: 30px;
+        height: 30px;
+        border: 3px solid rgba(245, 193, 68, 0.2);
+        border-top: 3px solid #F5C144;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
     }
 
     .banner-image {
@@ -480,29 +501,43 @@
         height: 100%;
         object-fit: cover;
         opacity: 0;
-        transition: opacity 0.5s ease-in-out;
+        transition: opacity 0.3s ease-out;
+        will-change: opacity;
     }
 
         .banner-image.fade-in {
             opacity: 1;
-            z-index: 2;
         }
 
         .banner-image.fade-out {
             opacity: 0;
-            z-index: 1;
         }
 
     @@media (max-width: 768px) {
-        .banner-container {
-            height: 300px;
-        }
+        .banner-container
+
+    {
+        height: 300px;
+    }
+
     }
 
     @@media (max-width: 480px) {
-        .banner-container {
-            height: 200px;
-        }
+        .banner-container
+
+    {
+        height: 200px;
+    }
+
+    }
+
+    @@keyframes spin {
+        to
+
+    {
+        transform: rotate(360deg);
+    }
+
     }
 
     .text-decoration-none {
@@ -527,5 +562,64 @@
 
     .material-symbols-outlined {
         font-variation-settings: 'FILL' 1, 'wght' 700, 'GRAD' 0, 'opsz' 48;
+    }
+
+    .info-banner {
+        background-color: rgba(245, 193, 68, 0.1);
+        padding: 2rem;
+        border-radius: 0.3rem;
+    }
+
+    .custom-card {
+        background-color: #fff;
+        border-radius: 15px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        position: relative;
+        padding-top: 50px;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+        .custom-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 8px 12px rgba(0,0,0,0.2);
+        }
+
+    .icon-wrapper {
+        width: 80px;
+        height: 80px;
+        background: #f8f9fa;
+        border-radius: 50%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        position: absolute;
+        top: -40px;
+        left: 50%;
+        transform: translateX(-50%);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        transition: background 0.3s ease;
+    }
+
+    .custom-icon {
+        font-size: 2rem;
+        color: #F5C144;
+        transition: color 0.3s ease;
+    }
+
+    .custom-title {
+        color: #F5C144;
+        font-weight: bold;
+    }
+
+    .more-info {
+        opacity: 0;
+        transition: opacity 0.3s ease, transform 0.3s ease;
+        transform: translateY(10px);
+        margin-top: 10px;
+    }
+
+    .custom-card:hover .more-info {
+        opacity: 1;
+        transform: translateY(0);
     }
 </style>

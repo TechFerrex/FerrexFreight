@@ -1,0 +1,1009 @@
+﻿@page "/freight"
+@using Microsoft.JSInterop
+@using System.Security.Claims
+@using FerrexWeb.Models
+@using FerrexWeb.Services
+@inject IJSRuntime JS
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject FreightQuotationService FreightQuotationService
+
+<div class="container my-5">
+    <div class="card shadow">
+        <div class="card-header header-card" style="background-color: #F5C144;">
+            <h3 class="card-title mb-0">PLANIFICA TU RUTA DE FLETES</h3>
+        </div>
+        <div class="card-body">
+            <div id="alertMessage" class="alert alert-warning" style="display: none; margin-bottom: 15px;" role="alert"></div>
+            <div class="row">
+                <div class="col-md-4">
+                    <button class="btn btn-secondary w-100 mb-2" @onclick="ActivateMapSelection">Seleccionar en el Mapa</button>
+                    <div class="d-flex align-items-center justify-content-center my-2">
+                        <hr style="flex-grow: 1; border-top: 1px dashed #6c757d; margin: 0;">
+                        <span style="margin: 0 10px; color: #6c757d;">o</span>
+                        <hr style="flex-grow: 1; border-top: 1px dashed #6c757d; margin: 0;">
+                    </div>
+                    <div class="mb-3">
+                        <label for="origin-input" class="form-label">Escribe el Origen</label>
+                        <input id="origin-input" type="text" class="form-control" placeholder="Ingresa origen o usa selección en mapa" />
+                    </div>
+                    <div class="mb-3">
+                        <label for="destination-input" class="form-label">Escribe el Destino</label>
+                        <input id="destination-input" type="text" class="form-control" placeholder="Ingresa destino o usa selección en mapa" />
+                    </div>
+                    @* <div class="mb-3">
+                        <label for="truck-type" class="form-label">Tipo de Camión</label>
+                        <select id="truck-type" class="form-select" @onchange="UpdateTruckCosts">
+                            <option value="pickup">Tipo Pickup</option>
+                            <option value="panel">Tipo Panelita</option>
+                            <option value="small">Camión Pequeño (6 ton)</option>
+                            <option value="medium">Camión Mediano (12 ton)</option>
+                            <option value="big">Cabezal</option>
+                        </select>
+                    </div> *@
+                    <div class="mb-3">
+                        <label class="form-label">Tipo de Camión</label>
+                        <div class="truck-selection d-flex flex-wrap gap-3">
+                            <div class="truck-card @(selectedTruckType == "pickup" ? "active" : "")"
+                                 data-truck-type="pickup"
+                                 @onclick='() => SelectTruckType("pickup")'>
+                                <i class="fas fa-truck-pickup"></i>
+                                <div class="truck-name">Tipo Pickup</div>
+                            </div>
+                            <div class="truck-card @(selectedTruckType == "small" ? "active" : "")"
+                                 data-truck-type="small"
+                                 @onclick='() => SelectTruckType("small")'>
+                                <i class="fas fa-truck"></i>
+                                <div class="truck-name">Camión Pequeño (6 ton)</div>
+                            </div>
+                            @* <div class="truck-card @(selectedTruckType == "medium" ? "active" : "")"
+                                 data-truck-type="medium"
+                                 @onclick='() => SelectTruckType("medium")'>
+                                <i class="fas fa-truck-moving"></i>
+                                <div class="truck-name">Camión Mediano (12 ton)</div>
+                            </div> *@
+                        </div>
+                        <input id="truck-type" type="hidden" value="@selectedTruckType" />
+                    </div>
+                    <div class="mb-3">
+                        <label for="freight-date" class="form-label">Fecha de Programación</label>
+                        <input id="freight-date" type="date" class="form-control" min="@MinDate" />
+                    </div>
+                    <div class="mb-3">
+                        <button class="btn btn-success w-100 mb-2" @onclick="CalculateRoute">Calcular Ruta</button>
+                        <button class="btn btn-danger w-100" @onclick="ClearData">Limpiar datos</button>
+                    </div>
+                </div>
+                <div class="col-md-8">
+                    <div id="map-container" style="position: relative;">
+                        <div id="map" style="height: 500px; width: 100%;"></div>
+                        <div id="selectionTip" style="position: absolute; top: 10px; left: 50%; transform: translateX(-50%); background: rgba(0, 123, 255, 0.9); color: #fff; padding: 8px 12px; border-radius: 4px; display: none; z-index: 1001;">
+                            Selecciona el origen en el mapa
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para mostrar los detalles de la cotización y opciones -->
+<div id="customModal" class="modal">
+    <div class="modal-content">
+        <span class="close" id="modalClose" onclick="closeModal()">&times;</span>
+        <div id="modalError" class="alert alert-danger" style="display: none; margin-bottom: 15px;"></div>
+        <div id="modalBody"></div>
+    </div>
+</div>
+
+@code {
+    private bool _firstRender = true;
+    private string MinDate { get; set; } = DateTime.Now.AddDays(1).ToString("yyyy-MM-dd");
+    private DotNetObjectReference<Freight> dotNetRef;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_firstRender)
+        {
+            dotNetRef = DotNetObjectReference.Create(this);
+            try
+            {
+                await JS.InvokeVoidAsync("loadGoogleMapsScript", dotNetRef);
+            }
+            catch (JSException jsEx)
+            {
+                await JS.InvokeVoidAsync("showMapErrorModal", true, "Error al cargar el mapa. Por favor recarga la página.");
+                Console.Error.WriteLine(jsEx.Message);
+            }
+            _firstRender = false;
+        }
+    }
+
+
+    [JSInvokable]
+    public async Task<string> SaveFreightQuotation(decimal distanceKm, decimal costPerKm, decimal baseCost, decimal insuranceCost, decimal totalCost, string truckType, string insuranceOption, string origin, string destination, string freightDate, decimal freightLatitude, decimal freightLongitude)
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        // Primero se verifica si el usuario está autenticado
+        if (!user.Identity.IsAuthenticated)
+        {
+            return "Por favor, inicie sesión para cotizar.";
+        }
+
+        int userId = int.Parse(user.FindFirstValue(ClaimTypes.NameIdentifier));
+
+        var fq = new FreightQuotation
+            {
+                UserId = userId,
+                QuotationNumber = "FQ-" + Guid.NewGuid().ToString().Substring(0, 8),
+                Origin = origin,
+                Destination = destination,
+                FreightDate = DateTime.Parse(freightDate),
+                TruckType = truckType,
+                InsuranceOption = insuranceOption,
+                DistanceKm = distanceKm,
+                CostPerKm = costPerKm,
+                BaseCost = baseCost,
+                InsuranceCost = insuranceCost,
+                TotalCost = totalCost,
+                FreightLatitude = freightLatitude,
+                FreightLongitude = freightLongitude,
+                Status = 0 // 0 = Cotización
+            };
+
+        await FreightQuotationService.AddFreightQuotationAsync(fq);
+        return "Cotización guardada correctamente";
+    }
+    [JSInvokable]
+    public async Task<string> SaveFreightOrder(decimal distanceKm, decimal costPerKm, decimal baseCost, decimal insuranceCost, decimal totalCost, string truckType, string insuranceOption, string origin, string destination, string freightDate, decimal freightLatitude, decimal freightLongitude)
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        // Se verifica la autenticación antes de parsear el user ID
+        if (!user.Identity.IsAuthenticated)
+        {
+            return "Por favor, inicie sesión para ordenar el flete.";
+        }
+
+        int userId = int.Parse(user.FindFirstValue(ClaimTypes.NameIdentifier));
+
+        var fq = new FreightQuotation
+            {
+                UserId = userId,
+                QuotationNumber = "FQ-" + Guid.NewGuid().ToString().Substring(0, 8),
+                Origin = origin,
+                Destination = destination,
+                FreightDate = DateTime.Parse(freightDate),
+                TruckType = truckType,
+                InsuranceOption = insuranceOption,
+                DistanceKm = distanceKm,
+                CostPerKm = costPerKm,
+                BaseCost = baseCost,
+                InsuranceCost = insuranceCost,
+                TotalCost = totalCost,
+                FreightLatitude = freightLatitude,
+                FreightLongitude = freightLongitude,
+                Status = 1 // 1 = Ordenada (Hacer Flete)
+            };
+
+        await FreightQuotationService.AddFreightQuotationAsync(fq);
+        return "Flete ordenado exitosamente";
+    }
+
+    private string selectedTruckType { get; set; } = "pickup";
+    private async Task SelectTruckType(string type)
+    {
+        selectedTruckType = type;
+        await JS.InvokeVoidAsync("applyTruckSelectionEffect", type);
+        await JS.InvokeVoidAsync("updateTruckCosts");
+
+        _ = JS.InvokeVoidAsync("updateTruckCosts");
+    }
+
+    private async Task ActivateMapSelection() => await JS.InvokeVoidAsync("activateMapSelection");
+    private async Task CalculateRoute()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+
+        // 1.  ¿Está autenticado?
+        if (!authState.User.Identity.IsAuthenticated)
+        {
+            // 2.  Muestra un aviso en el navegador y sale
+            await JS.InvokeVoidAsync("showAlert",
+                "Por favor, inicie sesión o regístrese para poder calcular el flete.");
+            return;
+        }
+
+        // 3.  Continúa con el cálculo normal
+        await JS.InvokeVoidAsync("calculateRoute");
+    }
+    private async Task UpdateTruckCosts() => await JS.InvokeVoidAsync("updateTruckCosts");
+    private async Task ClearData() => await JS.InvokeVoidAsync("clearData");
+}
+
+
+<style>
+
+    /* Mejoras visuales para el contenedor de selección de camiones */
+    .truck-selection {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 15px;
+        justify-content: center;
+        margin-top: 10px;
+        perspective: 1000px; /* Añade profundidad para efectos 3D */
+    }
+
+    /* Estilo base mejorado para las tarjetas de camiones */
+    .truck-card {
+        border: 2px solid #e0e0e0;
+        border-radius: 10px;
+        padding: 18px 12px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+        width: 130px;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+        background-color: white;
+        z-index: 1;
+    }
+
+        /* Efecto hover avanzado */
+        .truck-card:hover {
+            transform: translateY(-8px) scale(1.05);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.15);
+            border-color: #F5C144;
+        }
+
+        /* Efecto más destacado para la carta activa */
+        .truck-card.active {
+            background-color: #fffcf0;
+            border-color: #F5C144;
+            box-shadow: 0 8px 16px rgba(245, 193, 68, 0.4);
+            transform: translateY(-5px);
+        }
+
+        /* Mejora visual para los iconos */
+        .truck-card i {
+            display: block;
+            margin-bottom: 10px;
+            font-size: 2.2rem;
+            color: #555;
+            transition: all 0.3s ease;
+        }
+
+        /* Cambia color del icono en hover */
+        .truck-card:hover i {
+            color: #F5C144;
+            transform: scale(1.1);
+        }
+
+        /* Color del icono en la carta activa */
+        .truck-card.active i {
+            color: #F5C144;
+        }
+
+        /* Nombre del camión con estilo mejorado */
+        .truck-card .truck-name {
+            font-weight: 500;
+            margin-top: 5px;
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+            color: #555;
+        }
+
+        .truck-card:hover .truck-name,
+        .truck-card.active .truck-name {
+            color: #333;
+        }
+
+        /* Efecto de destello al seleccionar */
+        .truck-card::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(120deg, rgba(255,255,255,0) 30%, rgba(255,255,255,0.8), rgba(255,255,255,0) 70%);
+            transform: translateX(-100%);
+            transition: none;
+            z-index: -1;
+        }
+
+        .truck-card.active::after {
+            animation: shine 1.5s ease-out;
+        }
+
+    /* Animación de destello */
+    @@keyframes shine {
+        100% {
+            transform: translateX(100%);
+        }
+    }
+
+    /* Efecto pulsante sutil para la carta activa */
+    @@keyframes pulse {
+        0% {
+            box-shadow: 0 0 0 0 rgba(245, 193, 68, 0.7);
+        }
+
+        70% {
+            box-shadow: 0 0 0 10px rgba(245, 193, 68, 0);
+        }
+
+        100% {
+            box-shadow: 0 0 0 0 rgba(245, 193, 68, 0);
+        }
+    }
+
+    .truck-card.active {
+        animation: pulse 2s infinite;
+    }
+
+    /* Mejoras para responsividad */
+    @@media (max-width: 768px) {
+        .truck-selection {
+            gap: 10px;
+        }
+
+        .truck-card {
+            width: calc(33.33% - 10px);
+            padding: 12px 8px;
+            min-width: 90px;
+        }
+
+            .truck-card i {
+                font-size: 1.8rem;
+                margin-bottom: 5px;
+            }
+
+            .truck-card .truck-name {
+                font-size: 0.8rem;
+            }
+    }
+
+    @@media (max-width: 480px) {
+        .truck-selection {
+            gap: 8px;
+        }
+
+        .truck-card {
+            width: calc(50% - 8px);
+            padding: 10px 5px;
+        }
+    }
+
+    .btn-success {
+        background-color: #F5C144;
+        border-color: #F5C144;
+    }
+
+        .btn-success:hover {
+            background-color: #A7A9AC;
+            border-color: #A7A9AC;
+        }
+
+    .btn-secondary {
+        background-color: #000000;
+        border-color: #000000;
+    }
+
+        .btn-secondary:hover {
+            background-color: #A7A9AC;
+            border-color: #A7A9AC;
+        }
+
+    .card {
+        border-radius: 0.5rem;
+    }
+
+    .header-card {
+        background-color: #007bff;
+        color: white;
+        border-top-left-radius: 0.5rem;
+        border-top-right-radius: 0.5rem;
+    }
+
+    .pac-container {
+        border-radius: 8px !important;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1) !important;
+        border: 1px solid #dee2e6 !important;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        font-size: 1rem;
+        z-index: 1051;
+    }
+
+    .pac-item {
+        padding: 10px 15px !important;
+        cursor: pointer;
+    }
+
+        .pac-item:hover {
+            background-color: #f8f9fa !important;
+        }
+
+    .pac-item-selected {
+        background-color: #e9ecef !important;
+    }
+
+    .modal {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        overflow: auto;
+        background-color: rgba(0,0,0,0.4);
+    }
+
+    .modal-content {
+        background-color: #fefefe;
+        margin: 10% auto;
+        padding: 20px;
+        border: 1px solid #888;
+        width: 80%;
+        max-width: 500px;
+        border-radius: 5px;
+    }
+
+    .close {
+        color: #aaa;
+        float: right;
+        font-size: 28px;
+        font-weight: bold;
+        cursor: pointer;
+    }
+
+        .close:hover,
+        .close:focus {
+            color: black;
+            text-decoration: none;
+        }
+
+    @@media (max-width: 767px) {
+        #map {
+            height: 300px;
+        }
+    }
+</style>
+<script>
+        (function(){
+        let map, directionsService, directionsRenderer;
+        let originMarker = null, destinationMarker = null;
+        let isMapSelectionMode = false, currentSelection = "";
+        const truckRates = { small: 30, medium: 50, pickup:20 };
+        window.dotNetRef = null;
+        window.calculationData = {};
+
+        function initMap(dotNetObjectRef) {
+        window.dotNetRef = dotNetObjectRef;
+        const hondurasCenter = { lat: 14.0723, lng: -87.1921 };
+
+        map = new google.maps.Map(document.getElementById("map"), {
+            center: hondurasCenter,
+            zoom: 7,
+            mapTypeControl: false,
+            streetViewControl: false,
+            fullscreenControl: false
+        });
+
+        directionsService = new google.maps.DirectionsService();
+        directionsRenderer = new google.maps.DirectionsRenderer({ suppressMarkers: true });
+        directionsRenderer.setMap(map);
+
+        const originInput = document.getElementById("origin-input");
+        const destinationInput = document.getElementById("destination-input");
+
+        if (originInput) {
+            const autocompleteOrigin = new google.maps.places.Autocomplete(originInput, {
+                componentRestrictions: { country: "hn" },
+                fields: ["geometry", "name"]
+            });
+            autocompleteOrigin.addListener("place_changed", function () {
+                const place = autocompleteOrigin.getPlace();
+                if (!place.geometry) {
+                    console.warn("No se encontraron detalles para: " + place.name);
+                    return;
+                }
+                map.setCenter(place.geometry.location);
+                map.setZoom(15);
+                if (originMarker) { originMarker.setMap(null); }
+                originMarker = new google.maps.Marker({
+                    position: place.geometry.location,
+                    map: map,
+                    title: "Origen"
+                });
+            });
+            // Agrega un listener para cancelar la selección del mapa al enfocar el input
+            originInput.addEventListener("focus", function () {
+                isMapSelectionMode = false;
+                updateSelectionTip("");
+            });
+        }
+
+        if (destinationInput) {
+            const autocompleteDestination = new google.maps.places.Autocomplete(destinationInput, {
+                componentRestrictions: { country: "hn" },
+                fields: ["geometry", "name"]
+            });
+            autocompleteDestination.addListener("place_changed", function () {
+                const place = autocompleteDestination.getPlace();
+                if (!place.geometry) {
+                    console.warn("No se encontraron detalles para: " + place.name);
+                    return;
+                }
+                map.setCenter(place.geometry.location);
+                map.setZoom(15);
+                if (destinationMarker) { destinationMarker.setMap(null); }
+                destinationMarker = new google.maps.Marker({
+                    position: place.geometry.location,
+                    map: map,
+                    title: "Destino"
+                });
+            });
+            // Cancela el modo selección cuando se enfoca el input de destino
+            destinationInput.addEventListener("focus", function () {
+                isMapSelectionMode = false;
+                updateSelectionTip("");
+            });
+        }
+
+        map.addListener("click", function (event) {
+            if (isMapSelectionMode) {
+                if (currentSelection === "origin") {
+                    if (originMarker) { originMarker.setMap(null); }
+                    originMarker = new google.maps.Marker({
+                        position: event.latLng,
+                        map: map,
+                        title: "Origen (seleccionado en mapa)"
+                    });
+                    originInput.value = event.latLng.lat().toFixed(5) + ", " + event.latLng.lng().toFixed(5);
+                    currentSelection = "destination";
+                    updateSelectionTip("Ahora selecciona el destino en el mapa");
+                } else if (currentSelection === "destination") {
+                    if (destinationMarker) { destinationMarker.setMap(null); }
+                    destinationMarker = new google.maps.Marker({
+                        position: event.latLng,
+                        map: map,
+                        title: "Destino (seleccionado en mapa)"
+                    });
+                    destinationInput.value = event.latLng.lat().toFixed(5) + ", " + event.latLng.lng().toFixed(5);
+                    isMapSelectionMode = false;
+                    currentSelection = "";
+                    updateSelectionTip("");
+                }
+            }
+        });
+    }
+      function loadGoogleMapsScript(dotNetObjectRef) {
+            window.dotNetRef = dotNetObjectRef;
+
+      const prev = document.getElementById('googleMaps');
+      if (prev) prev.remove();
+
+      showMapErrorModal(false);
+      const script = document.createElement('script');
+      script.id = 'googleMaps';
+          script.src = 'https://maps.googleapis.com/maps/api/js?key=AIzaSyDPNM-zV0g6n0fZca7P3DNAB24goUwb_ro&libraries=places&callback=initMap';
+      script.async = true;
+      script.defer = true;
+    script.onload = () => initMap(dotNetObjectRef);
+        script.onerror = () => {
+        showMapErrorModal(true, 'No se pudo cargar el mapa. Reintentando en 3s...');
+        setTimeout(loadGoogleMapsScript, 3000);
+      };
+      document.head.appendChild(script);
+    }
+
+    function showMapErrorModal(show, message) {
+      let modal = document.getElementById('mapErrorModal');
+      if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'mapErrorModal';
+        modal.classList.add('modal');
+        modal.innerHTML = `
+          <div class="modal-content">
+            <span class="close" onclick="document.getElementById('mapErrorModal').style.display='none'">&times;</span>
+            <div class="alert alert-danger p-3" id="mapErrorMessage"></div>
+          </div>`;
+        document.body.appendChild(modal);
+      }
+      modal.style.display = show ? 'block' : 'none';
+      if (message) document.getElementById('mapErrorMessage').innerText = message;
+    }
+
+        function updateSelectionTip(message) {
+            const tip = document.getElementById("selectionTip");
+            tip.style.display = message ? "block" : "none";
+            if (message) tip.innerText = message;
+        }
+
+        function activateMapSelection() {
+            isMapSelectionMode = true;
+            currentSelection = "origin";
+            if (originMarker) { originMarker.setMap(null); originMarker = null; }
+            if (destinationMarker) { destinationMarker.setMap(null); destinationMarker = null; }
+            document.getElementById("origin-input").value = "";
+            document.getElementById("destination-input").value = "";
+            updateSelectionTip("Selecciona el origen en el mapa");
+            hideAlert();
+            console.info("Modo de selección en mapa activado. Selecciona el origen.");
+        }
+
+        function validateLocation(latLng, callback) {
+            const geocoder = new google.maps.Geocoder();
+            geocoder.geocode({ location: latLng }, (results, status) => {
+                if (status === "OK" && results[0]) {
+                    let isValid = true;
+                    results[0].address_components.forEach(component => {
+                        if (component.types.includes("administrative_area_level_1")) {
+                            const adminArea = component.long_name.toLowerCase();
+                            if (adminArea.includes("gracias a dios") || adminArea.includes("islas")) {
+                                isValid = false;
+                            }
+                        }
+                    });
+                    callback(isValid);
+                } else {
+                    callback(true);
+                }
+            });
+        }
+            // Añade esto dentro de tu función JavaScript que ya tienes
+    function initTruckSelectionEffects() {
+        // Observador de mutaciones para detectar cambios en la clase .active
+        const observer = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                if (mutation.attributeName === 'class') {
+                    const target = mutation.target;
+                    if (target.classList.contains('active')) {
+                        // Reinicia la animación de destello
+                        target.style.animation = 'none';
+                        target.offsetHeight; // Trigger reflow
+                        target.style.animation = null;
+
+                        // Efecto de "ondulación" al hacer clic
+                        createRippleEffect(target);
+                    }
+                }
+            });
+        });
+
+        // Observa todas las tarjetas de camiones
+        document.querySelectorAll('.truck-card').forEach(card => {
+            observer.observe(card, { attributes: true });
+
+            // Añade el evento de clic para el efecto de ondulación
+            card.addEventListener('click', function(e) {
+                createRippleEffect(this);
+            });
+        });
+    }
+
+    // Efecto de ondulación al hacer clic
+    function createRippleEffect(element) {
+        const ripple = document.createElement('span');
+        ripple.classList.add('ripple');
+
+        // Estilos inline para el efecto
+        ripple.style.position = 'absolute';
+        ripple.style.borderRadius = '50%';
+        ripple.style.background = 'rgba(255, 255, 255, 0.7)';
+        ripple.style.transform = 'scale(0)';
+        ripple.style.animation = 'ripple 0.6s linear';
+        ripple.style.pointerEvents = 'none';
+
+        const rect = element.getBoundingClientRect();
+        const size = Math.max(rect.width, rect.height);
+        ripple.style.width = ripple.style.height = `${size}px`;
+        ripple.style.left = '0px';
+        ripple.style.top = '0px';
+        // Añadir al elemento y limpiar después
+        element.appendChild(ripple);
+        setTimeout(() => ripple.remove(), 600);
+    }
+
+    // Añade keyframes para la animación de ripple
+        function addRippleStyle() {
+            if (!document.getElementById('rippleStyleSheet')) {
+                const style = document.createElement('style');
+                style.id = 'rippleStyleSheet';
+                style.textContent = `
+            @@keyframes ripple {
+                to {
+                    transform: scale(4);
+                    opacity: 0;
+                }
+            }
+        `;
+                document.head.appendChild(style);
+            }
+        }
+
+
+    // Llamar a estas funciones después de que se cargue la página
+    window.addEventListener('DOMContentLoaded', () => {
+        addRippleStyle();
+        // Inicializa los efectos después de que Blazor termine de renderizar
+        setTimeout(initTruckSelectionEffects, 500);
+    });
+
+    // También modifica la función SelectTruckType en Blazor para llamar a este método
+    function applyTruckSelectionEffect(type) {
+        // Este método se llamará desde el código de Blazor
+        document.querySelectorAll('.truck-card').forEach(card => {
+            if (card.dataset.truckType === type) {
+                // Asegúrate de que la clase active esté aplicada
+                if (!card.classList.contains('active')) {
+                    card.classList.add('active');
+                }
+            } else {
+                card.classList.remove('active');
+            }
+        });
+    }
+
+    // Agrégalo a las funciones expuestas
+      window.applyTruckSelectionEffect = applyTruckSelectionEffect;
+
+    function calculateRoute() {
+        hideAlert();
+        const freightDateInput = document.getElementById("freight-date");
+        if (!freightDateInput || freightDateInput.value === "") {
+            showAlert("Por favor, selecciona la fecha de programación.");
+            return;
+        }
+
+        if (!originMarker || !destinationMarker) {
+            showAlert("Por favor, selecciona ambos puntos: origen y destino.");
+            return;
+        }
+
+        const originPos = originMarker.getPosition();
+        const destinationPos = destinationMarker.getPosition();
+
+        // 1) Validar ORIGEN
+        validateAllowedLocation(originPos, function(originAllowed) {
+            if (!originAllowed) {
+                showAlert("Origen fuera de zona: sólo Villanueva, San Pedro Sula, Chamelecón, Cofradía o Choloma.");
+                return;
+            }
+
+            // 2) Validar DESTINO
+            validateAllowedLocation(destinationPos, function(destAllowed) {
+                if (!destAllowed) {
+                    showAlert("Destino fuera de zona: sólo Villanueva, San Pedro Sula, Chamelecón, Cofradía o Choloma.");
+                    return;
+                }
+
+                // 3) Ambos permitidos: calculamos la ruta
+                directionsService.route({
+                    origin: originPos,
+                    destination: destinationPos,
+                    travelMode: google.maps.TravelMode.DRIVING
+                }, (response, status) => {
+                    if (status !== "OK") {
+                        showAlert("Error al calcular la ruta. Intenta nuevamente.");
+                        return;
+                    }
+
+                    directionsRenderer.setDirections(response);
+                    const leg = response.routes[0].legs[0];
+                    const distanceKm = leg.distance.value / 1000;
+                    const truckType = document.getElementById("truck-type").value;
+                    const costPerKm = truckRates[truckType];
+
+                    // Cálculo de costos
+                    let baseCost = 0;
+                    if (distanceKm <= 6) {
+                        if (truckType === "small") baseCost = 600;
+                        else if (truckType === "medium") baseCost = 2200;
+                        else if (truckType === "pickup") baseCost = 350;
+                    } else {
+                        if (truckType === "small") baseCost = 600 + (distanceKm - 6) * costPerKm;
+                        else if (truckType === "medium") baseCost = 2200 + (distanceKm - 6) * costPerKm;
+                        else if (truckType === "pickup") baseCost = 350 + (distanceKm - 6) * costPerKm;
+                    }
+
+                    const insuranceOption = document.getElementById("insurance-option")?.value ?? "none";
+                    let insuranceCost = 0;
+                    if (insuranceOption === "basic") insuranceCost = baseCost * 0.05;
+                    else if (insuranceOption === "premium") insuranceCost = baseCost * 0.10;
+
+                    const finalCost = baseCost + insuranceCost;
+
+                    const truckLabels = {
+                        pickup: "Tipo Pickup",
+                        small: "Camión Pequeño (6 ton)",
+                        medium: "Camión Mediano (12 ton)",
+                        // …
+                    };
+                    const truckLabel = truckLabels[truckType] || truckType;
+
+                    window.calculationData = {
+                        distanceKm,
+                        costPerKm,
+                        baseCost,
+                        insuranceCost,
+                        finalCost,
+                        truckType,
+                        insuranceOption,
+                        origin: document.getElementById("origin-input").value,
+                        destination: document.getElementById("destination-input").value,
+                        freightDate: freightDateInput.value,
+                        freightLatitude: originPos.lat(),
+                        freightLongitude: originPos.lng()
+                    };
+
+                    const modalContent =`
+                        <p><strong>Fecha de Programación:</strong> ${freightDateInput.value}</p>
+                        <p><strong>Distancia:</strong> ${distanceKm.toFixed(2)} km</p>
+                        <p><strong>Tipo de Camión:</strong> ${truckLabel}</p>
+                        <p><strong>Costo de flete:</strong> L${baseCost.toFixed(2)}</p>
+                        <hr>
+                        <p class="h5 text-center"><strong>Costo total: L${finalCost.toFixed(2)}</strong></p>
+                        <div class="text-center mt-3">
+                            <button class="btn btn-primary" onclick="actionCotizar()">Cotizar</button>
+                            <button class="btn btn-success" onclick="actionOrdenar()">Hacer Flete</button>
+                            <button class="btn btn-secondary" onclick="actionSalir()">Salir</button>
+                        </div>`
+                    ;
+                    document.getElementById("modalBody").innerHTML = modalContent;
+                    openModal();
+                });
+            });
+        });
+    }
+
+    function validateAllowedLocation(latLng, callback) {
+        const geocoder = new google.maps.Geocoder();
+        geocoder.geocode({ location: latLng }, (results, status) => {
+            if (status === "OK" && results[0]) {
+                const allowed = [
+                    "villanueva",
+                    "san pedro sula",
+                    "chamelecon",
+                    "cofradia",
+                    "choloma"
+                ];
+                let isAllowed = false;
+                results[0].address_components.forEach(component => {
+                    if (component.types.includes("administrative_area_level_2") ||
+                        component.types.includes("locality")) {
+                        const name = component.long_name.toLowerCase();
+                        if (allowed.some(a => name.includes(a))) {
+                            isAllowed = true;
+                        }
+                    }
+                });
+                callback(isAllowed);
+            } else {
+                callback(false);
+            }
+        });
+    }
+
+    function actionCotizar() {
+        if (window.dotNetRef && window.calculationData) {
+            window.dotNetRef.invokeMethodAsync('SaveFreightQuotation',
+                window.calculationData.distanceKm,
+                window.calculationData.costPerKm,
+                window.calculationData.baseCost,
+                window.calculationData.insuranceCost,
+                window.calculationData.finalCost,
+                window.calculationData.truckType,
+                window.calculationData.insuranceOption,
+                window.calculationData.origin,
+                window.calculationData.destination,
+                window.calculationData.freightDate,
+                window.calculationData.freightLatitude,
+                window.calculationData.freightLongitude
+            ).then(result => {
+                // Limpia el mensaje de error anterior, si existe
+                const errorElem = document.getElementById("modalError");
+                errorElem.style.display = "none";
+                errorElem.innerText = "";
+
+                // Si se retorna el mensaje de error, se muestra dentro del modal
+                if (result.includes("Por favor, inicie sesión")) {
+                    errorElem.innerText = result;
+                    errorElem.style.display = "block";
+                } else {
+                    alert(result);
+                    closeModal();
+                }
+            });
+        }
+    }
+
+    function actionOrdenar() {
+        if (window.dotNetRef && window.calculationData) {
+            window.dotNetRef.invokeMethodAsync('SaveFreightOrder',
+                window.calculationData.distanceKm,
+                window.calculationData.costPerKm,
+                window.calculationData.baseCost,
+                window.calculationData.insuranceCost,
+                window.calculationData.finalCost,
+                window.calculationData.truckType,
+                window.calculationData.insuranceOption,
+                window.calculationData.origin,
+                window.calculationData.destination,
+                window.calculationData.freightDate,
+                window.calculationData.freightLatitude,
+                window.calculationData.freightLongitude
+            ).then(result => {
+                const errorElem = document.getElementById("modalError");
+                errorElem.style.display = "none";
+                errorElem.innerText = "";
+
+                if (result.includes("Por favor, inicie sesión")) {
+                    errorElem.innerText = result;
+                    errorElem.style.display = "block";
+                } else {
+                    alert(result);
+                    closeModal();
+                }
+            });
+        }
+    }
+
+
+        function actionSalir() {
+            closeModal();
+        }
+
+        // Exponemos las funciones de acción globalmente
+        window.actionCotizar = actionCotizar;
+        window.actionOrdenar = actionOrdenar;
+        window.actionSalir = actionSalir;
+
+        function showAlert(message) {
+            const alertBox = document.getElementById("alertMessage");
+            alertBox.innerText = message;
+            alertBox.style.display = "block";
+            setTimeout(hideAlert, 5000);
+        }
+
+        function hideAlert() {
+            document.getElementById("alertMessage").style.display = "none";
+        }
+
+        function updateTruckCosts() { /* Opcional: recalcula si es necesario */ }
+
+        function openModal() {
+            document.getElementById("customModal").style.display = "block";
+        }
+
+        function closeModal() {
+            document.getElementById("customModal").style.display = "none";
+        }
+
+        function clearData() {
+            if (originMarker) { originMarker.setMap(null); originMarker = null; }
+            if (destinationMarker) { destinationMarker.setMap(null); destinationMarker = null; }
+            document.getElementById("origin-input").value = "";
+            document.getElementById("destination-input").value = "";
+            if (directionsRenderer) { directionsRenderer.set('directions', null); }
+            updateSelectionTip("");
+            hideAlert();
+            console.info("Datos limpiados");
+        }
+        window.loadGoogleMapsScript = loadGoogleMapsScript;
+        window.showMapErrorModal = showMapErrorModal;
+        window.initMap = initMap;
+        window.activateMapSelection = activateMapSelection;
+        window.calculateRoute = calculateRoute;
+        window.showAlert = showAlert;
+        window.clearData = clearData;
+        window.applyTruckSelectionEffect = applyTruckSelectionEffect;
+        window.updateTruckCosts = updateTruckCosts;
+        window.closeModal = closeModal;
+    })();
+</script>

@@ -10,8 +10,6 @@
         public int? VariantId { get; set; } 
         public Quotation? Quotation { get; set; }
         public Products? Product { get; set; }
-        public string CustomDescription { get; set; } // Nueva propiedad para descripción personalizada
-    
-
+        public string CustomDescription { get; set; } 
     }
 }
