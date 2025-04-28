@@ -81,30 +81,30 @@ app.Use(async (context, next) =>
     context.Response.Headers["Referrer-Policy"] = "no-referrer";
     context.Response.Headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()";
     context.Response.Headers["Strict-Transport-Security"] = "max-age=63072000; includeSubDomains; preload";
-    context.Response.Headers["Content-Security-Policy"] =
-        "default-src 'self'; " +
-        "script-src 'self' " +
-            "https://code.jquery.com " +
-            "https://cdnjs.cloudflare.com " +
-            "https://unpkg.com " +
-            "https://maps.googleapis.com " +
-            "https://maps.gstatic.com; " +
-        "connect-src 'self' " +
-            "https://maps.googleapis.com " +
-            "https://maps.gstatic.com; " +
-        "style-src 'self' 'unsafe-inline' " +
-            "https://fonts.googleapis.com " +
-            "https://cdn.jsdelivr.net " +
-            "https://cdnjs.cloudflare.com " +
-            "https://unpkg.com; " +
-        "img-src 'self' data: " +
-            "https://maps.gstatic.com; " +
-        "font-src 'self' " +
-            "https://fonts.gstatic.com " +
-            "https://cdn.jsdelivr.net " +
-            "https://cdnjs.cloudflare.com; " +
-        "frame-ancestors 'none'; " +
-        "object-src 'none';";
+        context.Response.Headers["Content-Security-Policy"] =
+    "default-src 'self'; " +
+  "script-src 'self' 'unsafe-eval' " +
+      "https://maps.googleapis.com " +
+      "https://maps.gstatic.com " +
+      "https://code.jquery.com " +
+      "https://cdnjs.cloudflare.com " +
+      "https://unpkg.com; " +
+  "connect-src 'self' " +
+      "https://maps.googleapis.com " +
+      "https://maps.gstatic.com; " +
+  "style-src 'self' 'unsafe-inline' " +
+      "https://fonts.googleapis.com " +
+      "https://cdn.jsdelivr.net " +
+      "https://cdnjs.cloudflare.com " +
+      "https://unpkg.com; " +
+  // aquí ampliamos img-src:
+  "img-src 'self' data: https://maps.gstatic.com https://maps.googleapis.com https://*.gstatic.com https:; " +
+  "font-src 'self' " +
+      "https://fonts.gstatic.com " +
+      "https://cdn.jsdelivr.net " +
+      "https://cdnjs.cloudflare.com; " +
+  "frame-ancestors 'none'; " +
+  "object-src 'none';";
 
     await next();
 });

@@ -65,7 +65,7 @@
 <!-- Modal para visualizar la ruta de la cotización -->
 <div id="viewModal" class="modal">
     <div class="modal-content">
-        <span class="close" onclick="closeViewModal()">&times;</span>
+        <span class="close">&times;</span>
         <h4 class="modal-title text-center mb-3">Detalle de la Cotización</h4>
         <div class="mb-2">
             <strong>Origen:</strong> <span id="modalOrigin"></span>
@@ -74,7 +74,7 @@
             <strong>Destino:</strong> <span id="modalDestination"></span>
         </div>
         <div id="modalMapContainer" style="height: 400px; width: 100%; border: 1px solid #ddd; border-radius: 5px;"></div>
-    </div>
+    </div>  
 </div>
 
 <style>
@@ -184,37 +184,3 @@
         await JS.InvokeVoidAsync("showQuotationModal", fq.Origin, fq.Destination);
     }
 }
-<script>
-    function showQuotationModal(origin, destination) {
-        document.getElementById("modalOrigin").innerText = origin;
-        document.getElementById("modalDestination").innerText = destination;
-        // Inicializamos el mapa en el contenedor del modal
-        var map = new google.maps.Map(document.getElementById("modalMapContainer"), {
-            center: { lat: 14.0723, lng: -87.1921 },
-            zoom: 7,
-            mapTypeControl: false,
-            streetViewControl: false,
-            fullscreenControl: false
-        });
-        var directionsService = new google.maps.DirectionsService();
-        var directionsRenderer = new google.maps.DirectionsRenderer({ suppressMarkers: false });
-        directionsRenderer.setMap(map);
-        directionsService.route({
-            origin: origin,
-            destination: destination,
-            travelMode: google.maps.TravelMode.DRIVING
-        }, function(response, status) {
-            if (status === 'OK') {
-                directionsRenderer.setDirections(response);
-            } else {
-                console.error("Error al obtener la ruta: " + status);
-            }
-        });
-        // Abre el modal
-        document.getElementById("viewModal").style.display = "block";
-    }
-
-    function closeViewModal() {
-        document.getElementById("viewModal").style.display = "none";
-    }
-</script>

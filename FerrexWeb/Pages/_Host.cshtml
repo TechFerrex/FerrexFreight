@@ -1,6 +1,7 @@
 ﻿@page "/"
 @using Microsoft.AspNetCore.Components.Web
 @namespace FerrexWeb.Pages
+@inject IConfiguration Configuration
 @addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers    
 
 <!DOCTYPE html>
@@ -24,10 +25,15 @@
             vertical-align: middle; 
         }
     </style>
-    <link rel="preload" as="image" href="/images/banner1.webp" fetchpriority="high">
+@*     <link rel="preload" as="image" href="/images/banner1.webp" fetchpriority="high">
     <link rel="preload" as="image" href="/images/banner2.webp" fetchpriority="high">
-    <link rel="preload" as="image" href="/images/banner3.webp" fetchpriority="high">
+    <link rel="preload" as="image" href="/images/banner3.webp" fetchpriority="high"> *@
+   <script window._googleMapsApiKey = "@Configuration["GoogleMaps:ApiKey"]";></script>
+    <script src="js/mapsInterop.js"></script>
 
+    <script async defer
+            src="https://maps.googleapis.com/maps/api/js?key=@Configuration["GoogleMaps:ApiKey"]&libraries=places&callback=initMap">
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <component type="typeof(HeadOutlet)" render-mode="ServerPrerendered" />
@@ -52,64 +58,17 @@
     <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.10.4/gsap.min.js"></script>
     <script src="_framework/blazor.server.js"></script>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+
+    <!-- Leaflet, FileUtil, site.js, carouselHelper 👈 quítalos si ya los unificaste -->
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
     <script src="~/js/FileUtil.js"></script>
-    <script src="js/site.js"></script>  
+    <script src="js/site.js"></script>
     <script src="~/js/carouselHelper.js"></script>
-    <script>
-        function scrollToSection(id) {
-            var element = document.getElementById(id);
-            if (element) {
-                element.scrollIntoView({ behavior: 'smooth' });
-            }
-        }
-    </script>
-    <script>
-        window.imageExists = function (url) {
-            return new Promise(function (resolve) {
-                var img = new Image();
-                img.onload = function () { resolve(true); };
-                img.onerror = function () { resolve(false); };
-                img.src = url;
-            });
-        };
-    </script>
-    <script>
-        document.addEventListener("DOMContentLoaded", function () {
-            // Selecciona todos los carousels de la página
-            var carousels = document.querySelectorAll('.image-carousel');
 
-            carousels.forEach(function (carousel) {
-                var slides = carousel.querySelectorAll('img');
-                var currentIndex = 0;
+    <!-- nuestro customScripts.js con todo el código inline -->
+    <script src="js/customScripts.js"></script>
 
-                // Muestra la primera imagen
-                slides[currentIndex].classList.add('active');
-
-                // Cambia la imagen cada 3 segundos (3000 ms)
-                setInterval(function () {
-                    // Remueve la clase active de la imagen actual
-                    slides[currentIndex].classList.remove('active');
-
-                    // Calcula el índice de la siguiente imagen
-                    currentIndex = (currentIndex + 1) % slides.length;
-
-                    // Agrega la clase active a la siguiente imagen
-                    slides[currentIndex].classList.add('active');
-                }, 3000);
-            });
-        });
-    </script>
-    <script>
-        window.loadGoogleMapsScript  = window.loadGoogleMapsScript  || function(){ console.warn('stub loadGoogleMapsScript'); };
-           window.showMapErrorModal     = window.showMapErrorModal     || function(show, msg){ console.warn('stub showMapErrorModal', show, msg); };
-           window.initMap               = window.initMap               || function(){ console.warn('stub initMap'); };
-    </script>
-    <script src="js/mapsInterop.js"></script>
-    <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDPNM-zV0g6n0fZca7P3DNAB24goUwb_ro&libraries=places&callback=initMap"></script>
-
-        
-
-</body>
+    <!-- mapsInterop separado y luego la carga de la API -->
+    <script src="js/quotationsModalFreight.js"></script>
+     </body>
 </html>
