@@ -59,5 +59,7 @@ namespace FerrexWeb.Models
         public DateTime CreatedDate { get; set; } = DateTime.Now; // Fecha de creación
 
         public DateTime? UpdatedDate { get; set; } // Fecha de última actualización
+        public User User { get; set; }               // ← navegación
+
     }
 }

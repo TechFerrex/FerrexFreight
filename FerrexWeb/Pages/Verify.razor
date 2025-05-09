@@ -1,0 +1,62 @@
+﻿@page "/verify"
+@using FerrexWeb.Models
+@using FerrexWeb.Services
+@using Microsoft.EntityFrameworkCore
+@inject ApplicationDbContext DbContext
+@inject NavigationManager NavigationManager
+
+<h3>Verificando tu correo…</h3>
+
+@if (processing)
+{
+    <p>Por favor espera…</p>
+}
+else if (success)
+{
+    <div class="alert alert-success">
+        ¡Correo confirmado! <a href="/login">Inicia sesión</a>.
+    </div>
+}
+else
+{
+    <div class="alert alert-danger">@message</div>
+}
+
+@code {
+    bool processing = true;
+    bool success = false;
+    string message = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var uri = new Uri(NavigationManager.Uri);
+        var token = Microsoft.AspNetCore.WebUtilities
+                        .QueryHelpers.ParseQuery(uri.Query)
+                        .TryGetValue("token", out var t) ? t.ToString() : null;
+
+        if (string.IsNullOrEmpty(token))
+        {
+            message = "Token inválido.";
+        }
+        else
+        {
+            var ev = await DbContext.EmailVerifications
+                        .Include(ev => ev.User)
+                        .FirstOrDefaultAsync(ev => ev.Token == token);
+
+            if (ev == null)
+                message = "Enlace inválido.";
+            else if (ev.ExpiresAt < DateTime.UtcNow)
+                message = "El enlace expiró.";
+            else
+            {
+                ev.User.EmailConfirmed = true;
+                DbContext.EmailVerifications.Remove(ev);
+                await DbContext.SaveChangesAsync();
+                success = true;
+            }
+        }
+
+        processing = false;
+    }
+}

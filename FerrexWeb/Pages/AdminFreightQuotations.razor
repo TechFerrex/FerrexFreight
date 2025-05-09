@@ -6,154 +6,440 @@
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject FreightQuotationService FreightQuotationService
 @inject NavigationManager NavigationManager
+
 @inject IJSRuntime JS
 
 @attribute [Authorize(Roles = "SuperAdmin")]
 
-<h3 class="text-center my-4">Administración de Cotizaciones de Fletes</h3>
-
-@if (freightQuotations == null)
-{
-    <div class="text-center">
-        <p>Cargando cotizaciones...</p>
-    </div>
-}
-else if (!freightQuotations.Any())
-{
-    <p class="text-center">No hay cotizaciones disponibles.</p>
-}
-else
-{
-    <div class="table-responsive">
-        <table class="table table-striped">
-            <thead class="table-dark">
-                <tr>
-                    <th>ID</th>
-                    <th>Número de Cotización</th>
-                    <th>Usuario (ID)</th>
-                    <th>Origen</th>
-                    <th>Destino</th>
-                    <th>Fecha</th>
-                    <th>Total</th>
-                    <th>Estado</th>
-                    <th>Acciones</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var fq in freightQuotations)
-                {
-                    <tr>
-                        <td>@fq.Id</td>
-                        <td>@fq.QuotationNumber</td>
-                        <td>@fq.UserId</td>
-                        <td>@fq.Origin</td>
-                        <td>@fq.Destination</td>
-                        <td>@fq.FreightDate.ToString("dd/MM/yyyy")</td>
-                        <td>@fq.TotalCost.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</td>
-                        <td>
-                            <select class="form-select form-select-sm" @onchange="@(e => OnStatusChanged(fq, int.Parse(e.Value.ToString())))" value="@fq.Status">
-                                <option value="0">Cotización</option>
-                                <option value="1">Ordenada</option>
-                                <option value="2">Expirada</option>
-                            </select>
-                        </td>
-                        <td>
-                            <button class="btn btn-info btn-sm me-1" @onclick="() => ViewQuotation(fq)">
-                                <i class="fas fa-eye"></i> Ver
-                            </button>
-                            <button class="btn btn-primary btn-sm" @onclick="() => UpdateStatusAsync(fq)">
-                                <i class="fas fa-sync"></i> Actualizar
-                            </button>
-                        </td>
-                    </tr>
-                }
-            </tbody>
-        </table>
-    </div>
-}
-
-<!-- Modal reutilizado para visualizar la ruta -->
-<div id="viewModal" class="modal">
-    <div class="modal-content">
-        <span class="close" onclick="closeViewModal()">&times;</span>
-        <h4 class="modal-title text-center mb-3">Detalle de la Cotización</h4>
-        <div class="mb-2">
-            <strong>Origen:</strong> <span id="modalOrigin"></span>
+<div class="container-fluid">
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 d-flex justify-content-between align-items-center">
+            <h3 class="m-0 font-weight-bold text-primary">Administración de Cotizaciones de Fletes</h3>
+            <div>
+                <button class="btn btn-outline-primary" @onclick="RefreshData">
+                    <i class="fas fa-sync mr-1"></i> Actualizar
+                </button>
+@*                 <button class="btn btn-success ml-2" @onclick="ExportToExcel">
+                    <i class="fas fa-file-excel mr-1"></i> Exportar a Excel
+                </button> *@
+            </div>
         </div>
-        <div class="mb-3">
-            <strong>Destino:</strong> <span id="modalDestination"></span>
+        <div class="card-body">
+            <div class="row mb-3">
+                <div class="col-md-3">
+                    <div class="input-group">
+                        <div class="input-group-prepend">
+                            <span class="input-group-text">Filtrar</span>
+                        </div>
+                        <input type="text" class="form-control" placeholder="Buscar cotización..." @bind="searchTerm" @bind:event="oninput" @onkeyup="FilterQuotations" />
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <select class="form-control" @bind="statusFilter">
+                        <option value="-1">Todos los estados</option>
+                        <option value="0">Cotización</option>
+                        <option value="1">Ordenada</option>
+                        <option value="2">Expirada</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <input type="date" class="form-control" @bind="dateFilter" />
+                </div>
+                <div class="col-md-3">
+                    <button class="btn btn-primary" @onclick="ApplyFilters">
+                        <i class="fas fa-filter mr-1"></i> Aplicar Filtros
+                    </button>
+                    <button class="btn btn-secondary ml-2" @onclick="ClearFilters">
+                        <i class="fas fa-times mr-1"></i> Limpiar
+                    </button>
+                </div>
+            </div>
+
+            <div class="row mb-3">
+                <div class="col-md-3">
+                    <div class="card border-left-primary shadow h-100 py-2">
+                        <div class="card-body">
+                            <div class="row no-gutters align-items-center">
+                                <div class="col mr-2">
+                                    <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Total Cotizaciones</div>
+                                    <div class="h5 mb-0 font-weight-bold text-gray-800">@(allQuotations?.Count ?? 0)</div>
+                                </div>
+                                <div class="col-auto">
+                                    <i class="fas fa-clipboard-list fa-2x text-gray-300"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card border-left-success shadow h-100 py-2">
+                        <div class="card-body">
+                            <div class="row no-gutters align-items-center">
+                                <div class="col mr-2">
+                                    <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Cotizaciones Ordenadas</div>
+                                    <div class="h5 mb-0 font-weight-bold text-gray-800">@(allQuotations?.Count(q => q.Status == 1) ?? 0)</div>
+                                </div>
+                                <div class="col-auto">
+                                    <i class="fas fa-check-circle fa-2x text-gray-300"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card border-left-warning shadow h-100 py-2">
+                        <div class="card-body">
+                            <div class="row no-gutters align-items-center">
+                                <div class="col mr-2">
+                                    <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Cotizaciones Pendientes</div>
+                                    <div class="h5 mb-0 font-weight-bold text-gray-800">@(allQuotations?.Count(q => q.Status == 0) ?? 0)</div>
+                                </div>
+                                <div class="col-auto">
+                                    <i class="fas fa-clock fa-2x text-gray-300"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card border-left-danger shadow h-100 py-2">
+                        <div class="card-body">
+                            <div class="row no-gutters align-items-center">
+                                <div class="col mr-2">
+                                    <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">Valor Total (HNL)</div>
+                                    <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                        @(allQuotations?.Sum(q => q.TotalCost).ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN")) ?? "L0.00")
+                                    </div>
+                                </div>
+                                <div class="col-auto">
+                                    <i class="fas fa-dollar-sign fa-2x text-gray-300"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            @if (filteredQuotations == null)
+            {
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="sr-only">Cargando...</span>
+                    </div>
+                    <p class="mt-2">Cargando cotizaciones...</p>
+                </div>
+            }
+            else if (!filteredQuotations.Any())
+            {
+                <div class="alert alert-info text-center" role="alert">
+                    <i class="fas fa-info-circle mr-2"></i> No hay cotizaciones disponibles con los filtros aplicados.
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-bordered table-hover" id="quotationsTable">
+                        <thead class="bg-primary text-white">
+                            <tr>
+                                <th @onclick="() => SortData(nameof(FreightQuotation.Id))" style="cursor: pointer;">
+                                    ID <i class="@GetSortIcon(nameof(FreightQuotation.Id))"></i>
+                                </th>
+                                <th @onclick="() => SortData(nameof(FreightQuotation.QuotationNumber))" style="cursor: pointer;">
+                                    Número <i class="@GetSortIcon(nameof(FreightQuotation.QuotationNumber))"></i>
+                                </th>
+                                <th @onclick='() => SortData("UserName")' style="cursor:pointer;">
+                                    Usuario <i class="@GetSortIcon("UserName")"></i>
+                                </th>
+                                <th>Origen</th>
+                                <th>Destino</th>
+                                <th @onclick="() => SortData(nameof(FreightQuotation.FreightDate))" style="cursor: pointer;">
+                                    Fecha <i class="@GetSortIcon(nameof(FreightQuotation.FreightDate))"></i>
+                                </th>
+                                <th @onclick="() => SortData(nameof(FreightQuotation.TruckType))" style="cursor: pointer;">
+                                    Tipo Camión <i class="@GetSortIcon(nameof(FreightQuotation.TruckType))"></i>
+                                </th>
+                                <th>Seguro</th>
+                                <th @onclick="() => SortData(nameof(FreightQuotation.TotalCost))" style="cursor: pointer;">
+                                    Total <i class="@GetSortIcon(nameof(FreightQuotation.TotalCost))"></i>
+                                </th>
+                                <th>Estado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var fq in filteredQuotations)
+                            {
+                                <tr>
+                                    <td>@fq.Id</td>
+                                    <td><span class="badge badge-light">@fq.QuotationNumber</span></td>
+                                    <td>@fq.User?.Name</td>
+                                    <td title="@fq.Origin">@(fq.Origin.Length > 20 ? fq.Origin.Substring(0, 20) + "..." : fq.Origin)</td>
+                                    <td title="@fq.Destination">@(fq.Destination.Length > 20 ? fq.Destination.Substring(0, 20) + "..." : fq.Destination)</td>
+                                    <td>@fq.FreightDate.ToString("dd/MM/yyyy")</td>
+                                    <td>
+                                        <span class="badge @GetTruckTypeBadgeClass(fq.TruckType)">
+                                            @fq.TruckType
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="badge @GetInsuranceBadgeClass(fq.InsuranceOption)">
+                                            @fq.InsuranceOption
+                                        </span>
+                                    </td>
+                                    <td class="font-weight-bold">@fq.TotalCost.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</td>
+                                    <td>
+                                        <select class="form-select form-select-sm @GetStatusSelectClass(fq.Status)"
+                                        @onchange="@(e => OnStatusChanged(fq, int.Parse(e.Value.ToString())))"
+                                        value="@fq.Status">
+                                            <option value="0">Cotización</option>
+                                            <option value="1">Ordenada</option>
+                                            <option value="2">Expirada</option>
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <button class="btn btn-info btn-sm" title="Ver Detalles" @onclick="() => ViewQuotationDetails(fq)">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                            <button class="btn btn-primary btn-sm" title="Ver Ruta" @onclick="() => ViewQuotationRoute(fq)">
+                                                <i class="fas fa-map-marked-alt"></i>
+                                            </button>
+                                            <button class="btn btn-success btn-sm" title="Actualizar Estado" @onclick="() => UpdateStatusAsync(fq)">
+                                                <i class="fas fa-save"></i>
+                                            </button>
+                                            <button class="btn btn-danger btn-sm" title="Eliminar" @onclick="() => ConfirmDelete(fq)">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Paginación -->
+                <div class="d-flex justify-content-between align-items-center mt-3">
+                    <div>
+                        <span>Mostrando @filteredQuotations.Count() de @(allQuotations?.Count ?? 0) cotizaciones</span>
+                    </div>
+                    <nav>
+                        <ul class="pagination">
+                            <li class="page-item @(currentPage == 1 ? "disabled" : "")">
+                                <button class="page-link" @onclick="() => ChangePage(currentPage - 1)" disabled="@(currentPage == 1)">
+                                    <i class="fas fa-chevron-left"></i>
+                                </button>
+                            </li>
+                            @for (int i = 1; i <= totalPages; i++)
+                            {
+                                var pageNumber = i;
+                                <li class="page-item @(currentPage == pageNumber ? "active" : "")">
+                                    <button class="page-link" @onclick="() => ChangePage(pageNumber)">@pageNumber</button>
+                                </li>
+                            }
+                            <li class="page-item @(currentPage == totalPages ? "disabled" : "")">
+                                <button class="page-link" @onclick="() => ChangePage(currentPage + 1)" disabled="@(currentPage == totalPages)">
+                                    <i class="fas fa-chevron-right"></i>
+                                </button>
+                            </li>
+                        </ul>
+                    </nav>
+                </div>
+            }
         </div>
-        <div id="modalMapContainer" style="height: 400px; width: 100%; border: 1px solid #ddd; border-radius: 5px;"></div>
     </div>
 </div>
 
-<style>
-    /* Estilos para el modal */
-    .modal {
-        display: none;
-        position: fixed;
-        z-index: 1050;
-        left: 0;
-        top: 0;
-        width: 100%;
-        height: 100%;
-        overflow: auto;
-        background-color: rgba(0, 0, 0, 0.5);
-    }
+<!-- Modal para visualizar la ruta -->
+<div class="modal fade" id="routeModal" tabindex="-1" role="dialog" aria-labelledby="routeModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="routeModalLabel">Ruta de Flete</h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-2">
+                    <strong>Origen:</strong> <span id="modalOrigin"></span>
+                </div>
+                <div class="mb-3">
+                    <strong>Destino:</strong> <span id="modalDestination"></span>
+                </div>
+                <div id="modalMapContainer" style="height: 400px; width: 100%; border: 1px solid #ddd; border-radius: 5px;"></div>
+                <div class="mt-3" id="routeDetails">
+                    <h6 class="font-weight-bold">Detalles de la Ruta:</h6>
+                    <div class="d-flex justify-content-between text-center mt-3">
+                        <div class="border rounded p-2 flex-fill mr-2">
+                            <i class="fas fa-road text-primary mb-2"></i>
+                            <h5 id="routeDistance">0 km</h5>
+                            <small class="text-muted">Distancia</small>
+                        </div>
+                        <div class="border rounded p-2 flex-fill mr-2">
+                            <i class="fas fa-clock text-warning mb-2"></i>
+                            <h5 id="routeDuration">0 min</h5>
+                            <small class="text-muted">Tiempo Estimado</small>
+                        </div>
+                        <div class="border rounded p-2 flex-fill">
+                            <i class="fas fa-gas-pump text-danger mb-2"></i>
+                            <h5 id="fuelEstimate">0 L</h5>
+                            <small class="text-muted">Combustible Est.</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cerrar</button>
+                <button type="button" class="btn btn-primary" onclick="printRouteDetails()">
+                    <i class="fas fa-print mr-1"></i> Imprimir
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 
-    .modal-content {
-        background-color: #fff;
-        margin: 10% auto;
-        padding: 20px;
-        border-radius: 8px;
-        max-width: 600px;
-        position: relative;
-        box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-    }
+<!-- Modal para detalles de cotización -->
+<div class="modal fade" id="detailsModal" tabindex="-1" role="dialog" aria-labelledby="detailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title" id="detailsModalLabel">Detalles de Cotización</h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                @if (selectedQuotation != null)
+                {
+                    <div class="card mb-3">
+                        <div class="card-header bg-light">
+                            <h6 class="mb-0">Información General</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row mb-2">
+                                <div class="col-md-6"><strong>ID:</strong> @selectedQuotation.Id</div>
+                                <div class="col-md-6"><strong>Número:</strong> @selectedQuotation.QuotationNumber</div>
+                            </div>
+                            <div class="row mb-2">
+                                <div class="col-md-6"><strong>Usuario:</strong> @selectedQuotation.User.Name</div>
+                                <div class="col-md-6"><strong>Fecha:</strong> @selectedQuotation.FreightDate.ToString("dd/MM/yyyy")</div>
+                            </div>
+                            <div class="row mb-2">
+                                <div class="col-md-6"><strong>Creado:</strong> @selectedQuotation.CreatedDate.ToString("dd/MM/yyyy HH:mm")</div>
+                                <div class="col-md-6">
+                                    <strong>Actualizado:</strong>
+                                    @(selectedQuotation.UpdatedDate.HasValue ? selectedQuotation.UpdatedDate.Value.ToString("dd/MM/yyyy HH:mm") : "N/A")
+                                </div>
+                            </div>
+                        </div>
+                    </div>
 
-    .close {
-        color: #aaa;
-        position: absolute;
-        top: 10px;
-        right: 15px;
-        font-size: 28px;
-        font-weight: bold;
-        cursor: pointer;
-    }
+                    <div class="card mb-3">
+                        <div class="card-header bg-light">
+                            <h6 class="mb-0">Detalles del Flete</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-2"><strong>Origen:</strong> @selectedQuotation.Origin</div>
+                            <div class="mb-2"><strong>Destino:</strong> @selectedQuotation.Destination</div>
+                            <div class="row mb-2">
+                                <div class="col-md-6"><strong>Distancia:</strong> @selectedQuotation.DistanceKm.ToString("N2") km</div>
+                                <div class="col-md-6"><strong>Tipo de Camión:</strong> @selectedQuotation.TruckType</div>
+                            </div>
+                            <div class="mb-2"><strong>Seguro:</strong> @selectedQuotation.InsuranceOption</div>
+                            @if (selectedQuotation.FreightLatitude.HasValue && selectedQuotation.FreightLongitude.HasValue)
+                            {
+                                <div class="row mb-2">
+                                    <div class="col-md-6"><strong>Latitud:</strong> @selectedQuotation.FreightLatitude</div>
+                                    <div class="col-md-6"><strong>Longitud:</strong> @selectedQuotation.FreightLongitude</div>
+                                </div>
+                            }
+                        </div>
+                    </div>
 
-        .close:hover {
-            color: #000;
-        }
-    /* Badges para el estado (si se usaran en otras partes) */
-    .badge {
-        padding: 0.5em 0.75em;
-        border-radius: 0.5rem;
-        font-size: 0.9em;
-    }
+                    <div class="card">
+                        <div class="card-header bg-light">
+                            <h6 class="mb-0">Información de Costos</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row mb-2">
+                                <div class="col-md-6"><strong>Costo/km:</strong> @selectedQuotation.CostPerKm.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</div>
+                                <div class="col-md-6"><strong>Costo Base:</strong> @selectedQuotation.BaseCost.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</div>
+                            </div>
+                            <div class="row mb-2">
+                                <div class="col-md-6"><strong>Seguro:</strong> @selectedQuotation.InsuranceCost.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</div>
+                                <div class="col-md-6"><strong>Estado:</strong> @GetStatusText(selectedQuotation.Status)</div>
+                            </div>
+                            <div class="text-center mt-3">
+                                <h4 class="text-primary">Total: @selectedQuotation.TotalCost.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</h4>
+                            </div>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <div class="text-center">
+                        <p>No se ha seleccionado ninguna cotización.</p>
+                    </div>
+                }
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cerrar</button>
+                <button type="button"
+                        class="btn btn-primary"
+                        @onclick="PrintQuotationDetails">
+                    <i class="fas fa-print mr-1"></i> Imprimir
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 
-    .bg-warning {
-        background-color: #ffc107 !important;
-        color: #212529;
-    }
-
-    .bg-primary {
-        background-color: #007bff !important;
-        color: #fff;
-    }
-
-    .bg-danger {
-        background-color: #dc3545 !important;
-        color: #fff;
-    }
-
-    .bg-secondary {
-        background-color: #6c757d !important;
-        color: #fff;
-    }
-</style>
+<!-- Modal de confirmación para eliminar -->
+<div class="modal fade" id="deleteModal" tabindex="-1" role="dialog" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="deleteModalLabel">Confirmar Eliminación</h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p>¿Está seguro que desea eliminar la cotización #<span id="deleteQuotationId"></span>?</p>
+                <p class="text-danger"><i class="fas fa-exclamation-triangle mr-1"></i> Esta acción no se puede deshacer.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">
+                    <i class="fas fa-trash mr-1"></i> Eliminar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 
 @code {
-    private List<FreightQuotation> freightQuotations;
+    private List<FreightQuotation> allQuotations;
+    private IEnumerable<FreightQuotation> filteredQuotations;
+    private FreightQuotation selectedQuotation;
+    private DotNetObjectReference<AdminFreightQuotations>? _dotNetRef;
+    private IJSObjectReference _module;
+    private string searchTerm = "";
+    private int statusFilter = -1;
+    private DateTime? dateFilter = null;
+    private string sortColumn = "Id";
+    private bool sortAscending = true;
+    private int currentPage = 1;
+    private int pageSize = 10;
+    private int totalPages = 1;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+            _module = await JS.InvokeAsync<IJSObjectReference>(
+                "import", "./js/freightAdminHelpers.js");
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -161,7 +447,7 @@ else
         var user = authState.User;
         if (user.Identity.IsAuthenticated && user.IsInRole("SuperAdmin"))
         {
-            freightQuotations = await FreightQuotationService.GetAllFreightQuotationsAsync();
+            await LoadData();
         }
         else
         {
@@ -169,55 +455,282 @@ else
         }
     }
 
+    private async Task LoadData()
+    {
+        allQuotations = await FreightQuotationService.GetAllFreightQuotationsAsync();
+        ApplyFilters();
+    }
+
+    private async Task RefreshData()
+    {
+        await LoadData();
+    }
+
+    private void FilterQuotations()
+    {
+        ApplyFilters();
+    }
+
+    private void ApplyFilters()
+    {
+        var query = allQuotations?.AsEnumerable() ?? Enumerable.Empty<FreightQuotation>();
+
+        if (!string.IsNullOrWhiteSpace(searchTerm))
+        {
+            query = query.Where(q =>
+                q.QuotationNumber.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                q.Origin.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                q.Destination.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                q.Id.ToString().Contains(searchTerm) ||
+                q.User.Name.Contains(searchTerm, StringComparison.OrdinalIgnoreCase)    // 👈
+            );
+        }
+
+        if (statusFilter >= 0)
+        {
+            query = query.Where(q => q.Status == statusFilter);
+        }
+
+        if (dateFilter.HasValue)
+        {
+            query = query.Where(q => q.FreightDate.Date == dateFilter.Value.Date);
+        }
+
+        // Apply sorting
+        query = ApplySorting(query);
+
+        // Calculate total pages
+        int totalItems = query.Count();
+        totalPages = (int)Math.Ceiling(totalItems / (double)pageSize);
+
+        if (currentPage > totalPages && totalPages > 0)
+        {
+            currentPage = totalPages;
+        }
+        else if (currentPage < 1)
+        {
+            currentPage = 1;
+        }
+
+        // Apply pagination
+        query = query.Skip((currentPage - 1) * pageSize).Take(pageSize);
+
+        filteredQuotations = query.ToList();
+        StateHasChanged();
+    }
+
+    private IEnumerable<FreightQuotation> ApplySorting(IEnumerable<FreightQuotation> query)
+    {
+        switch (sortColumn)
+        {
+            case nameof(FreightQuotation.Id):
+                query = sortAscending ? query.OrderBy(q => q.Id) : query.OrderByDescending(q => q.Id);
+                break;
+            case nameof(FreightQuotation.QuotationNumber):
+                query = sortAscending ? query.OrderBy(q => q.QuotationNumber) : query.OrderByDescending(q => q.QuotationNumber);
+                break;
+            case "UserName":
+                query = sortAscending
+                       ? query.OrderBy(q => q.User.Name)
+                       : query.OrderByDescending(q => q.User.Name);
+                break;
+            case nameof(FreightQuotation.FreightDate):
+                query = sortAscending ? query.OrderBy(q => q.FreightDate) : query.OrderByDescending(q => q.FreightDate);
+                break;
+            case nameof(FreightQuotation.TruckType):
+                query = sortAscending ? query.OrderBy(q => q.TruckType) : query.OrderByDescending(q => q.TruckType);
+                break;
+            case nameof(FreightQuotation.TotalCost):
+                query = sortAscending ? query.OrderBy(q => q.TotalCost) : query.OrderByDescending(q => q.TotalCost);
+                break;
+            default:
+                query = query.OrderByDescending(q => q.CreatedDate);
+                break;
+        }
+        return query;
+    }
+
+    private void SortData(string column)
+    {
+        if (sortColumn == column)
+        {
+            sortAscending = !sortAscending;
+        }
+        else
+        {
+            sortColumn = column;
+            sortAscending = true;
+        }
+
+        ApplyFilters();
+    }
+
+    private string GetSortIcon(string column)
+    {
+        if (sortColumn != column)
+        {
+            return "fas fa-sort";
+        }
+
+        return sortAscending ? "fas fa-sort-up" : "fas fa-sort-down";
+    }
+
+    private void ClearFilters()
+    {
+        searchTerm = "";
+        statusFilter = -1;
+        dateFilter = null;
+        currentPage = 1;
+        ApplyFilters();
+    }
+
+    private void ChangePage(int page)
+    {
+        currentPage = page;
+        ApplyFilters();
+    }
+
     private void OnStatusChanged(FreightQuotation fq, int newStatus)
     {
         fq.Status = newStatus;
+        fq.UpdatedDate = DateTime.Now;
     }
 
     private async Task UpdateStatusAsync(FreightQuotation fq)
     {
-        await FreightQuotationService.UpdateStatusAsync(fq.Id, fq.Status);
-        // Opcional: refrescar la lista o mostrar un mensaje de éxito
-        freightQuotations = await FreightQuotationService.GetAllFreightQuotationsAsync();
+        try
+        {
+            await FreightQuotationService.UpdateStatusAsync(fq.Id, fq.Status);
+            await JS.InvokeVoidAsync("showToast", "success", "Estado actualizado correctamente");
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            await JS.InvokeVoidAsync("showToast", "error", $"Error al actualizar: {ex.Message}");
+        }
     }
 
-    private async Task ViewQuotation(FreightQuotation fq)
+    private async Task ViewQuotationRoute(FreightQuotation fq)
     {
-        await JS.InvokeVoidAsync("showQuotationModal", fq.Origin, fq.Destination);
+        await JS.InvokeVoidAsync("showRouteModal", fq.Origin, fq.Destination, fq.DistanceKm, fq.TruckType);
+    }
+
+    private async Task ViewQuotationDetails(FreightQuotation fq)
+    {
+        selectedQuotation = fq;
+
+        // ② Crea la referencia (una sola vez)
+        _dotNetRef ??= DotNetObjectReference.Create(this);
+
+        // ③ Pásala al helper JS
+        await JS.InvokeVoidAsync("showDetailsModal", _dotNetRef);
+    }
+
+    [JSInvokable]                    // opcional al invocar por referencia, pero clarifica
+    public async Task PrintQuotationDetails()
+    {
+        if (selectedQuotation is null) return;
+
+        // Envía los datos que necesite JS para armar el HTML e imprimir
+        await JS.InvokeVoidAsync("buildAndPrintQuotation",
+                                 selectedQuotation.QuotationNumber,
+                                 selectedQuotation.User?.Name,        // 👈
+                                 selectedQuotation.Origin,
+                                 selectedQuotation.Destination,
+                                 selectedQuotation.DistanceKm,
+                                 selectedQuotation.FreightDate.ToString("dd/MM/yyyy"),
+                                 selectedQuotation.TruckType,
+                                 selectedQuotation.TotalCost);
+        //.ToString("C", new CultureInfo("es-HN")));
+    }
+    [JSInvokable]
+    public async Task PrintRouteDetails()
+    {
+        await JS.InvokeVoidAsync("printRouteDetails");
+    }
+
+
+
+
+
+    private async Task ConfirmDelete(FreightQuotation fq)
+    {
+        _dotNetRef ??= DotNetObjectReference.Create(this);
+        await JS.InvokeVoidAsync("showDeleteModal", fq.Id, _dotNetRef);
+    }
+
+    [JSInvokable]          // el atributo es opcional al llamar por referencia,
+    public async Task DeleteQuotation(int id) // …pero no estorba
+    {
+        await FreightQuotationService.DeleteFreightQuotationAsync(id);
+        await JS.InvokeVoidAsync("showToast", "success", "Cotización eliminada");
+        await LoadData();
+    }
+    public void Dispose()
+    {
+        _dotNetRef?.Dispose();
+    }
+
+
+
+
+
+    // private async Task ExportToExcel()
+    // {
+    //     try
+    //     {
+    //         await _module.InvokeVoidAsync("exportTableToExcel",
+    //                                       "quotationsTable",
+    //                                       $"Cotizaciones_{DateTime.Now:yyyyMMdd}");
+    //     }
+    //     catch (JSException ex)
+    //     {
+    //         await JS.InvokeVoidAsync("showToast", "error", $"Error al exportar: {ex.Message}");
+    //     }
+    // }
+
+
+    private string GetStatusText(int status)
+    {
+        return status switch
+        {
+            0 => "Cotización",
+            1 => "Ordenada",
+            2 => "Expirada",
+            _ => "Desconocido"
+        };
+    }
+
+    private string GetStatusSelectClass(int status)
+    {
+        return status switch
+        {
+            0 => "bg-warning text-dark",
+            1 => "bg-success text-white",
+            2 => "bg-secondary text-white",
+            _ => ""
+        };
+    }
+
+    private string GetTruckTypeBadgeClass(string truckType)
+    {
+        return truckType.ToLower() switch
+        {
+            "small" => "bg-info text-white",
+            "medium" => "bg-primary text-white",
+            "large" => "bg-danger text-white",
+            _ => "bg-secondary text-white"
+        };
+    }
+
+    private string GetInsuranceBadgeClass(string insuranceOption)
+    {
+        return insuranceOption.ToLower() switch
+        {
+            "none" => "bg-secondary text-white",
+            "basic" => "bg-info text-white",
+            "premium" => "bg-success text-white",
+            _ => "bg-secondary text-white"
+        };
     }
 }
-
-<script>
-    function showQuotationModal(origin, destination) {
-        document.getElementById("modalOrigin").innerText = origin;
-        document.getElementById("modalDestination").innerText = destination;
-        // Inicializamos el mapa en el contenedor del modal
-        var map = new google.maps.Map(document.getElementById("modalMapContainer"), {
-            center: { lat: 14.0723, lng: -87.1921 },
-            zoom: 7,
-            mapTypeControl: false,
-            streetViewControl: false,
-            fullscreenControl: false
-        });
-        var directionsService = new google.maps.DirectionsService();
-        var directionsRenderer = new google.maps.DirectionsRenderer({ suppressMarkers: false });
-        directionsRenderer.setMap(map);
-        directionsService.route({
-            origin: origin,
-            destination: destination,
-            travelMode: google.maps.TravelMode.DRIVING
-        }, function(response, status) {
-            if (status === 'OK') {
-                directionsRenderer.setDirections(response);
-            } else {
-                console.error("Error al obtener la ruta: " + status);
-            }
-        });
-        // Abre el modal
-        document.getElementById("viewModal").style.display = "block";
-    }
-
-    function closeViewModal() {
-        document.getElementById("viewModal").style.display = "none";
-    }
-</script>

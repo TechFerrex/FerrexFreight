@@ -6,7 +6,7 @@
     let map, directionsService, directionsRenderer;
     let originMarker = null, destinationMarker = null;
     let isMapSelectionMode = false, currentSelection = "";
-    const truckRates = { small: 30, medium: 50, pickup: 20 };
+    const truckRates = { small: 37, medium: 50, pickup: 33 };
     window.dotNetRef = null;
     window.calculationData = {};
 

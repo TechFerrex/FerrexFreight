@@ -8,10 +8,12 @@
 @using Microsoft.IdentityModel.Tokens
 @using System.Text
 @inject Blazored.LocalStorage.ILocalStorageService LocalStorageService
+@inject IEmailSender EmailSender
 @inject IConfiguration _configuration
 @inject ApplicationDbContext DbContext
 @inject NavigationManager NavigationManager
 @inject AuthenticationStateProvider AuthenticationStateProvider
+@using System.ComponentModel.DataAnnotations
 
 <div class="main">
     @if (showErrorModal)
@@ -20,14 +22,78 @@
             <div class="modal-box">
                 <h3 style="color:red">¡Error!</h3>
                 <p>@errorModalMessage</p>
-                <div style="text-align:right">
-                    <button class="user-button" @onclick="CloseErrorModal">
+                    <div style="display:flex; justify-content:center; gap:10px;">
+                        <button class="user-button" @onclick="CloseErrorModal">
                         Cerrar
                     </button>
+                    @if (showForgotPasswordOption)
+                    {
+                       <button class="user-button" 
+                            style="background-color:orange; margin-left:10px;"
+                            @onclick="OpenForgotPasswordModal">
+                           ¿Olvidaste tu contraseña?
+                      </button>
+                    }
                 </div>
             </div>
         </div>
     }
+    @if (showForgotPasswordModal)
+    {
+        <div class="modal-overlay">
+            <div class="modal-box">
+                <h3>Recuperar contraseña</h3>
+                <EditForm Model="forgotModel" OnValidSubmit="HandleForgotPassword">
+                    <DataAnnotationsValidator />
+                    <ValidationSummary />
+
+                    <!-- Solo lectura y precargado desde loginModel.Email -->
+                    <InputText class="user-input"
+                               @bind-Value="forgotModel.Email"
+                               readonly />
+
+                    @if (!string.IsNullOrEmpty(forgotErrorMsg))
+                    {
+                        <p style="color:red">@forgotErrorMsg</p>
+                    }
+                    @if (!string.IsNullOrEmpty(forgotSuccessMsg))
+                    {
+                        <p style="color:green">@forgotSuccessMsg</p>
+                    }
+
+                    <div style="display:flex; justify-content:center; gap:10px;">
+                        <button class="user-button"
+                                type="submit"
+                                disabled="@isForgotSubmitting">
+                            @(isForgotSubmitting ? "Enviando..." : "Enviar enlace")
+                        </button>
+                        <button class="user-button"
+                                style="background-color:#aaa; margin-left:10px;"
+                                type="button"
+                                @onclick="() => showForgotPasswordModal = false">
+                            Cerrar
+                        </button>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    }
+
+
+
+    @if (showVerifyModal)
+    {
+        <div class="modal-overlay">
+            <div class="modal-box">
+                <h3>¡Verifica tu correo!</h3>
+                <p>@verifyModalMessage</p>
+                <div style="text-align:right">
+                    <button class="user-button" @onclick="CloseVerifyModal">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    }
+
 
     @if (showPolicyDialog)
     {
@@ -69,10 +135,13 @@
                     disabled="@isRegistering">
                 @(isRegistering ? "Registrando..." : "Registrarse")
             </button>
+            @if (!string.IsNullOrEmpty(registerMessage))
+            {
+                <div class="alert alert-info">@registerMessage</div>
+            }
         </form>
     </div>
 
-    <!-- FORMULARIO DE LOGIN -->
     <div class="login">
         <form @onsubmit:preventDefault="true">
             <label style="padding-top: 50px" for="chk" aria-hidden="true">Inicio de Sesión</label>
@@ -93,100 +162,163 @@
     private RegisterModel registerModel = new RegisterModel();
     private bool loginFailed;
     private bool registerFailed;
-
+    private bool showForgotPasswordOption = false;
+    private bool showForgotPasswordModal = false;
     private string loginMessage;
 
     private bool isLoggingIn = false;
     private bool isRegistering = false;
     private bool showPolicyDialog = false;
     private bool showErrorModal = false;
+    private bool showVerifyModal = false;
+    private string verifyModalMessage;
     private string errorModalMessage = string.Empty;
-
+  
 
     private string registerMessage;
 
     private static Dictionary<string, int> loginAttempts = new Dictionary<string, int>();
     private static Dictionary<string, DateTime> lockouts = new Dictionary<string, DateTime>();
 
+    private ForgotPasswordModel forgotModel = new();
+
+    // Mensajes dentro del modal
+    private string forgotErrorMsg;
+    private string forgotSuccessMsg;
+    private class ForgotPasswordModel
+    {
+        [Required, EmailAddress]
+        public string Email { get; set; }
+    }
+    // Abre el modal de recuperar
+    private void OpenForgotPasswordModal()
+    {
+        showForgotPasswordModal = true;
+        showErrorModal = false;    // cierra el error de login
+        forgotErrorMsg = null;
+        forgotSuccessMsg = null;
+        forgotModel.Email = loginModel.Email;
+    }
+    private bool isForgotSubmitting = false;
+
+    private async Task HandleForgotPassword()
+    {
+        if (isForgotSubmitting) return;
+        isForgotSubmitting = true;
+        forgotErrorMsg = null;
+        forgotSuccessMsg = null;
+
+        try
+        {
+            // 1) Que no haya modificado el email
+            if (!string.Equals(forgotModel.Email, loginModel.Email,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                forgotErrorMsg = "El correo debe coincidir con el que ingresaste al iniciar sesión.";
+                return;
+            }
+
+            // 2) Recuperar usuario UNA sola vez
+            var user = await DbContext.Users
+                .FirstOrDefaultAsync(u => u.Email == forgotModel.Email);
+            if (user == null)
+            {
+                forgotErrorMsg = "No existe un usuario con ese correo.";
+                return;
+            }
+
+            // 3) Generar token y guardarlo
+            var token = Guid.NewGuid().ToString("N");
+            var pr = new PasswordReset
+                {
+                    UserId = user.Id,
+                    Token = token,
+                    ExpiresAt = DateTime.UtcNow.AddHours(2),
+                    CreatedAt = DateTime.UtcNow
+                };
+            DbContext.PasswordResets.Add(pr);
+            await DbContext.SaveChangesAsync();
+
+            // 4) Enviar enlace
+            var link = $"{NavigationManager.BaseUri.TrimEnd('/')}/resetpassword?token={token}";
+            var html = $@"
+            <p>¡Hola {user.Name}!</p>
+            <p>Haz clic <a href=""{link}"">aquí</a> para restablecer tu contraseña.</p>
+            <p>Expira: {pr.ExpiresAt:yyyy-MM-dd HH:mm} UTC.</p>";
+            await EmailSender.SendEmailAsync(user.Email,
+                "Recupera tu contraseña en Ferrexpress",
+                html);
+
+            forgotSuccessMsg = "Listo, revisa tu correo para restablecer tu contraseña.";
+        }
+        catch
+        {
+            forgotErrorMsg = "Error al enviar el enlace. Inténtalo de nuevo más tarde.";
+        }
+        finally
+        {
+            isForgotSubmitting = false;
+        }
+    }
+
+
     private async Task HandleLogin()
     {
         if (isLoggingIn) return;
         isLoggingIn = true;
+        showErrorModal = false;
 
-        try
+
+        var user = await DbContext.Users.FirstOrDefaultAsync(u => u.Email == loginModel.Email);
+        if (user == null || !BCrypt.Net.BCrypt.Verify(loginModel.Password, user.Password))
         {
-            // Aquí va tu lógica existente de lockout, intentos,
-            // consulta a DbContext, generación de token y navegación.
-
-            if (lockouts.ContainsKey(loginModel.Email) && lockouts[loginModel.Email] > DateTime.Now)
-            {
-                ShowError("Correo o contraseña incorrectos.");
-                return;
-            }
-
-            if (loginAttempts.ContainsKey(loginModel.Email) && loginAttempts[loginModel.Email] >= 5)
-            {
-                lockouts[loginModel.Email] = DateTime.Now.AddMinutes(10);
-                ShowError("Correo o contraseña incorrectos.");
-                return;
-            }
-
-            var user = await DbContext.Users
-                .FirstOrDefaultAsync(u => u.Email == loginModel.Email);
-
-            if (user != null && BCrypt.Net.BCrypt.Verify(loginModel.Password, user.Password))
-            {
-                var claims = new List<Claim>
-            {
-                new Claim(ClaimTypes.Name, user.Name),
-                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-                new Claim(ClaimTypes.Email, user.Email),
-                new Claim(ClaimTypes.MobilePhone, user.PhoneNumber ?? ""),
-                new Claim(ClaimTypes.Role, user.Role)
-            };
-
-                var authToken = SerializeClaims(claims);
-
-                if (AuthenticationStateProvider is CustomAuthenticationStateProvider customAuthStateProvider)
-                {
-                    await customAuthStateProvider.SignIn(authToken);
-                }
-
-                NavigationManager.NavigateTo("/");
-                loginAttempts.Remove(loginModel.Email);
-            }
-            else
-            {
-                loginFailed = true;
-                if (loginAttempts.ContainsKey(loginModel.Email))
-                {
-                    loginAttempts[loginModel.Email]++;
-                }
-                else
-                {
-                    loginAttempts[loginModel.Email] = 1;
-                    ShowError("Correo o contraseña incorrectos.");
-                    return;
-                }
-            }
-        }
-        catch (Exception ex)
-        {
+            showForgotPasswordOption = true;
             ShowError("Correo o contraseña incorrectos.");
-            Console.WriteLine(ex.Message);
-        }
-        finally
-        {
             isLoggingIn = false;
+            return;
         }
+
+        if (!user.EmailConfirmed)
+        {
+            ShowError("Verifica tu correo antes de iniciar sesión.");
+            isLoggingIn = false;
+            return;
+        }
+
+
+        // Generar JWT y navegar
+        var claims = new List<Claim> {
+            new Claim(ClaimTypes.Name, user.Name),
+            new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+            new Claim(ClaimTypes.Email, user.Email),
+            new Claim(ClaimTypes.Role, user.Role)
+        };
+        var token = GenerateJwt(claims);
+        if (AuthenticationStateProvider is CustomAuthenticationStateProvider cap)
+            await cap.SignIn(token);
+
+        NavigationManager.NavigateTo("/");
     }
+
+    private string GenerateJwt(List<Claim> claims)
+    {
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["JwtSettings:SecretKey"]));
+        var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+        var jwt = new JwtSecurityToken(
+            issuer: _configuration["JwtSettings:Issuer"],
+            audience: _configuration["JwtSettings:Audience"],
+            claims: claims,
+            expires: DateTime.UtcNow.AddHours(8),
+            signingCredentials: creds);
+        return new JwtSecurityTokenHandler().WriteToken(jwt);
+    }
+
     private void OnRegisterClick()
     {
         if (isRegistering) return;
         showPolicyDialog = true;
     }
 
-    // Este método se llama si el usuario ACEPTA las políticas
     private async Task AcceptPolicy()
     {
         registerModel.PolicyAccepted = true;
@@ -202,77 +334,74 @@
         showPolicyDialog = false;
     }
 
-
     private async Task HandleRegister()
     {
         if (isRegistering) return;
         isRegistering = true;
-        registerFailed = false;
-        registerMessage = string.Empty;
+        registerMessage = null;
 
-        try
+        // 1) Validar campos...
+        if (string.IsNullOrWhiteSpace(registerModel.Name)
+            || string.IsNullOrWhiteSpace(registerModel.Email)
+            || string.IsNullOrWhiteSpace(registerModel.Password))
         {
-            if (string.IsNullOrEmpty(registerModel.Name) ||
-                string.IsNullOrEmpty(registerModel.Email) ||
-                string.IsNullOrEmpty(registerModel.Password))
-            {
-                ShowError("Por favor, rellena todos los campos.");
-                return;
-            }
-
-            var existingUser = await DbContext.Users
-                .FirstOrDefaultAsync(u => u.Email == registerModel.Email);
-
-            if (existingUser != null)
-            {
-                ShowError("El correo ya está en uso.");
-                return;
-            }
-
-            var hashedPassword = BCrypt.Net.BCrypt.HashPassword(registerModel.Password);
-
-            var newUser = new User
-                {
-                    Name = registerModel.Name,
-                    Email = registerModel.Email,
-                    PhoneNumber = registerModel.PhoneNumber,
-                    Password = hashedPassword,
-                    CreateTime = DateTime.Now,
-                    Role = "User",
-                    PolicyUser = registerModel.PolicyAccepted // Se guarda en la BD
-                };
-
-            DbContext.Users.Add(newUser);
-            await DbContext.SaveChangesAsync();
-
-            var claims = new List<Claim>
-        {
-            new Claim(ClaimTypes.Name, newUser.Name),
-            new Claim(ClaimTypes.NameIdentifier, newUser.Id.ToString()),
-            new Claim(ClaimTypes.Email, newUser.Email),
-            new Claim(ClaimTypes.MobilePhone, newUser.PhoneNumber ?? ""),
-            new Claim(ClaimTypes.Role, newUser.Role)
-        };
-
-            var authToken = SerializeClaims(claims);
-            if (AuthenticationStateProvider is CustomAuthenticationStateProvider customAuthStateProvider)
-            {
-                await customAuthStateProvider.SignIn(authToken);
-            }
-
-            NavigationManager.NavigateTo("/");
-        }
-        catch (Exception ex)
-        {
-            ShowError( "Error al registrarse. Inténtalo de nuevo más tarde.");
-            Console.WriteLine(ex);
-        }
-        finally
-        {
+            registerMessage = "Todos los campos son obligatorios.";
             isRegistering = false;
+            return;
         }
+
+        // 2) Comprobar duplicado
+        if (await DbContext.Users.AnyAsync(u => u.Email == registerModel.Email))
+        {
+            registerMessage = "Este correo ya está registrado.";
+            isRegistering = false;
+            return;
+        }
+
+        // 3) Crear usuario "pendiente"
+        var user = new User
+            {
+                Name = registerModel.Name,
+                Email = registerModel.Email,
+                PhoneNumber = registerModel.PhoneNumber,
+                Password = BCrypt.Net.BCrypt.HashPassword(registerModel.Password),
+                CreateTime = DateTime.UtcNow,
+                Role = "User",
+                PolicyUser = registerModel.PolicyAccepted,
+                EmailConfirmed = false
+            };
+        DbContext.Users.Add(user);
+        await DbContext.SaveChangesAsync();
+
+        // 4) Generar token y guardarlo en tabla EmailVerifications
+        var token = Guid.NewGuid().ToString("N");
+        var ev = new EmailVerification
+            {
+                UserId = user.Id,
+                Token = token,
+                ExpiresAt = DateTime.UtcNow.AddMinutes(30),
+                CreatedAt = DateTime.UtcNow
+            };
+        DbContext.EmailVerifications.Add(ev);
+        await DbContext.SaveChangesAsync();
+
+        // 5) Enviar correo con Brevo
+        var link = $"{NavigationManager.BaseUri.TrimEnd('/')}/verify?token={token}";
+        var html = $@"
+            <p>¡Hola {user.Name}!</p>
+            <p>Haz clic <a href=""{link}"">aquí</a> para verificar tu correo.</p>
+            <p>Expira: {ev.ExpiresAt:yyyy-MM-dd HH:mm} UTC</p>";
+        await EmailSender.SendEmailAsync(user.Email, "Verifica tu correo", html);
+
+        verifyModalMessage = "Listo: revisa tu bandeja para confirmar tu cuenta.";
+        showVerifyModal = true;
+        isRegistering = false;
     }
 
+    private void CloseVerifyModal()
+    {
+        showVerifyModal = false;
+    }
     private string SerializeClaims(List<Claim> claims)
     {
         var secretKey = _configuration["JwtSettings:SecretKey"];

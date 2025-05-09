@@ -16,5 +16,8 @@ namespace FerrexWeb.Models
         public DateTime CreateTime { get; set; } = DateTime.Now;
         public string Role { get; set; } = "User";
         public bool PolicyUser { get; set; }
+
+        public bool EmailConfirmed { get; set; } = false;
+
     }
 }
