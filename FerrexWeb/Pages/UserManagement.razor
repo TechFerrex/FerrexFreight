@@ -5,73 +5,341 @@
 @using FerrexWeb.Services
 @inject ApplicationDbContext DbContext
 
-<h3>Gestión de Usuarios</h3>
+<div class="user-management-container">
+    <div class="page-header">
+        <h3><i class="fas fa-users"></i> Gestión de Usuarios</h3>
+    </div>
 
-@if (users == null)
+    @if (users == null)
+    {
+        <div class="loader-container">
+            <div class="loader">
+                <div class="circle"></div>
+                <div class="circle"></div>
+                <div class="circle"></div>
+            </div>
+            <p>Cargando usuarios...</p>
+        </div>
+    }
+    else
+    {
+        <div class="card">
+            <div class="card-header">
+                <div class="search-box">
+                    <i class="fas fa-search search-icon"></i>
+                    <input type="text" class="form-control search-input" placeholder="Buscar usuarios..." 
+                           @bind-value="searchTerm" @bind-value:event="oninput" @onkeyup="FilterUsers" />
+                    @if (!string.IsNullOrEmpty(searchTerm))
+                    {
+                        <button class="btn btn-sm clear-search" @onclick="ClearSearch">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    }
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th @onclick='() => SortUsers("Name")'>
+                                    Nombre <SortIcon Field="Name" CurrentSortField="@currentSortField" IsAscending="@isAscending" />
+                                </th>
+                                <th @onclick='() => SortUsers("Email")'>
+                                    Email <SortIcon Field="Email" CurrentSortField="@currentSortField" IsAscending="@isAscending" />
+                                </th>
+                                <th @onclick='() => SortUsers("Role")'>
+                                    Rol <SortIcon Field="Role" CurrentSortField="@currentSortField" IsAscending="@isAscending" />
+                                </th>
+                                <th>Contraseña</th>
+                                <th @onclick='() => SortUsers("PhoneNumber")'>
+                                    Teléfono <SortIcon Field="PhoneNumber" CurrentSortField="@currentSortField" IsAscending="@isAscending" />
+                                </th>
+                                <th @onclick='() => SortUsers("CreateTime")'>
+                                    Fecha de Creación <SortIcon Field="CreateTime" CurrentSortField="@currentSortField" IsAscending="@isAscending" />
+                                </th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (filteredUsers.Count == 0)
+                            {
+                                <tr>
+                                    <td colspan="7" class="text-center">No se encontraron usuarios</td>
+                                </tr>
+                            }
+                            else
+                            {
+                                @foreach (var user in filteredUsers)
+                                {
+                                    <tr>
+                                        <td>@user.Name</td>
+                                        <td>@user.Email</td>
+                                        <td><span class="badge @GetRoleBadgeClass(user.Role)">@user.Role</span></td>
+                                        <td><span class="password-mask">••••••••</span></td>
+                                        <td>@user.PhoneNumber</td>
+                                        <td>@user.CreateTime.ToString("dd/MM/yyyy HH:mm")</td>
+                                        <td>
+                                            <div class="action-buttons">
+                                                <button class="btn btn-sm btn-outline-primary" title="Editar usuario" @onclick="() => EditUser(user)">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-danger" title="Eliminar usuario" @onclick="() => ConfirmDelete(user)">
+                                                    <i class="fas fa-trash-alt"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="pagination-container">
+                    <div class="pagination-info">
+                        Mostrando @filteredUsers.Count de @users.Count usuarios
+                    </div>
+                    @if (users.Count > itemsPerPage)
+                    {
+                        <div class="pagination">
+                            <button class="btn btn-sm @(currentPage == 1 ? "btn-secondary disabled" : "btn-outline-primary")" 
+                                    @onclick="PreviousPage" disabled="@(currentPage == 1)">
+                                <i class="fas fa-chevron-left"></i>
+                            </button>
+                            
+                            @for (int i = 1; i <= totalPages; i++)
+                            {
+                                var pageNumber = i;
+                                <button class="btn btn-sm @(currentPage == pageNumber ? "btn-primary" : "btn-outline-primary")" 
+                                        @onclick="() => GoToPage(pageNumber)">
+                                    @pageNumber
+                                </button>
+                            }
+                            
+                            <button class="btn btn-sm @(currentPage == totalPages ? "btn-secondary disabled" : "btn-outline-primary")" 
+                                    @onclick="NextPage" disabled="@(currentPage == totalPages)">
+                                <i class="fas fa-chevron-right"></i>
+                            </button>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+<!-- Modal de Edición de Usuario -->
+@if (showEditModal && userToEdit != null)
 {
-    <div class="loader">
-        <div class="circle"></div>
-        <div class="circle"></div>
-        <div class="circle"></div>
-        <div class="square"></div>
+    <div class="modal-backdrop show"></div>
+    <div class="modal fade show" style="display: block;" tabindex="-1" role="dialog">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-user-edit"></i> Editar Usuario
+                    </h5>
+                    <button type="button" class="btn-close" @onclick="CloseModals"></button>
+                </div>
+                <div class="modal-body">
+                    <EditForm Model="@userToEdit" OnValidSubmit="SaveUser">
+                        <DataAnnotationsValidator />
+                        <ValidationSummary />
+                        
+                        <div class="form-group mb-3">
+                            <label for="userName">Nombre</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-user"></i></span>
+                                <InputText id="userName" @bind-Value="userToEdit.Name" class="form-control" placeholder="Nombre completo" />
+                            </div>
+                            <ValidationMessage For="@(() => userToEdit.Name)" />
+                        </div>
+                        
+                        <div class="form-group mb-3">
+                            <label for="userEmail">Email</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-envelope"></i></span>
+                                <InputText id="userEmail" @bind-Value="userToEdit.Email" class="form-control" placeholder="correo@ejemplo.com" />
+                            </div>
+                            <ValidationMessage For="@(() => userToEdit.Email)" />
+                        </div>
+                        
+                        <div class="form-group mb-3">
+                            <label for="userPhone">Teléfono</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-phone"></i></span>
+                                <InputText id="userPhone" @bind-Value="userToEdit.PhoneNumber" class="form-control" placeholder="Número de teléfono" />
+                            </div>
+                            <ValidationMessage For="@(() => userToEdit.PhoneNumber)" />
+                        </div>
+                        
+                        <div class="form-group mb-3">
+                            <label for="userPassword">Nueva Contraseña</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-lock"></i></span>
+                                <InputText id="userPassword" type="@(showPassword ? "text" : "password")" 
+                                           @bind-Value="userToEdit.NewPassword" class="form-control" 
+                                           placeholder="Dejar en blanco para mantener la actual" />
+                                <button type="button" class="btn btn-outline-secondary" @onclick="TogglePasswordVisibility">
+                                    <i class="fas @(showPassword ? "fa-eye-slash" : "fa-eye")"></i>
+                                </button>
+                            </div>
+                            <small class="form-text text-muted">Dejar en blanco si no desea cambiar la contraseña.</small>
+                        </div>
+                        
+                        <div class="form-group mb-3">
+                            <label>Rol actual: <span class="badge @GetRoleBadgeClass(userToEdit.Role)">@userToEdit.Role</span></label>
+                            <div class="mt-2">
+                                <small class="form-text text-muted">El rol no puede modificarse en esta pantalla.</small>
+                            </div>
+                        </div>
+                        
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" @onclick="CloseModals">Cancelar</button>
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-save"></i> Guardar Cambios
+                            </button>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
     </div>
 }
-else
+
+<!-- Modal de Confirmación de Eliminación -->
+@if (showDeleteModal && userToDelete != null)
 {
-    <div class="table-responsive">
-        <table class="table table-striped table-bordered">
-            <thead class="thead-dark">
-                <tr>
-                    <th>Nombre</th>
-                    <th>Email</th>
-                    <th>Rol</th>
-                    <th>Contraseña</th>
-                    <th>Número Tel.</th>
-                    <th>CreateTime</th>
-                    <th>Acciones</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var user in users)
-                {
-                    <tr>
-                        @if (editUser == user)
-                        {
-                            <td><InputText @bind-Value="userToEdit.Name" class="form-control" /></td>
-                            <td><InputText @bind-Value="userToEdit.Email" class="form-control" /></td>
-                            <td>@userToEdit.Role</td> <!-- No editable -->
-                            <td><InputText @bind-Value="userToEdit.NewPassword" placeholder="Nueva contraseña" class="form-control" /></td>
-                            <td><InputText @bind-Value="userToEdit.PhoneNumber" class="form-control" /></td>
-                            <td>@userToEdit.CreateTime</td> <!-- No editable -->
-                            <td>
-                                <button class="btn btn-success btn-sm" @onclick="SaveUser">Guardar</button>
-                                <button class="btn btn-secondary btn-sm" @onclick="CancelEdit">Cancelar</button>
-                            </td>
-                        }
-                        else
-                        {
-                            <td>@user.Name</td>
-                            <td>@user.Email</td>
-                            <td>@user.Role</td>
-                            <td>********</td>
-                            <td>@user.PhoneNumber</td>
-                            <td>@user.CreateTime</td>
-                            <td>
-                                <button class="btn btn-primary btn-sm" @onclick="() => EditUser(user)">Editar</button>
-                            </td>
-                        }
-                    </tr>
-                }
-            </tbody>
-        </table>
+    <div class="modal-backdrop show"></div>
+    <div class="modal fade show" style="display: block;" tabindex="-1" role="dialog">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-exclamation-triangle text-danger"></i> Confirmar Eliminación</h5>
+                    <button type="button" class="btn-close" @onclick="CloseModals"></button>
+                </div>
+                <div class="modal-body">
+                    <p>¿Está seguro que desea eliminar al usuario <strong>@userToDelete.Name</strong>?</p>
+                    <p class="text-danger"><i class="fas fa-exclamation-circle"></i> Esta acción no se puede deshacer.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseModals">Cancelar</button>
+                    <button type="button" class="btn btn-danger" @onclick="DeleteUser">
+                        <i class="fas fa-trash-alt"></i> Eliminar Usuario
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
 }
 
+<!-- Modal de Añadir Usuario -->
+@if (showAddModal)
+{
+    <div class="modal-backdrop show"></div>
+    <div class="modal fade show" style="display: block;" tabindex="-1" role="dialog">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-user-plus"></i> Añadir Nuevo Usuario</h5>
+                    <button type="button" class="btn-close" @onclick="CloseModals"></button>
+                </div>
+                <div class="modal-body">
+                    <EditForm Model="@newUser" OnValidSubmit="AddUser">
+                        <DataAnnotationsValidator />
+                        <ValidationSummary />
+                        
+                        <div class="form-group mb-3">
+                            <label for="newUserName">Nombre</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-user"></i></span>
+                                <InputText id="newUserName" @bind-Value="newUser.Name" class="form-control" placeholder="Nombre completo" />
+                            </div>
+                            <ValidationMessage For="@(() => newUser.Name)" />
+                        </div>
+                        
+                        <div class="form-group mb-3">
+                            <label for="newUserEmail">Email</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-envelope"></i></span>
+                                <InputText id="newUserEmail" @bind-Value="newUser.Email" class="form-control" placeholder="correo@ejemplo.com" />
+                            </div>
+                            <ValidationMessage For="@(() => newUser.Email)" />
+                        </div>
+                        
+                        <div class="form-group mb-3">
+                            <label for="newUserPhone">Teléfono</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-phone"></i></span>
+                                <InputText id="newUserPhone" @bind-Value="newUser.PhoneNumber" class="form-control" placeholder="Número de teléfono" />
+                            </div>
+                            <ValidationMessage For="@(() => newUser.PhoneNumber)" />
+                        </div>
+                        
+                        <div class="form-group mb-3">
+                            <label for="newUserPassword">Contraseña</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-lock"></i></span>
+                                <InputText id="newUserPassword" type="@(showPassword ? "text" : "password")" 
+                                           @bind-Value="newUser.NewPassword" class="form-control" placeholder="Contraseña" />
+                                <button type="button" class="btn btn-outline-secondary" @onclick="TogglePasswordVisibility">
+                                    <i class="fas @(showPassword ? "fa-eye-slash" : "fa-eye")"></i>
+                                </button>
+                            </div>
+                            <ValidationMessage For="@(() => newUser.NewPassword)" />
+                        </div>
+                        
+                        <div class="form-group mb-3">
+                            <label for="userRole">Rol</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-user-tag"></i></span>
+                                <InputSelect id="userRole" @bind-Value="newUser.Role" class="form-select">
+                                    @foreach (var role in availableRoles)
+                                    {
+                                        <option value="@role">@role</option>
+                                    }
+                                </InputSelect>
+                            </div>
+                            <ValidationMessage For="@(() => newUser.Role)" />
+                        </div>
+                        
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" @onclick="CloseModals">Cancelar</button>
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-user-plus"></i> Crear Usuario
+                            </button>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    </div>
+}
 
 @code {
     private List<User> users;
-    private User editUser;
+    private List<User> filteredUsers = new List<User>();
     private User userToEdit;
+    private User userToDelete;
+    private User newUser = new User();
+    private bool showEditModal = false;
+    private bool showDeleteModal = false;
+    private bool showAddModal = false;
+    private bool showPassword = false;
+    private string searchTerm = "";
+    
+    // Paginación
+    private int currentPage = 1;
+    private int itemsPerPage = 10;
+    private int totalPages => (int)Math.Ceiling(filteredUsers.Count / (double)itemsPerPage);
+    
+    // Ordenamiento
+    private string currentSortField = "Name";
+    private bool isAscending = true;
+    
+    // Roles disponibles
+    private List<string> availableRoles = new List<string> { "Usuario", "Admin", "SuperAdmin" };
 
     protected override async Task OnInitializedAsync()
     {
@@ -81,125 +349,588 @@ else
     private async Task LoadUsers()
     {
         users = await DbContext.Users.ToListAsync();
+        FilterUsers();
+        SortUsers(currentSortField);
+    }
+
+    private void FilterUsers()
+    {
+        if (string.IsNullOrWhiteSpace(searchTerm))
+        {
+            filteredUsers = users.ToList();
+        }
+        else
+        {
+            filteredUsers = users
+                .Where(u => 
+                    u.Name.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                    u.Email.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                    u.Role.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                    u.PhoneNumber.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+        }
+        
+        // Reaplicar ordenamiento
+        SortUsers(currentSortField, updateSortDirection: false);
+        
+        // Restablecer a primera página si el filtro cambia
+        currentPage = 1;
+    }
+
+    private void ClearSearch()
+    {
+        searchTerm = "";
+        FilterUsers();
+    }
+
+    private void SortUsers(string field, bool updateSortDirection = true)
+    {
+        if (updateSortDirection && field == currentSortField)
+        {
+            isAscending = !isAscending;
+        }
+        
+        currentSortField = field;
+        
+        switch (field)
+        {
+            case "Name":
+                filteredUsers = isAscending 
+                    ? filteredUsers.OrderBy(u => u.Name).ToList()
+                    : filteredUsers.OrderByDescending(u => u.Name).ToList();
+                break;
+            case "Email":
+                filteredUsers = isAscending 
+                    ? filteredUsers.OrderBy(u => u.Email).ToList()
+                    : filteredUsers.OrderByDescending(u => u.Email).ToList();
+                break;
+            case "Role":
+                filteredUsers = isAscending 
+                    ? filteredUsers.OrderBy(u => u.Role).ToList()
+                    : filteredUsers.OrderByDescending(u => u.Role).ToList();
+                break;
+            case "PhoneNumber":
+                filteredUsers = isAscending 
+                    ? filteredUsers.OrderBy(u => u.PhoneNumber).ToList()
+                    : filteredUsers.OrderByDescending(u => u.PhoneNumber).ToList();
+                break;
+            case "CreateTime":
+                filteredUsers = isAscending 
+                    ? filteredUsers.OrderBy(u => u.CreateTime).ToList()
+                    : filteredUsers.OrderByDescending(u => u.CreateTime).ToList();
+                break;
+            default:
+                filteredUsers = isAscending 
+                    ? filteredUsers.OrderBy(u => u.Name).ToList()
+                    : filteredUsers.OrderByDescending(u => u.Name).ToList();
+                break;
+        }
     }
 
     private void EditUser(User user)
     {
-        editUser = user;
         userToEdit = new User
-            {
-                Id = user.Id,
-                Name = user.Name,
-                Email = user.Email,
-                PhoneNumber = user.PhoneNumber,
-                Role = user.Role,
-                CreateTime = user.CreateTime
-            };
+        {
+            Id = user.Id,
+            Name = user.Name,
+            Email = user.Email,
+            PhoneNumber = user.PhoneNumber,
+            Role = user.Role,
+            CreateTime = user.CreateTime,
+            NewPassword = ""
+        };
+        showEditModal = true;
     }
 
-    private async Task CancelEdit()
+    private void ConfirmDelete(User user)
     {
-        editUser = null;
+        userToDelete = user;
+        showDeleteModal = true;
+    }
+
+    private void CloseModals()
+    {
+        showEditModal = false;
+        showDeleteModal = false;
+        showAddModal = false;
         userToEdit = null;
-        await LoadUsers(); // Recargamos los usuarios para descartar cambios
+        userToDelete = null;
     }
 
     private async Task SaveUser()
     {
-        var userInDb = await DbContext.Users.FindAsync(userToEdit.Id);
-        if (userInDb != null)
+        try
         {
-            userInDb.Name = userToEdit.Name;
-            userInDb.Email = userToEdit.Email;
-            userInDb.PhoneNumber = userToEdit.PhoneNumber;
-            if (!string.IsNullOrWhiteSpace(userToEdit.NewPassword))
+            var userInDb = await DbContext.Users.FindAsync(userToEdit.Id);
+            if (userInDb != null)
             {
-                // Hash de la nueva contraseña usando BCrypt
-                userInDb.Password = BCrypt.Net.BCrypt.HashPassword(userToEdit.NewPassword);
+                userInDb.Name = userToEdit.Name;
+                userInDb.Email = userToEdit.Email;
+                userInDb.PhoneNumber = userToEdit.PhoneNumber;
+                
+                if (!string.IsNullOrWhiteSpace(userToEdit.NewPassword))
+                {
+                    // Hash de la nueva contraseña usando BCrypt
+                    userInDb.Password = BCrypt.Net.BCrypt.HashPassword(userToEdit.NewPassword);
+                }
+                
+                DbContext.Users.Update(userInDb);
+                await DbContext.SaveChangesAsync();
+                
+                // Notificación (implementar servicio de notificaciones)
+                // NotificationService.Success("Usuario actualizado con éxito");
+                
+                CloseModals();
+                await LoadUsers();
             }
-            DbContext.Users.Update(userInDb);
-            await DbContext.SaveChangesAsync();
-            editUser = null;
-            userToEdit = null;
-            await LoadUsers();
+        }
+        catch (Exception ex)
+        {
+            // Manejo de errores (implementar servicio de notificaciones)
+            // NotificationService.Error($"Error al actualizar usuario: {ex.Message}");
+            Console.WriteLine($"Error actualizando usuario: {ex.Message}");
         }
     }
 
+    private async Task DeleteUser()
+    {
+        try
+        {
+            if (userToDelete != null)
+            {
+                var userInDb = await DbContext.Users.FindAsync(userToDelete.Id);
+                if (userInDb != null)
+                {
+                    DbContext.Users.Remove(userInDb);
+                    await DbContext.SaveChangesAsync();
+                    
+                    // Notificación (implementar servicio de notificaciones)
+                    // NotificationService.Success("Usuario eliminado con éxito");
+                    
+                    CloseModals();
+                    await LoadUsers();
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            // Manejo de errores (implementar servicio de notificaciones)
+            // NotificationService.Error($"Error al eliminar usuario: {ex.Message}");
+            Console.WriteLine($"Error eliminando usuario: {ex.Message}");
+        }
+    }
+
+    private async Task AddUser()
+    {
+        try
+        {
+            if (newUser != null && !string.IsNullOrWhiteSpace(newUser.NewPassword))
+            {
+                var user = new User
+                {
+                    Name = newUser.Name,
+                    Email = newUser.Email,
+                    PhoneNumber = newUser.PhoneNumber,
+                    Role = newUser.Role,
+                    CreateTime = DateTime.Now,
+                    Password = BCrypt.Net.BCrypt.HashPassword(newUser.NewPassword)
+                };
+                
+                await DbContext.Users.AddAsync(user);
+                await DbContext.SaveChangesAsync();
+                
+                // Notificación (implementar servicio de notificaciones)
+                // NotificationService.Success("Usuario creado con éxito");
+                
+                CloseModals();
+                await LoadUsers();
+            }
+        }
+        catch (Exception ex)
+        {
+            // Manejo de errores (implementar servicio de notificaciones)
+            // NotificationService.Error($"Error al crear usuario: {ex.Message}");
+            Console.WriteLine($"Error creando usuario: {ex.Message}");
+        }
+    }
+
+    private void TogglePasswordVisibility()
+    {
+        showPassword = !showPassword;
+    }
+
+    private string GetRoleBadgeClass(string role)
+    {
+        return role switch
+        {
+            "SuperAdmin" => "bg-danger",
+            "Admin" => "bg-warning",
+            "Usuario" => "bg-info",
+            _ => "bg-secondary"
+        };
+    }
+
+    // Métodos de paginación
+    private void PreviousPage()
+    {
+        if (currentPage > 1)
+        {
+            currentPage--;
+        }
+    }
+
+    private void NextPage()
+    {
+        if (currentPage < totalPages)
+        {
+            currentPage++;
+        }
+    }
+
+    private void GoToPage(int page)
+    {
+        if (page >= 1 && page <= totalPages)
+        {
+            currentPage = page;
+        }
+    }
 }
 
+<!-- Componente para iconos de ordenamiento -->
+@code {
+    public class SortIcon : ComponentBase
+    {
+        [Parameter] public string Field { get; set; }
+        [Parameter] public string CurrentSortField { get; set; }
+        [Parameter] public bool IsAscending { get; set; }
+
+        protected override void BuildRenderTree(Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder builder)
+        {
+            if (Field == CurrentSortField)
+            {
+                builder.OpenElement(0, "i");
+                builder.AddAttribute(1, "class", IsAscending ? "fas fa-sort-up ms-1" : "fas fa-sort-down ms-1");
+                builder.CloseElement();
+            }
+            else
+            {
+                builder.OpenElement(0, "i");
+                builder.AddAttribute(1, "class", "fas fa-sort ms-1 text-muted");
+                builder.CloseElement();
+            }
+        }
+    }
+}
 
 <style>
-    /* Estilos para el cargador */
+    /* Estilos generales */
+    .user-management-container {
+        padding: 1rem;
+        max-width: 1400px;
+        margin: 0 auto;
+    }
+
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid #e9ecef;
+    }
+
+    .page-header h3 {
+        margin: 0;
+        color: #2c3e50;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    /* Loader */
+    .loader-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        margin: 3rem 0;
+    }
+
     .loader {
         display: flex;
         justify-content: center;
         align-items: center;
-        margin-top: 50px;
+        margin-bottom: 1rem;
     }
 
     .circle {
-        width: 20px;
-        height: 20px;
-        background-color: #000000;
+        width: 12px;
+        height: 12px;
+        background-color: #3498db;
         border-radius: 50%;
-        animation: fade 1s infinite;
-        margin: 0 5px;
+        margin: 0 6px;
+        animation: bounce 1.4s infinite ease-in-out both;
     }
 
-    .circle:nth-child(1) { animation-delay: 0.2s; }
-    .circle:nth-child(2) { animation-delay: 0.4s; }
-    .circle:nth-child(3) { animation-delay: 0.6s; }
+    .circle:nth-child(1) {
+        animation-delay: -0.32s;
+    }
 
-    @@keyframes fade {
-        0%, 20%, 100% { opacity: 0.2; }
-        50% { opacity: 1; }
+    .circle:nth-child(2) {
+        animation-delay: -0.16s;
+    }
+
+    @@keyframes bounce {
+        0%, 80%, 100% {
+            transform: scale(0);
+            opacity: 0.3;
+        }
+        40% {
+            transform: scale(1);
+            opacity: 1;
+        }
+    }
+
+    /* Tabla y contenido */
+    .card {
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        border-radius: 0.5rem;
+        border: none;
+        margin-bottom: 2rem;
+    }
+
+    .card-header {
+        background-color: #f8f9fa;
+        padding: 1rem;
+        border-bottom: 1px solid #e9ecef;
+    }
+
+    .search-box {
+        position: relative;
+        max-width: 400px;
+    }
+
+    .search-icon {
+        position: absolute;
+        left: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #6c757d;
+    }
+
+    .search-input {
+        padding-left: 35px;
+        padding-right: 35px;
+        border-radius: 20px;
+    }
+
+    .clear-search {
+        position: absolute;
+        right: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        border: none;
+        background: none;
+        color: #6c757d;
+        padding: 0;
+    }
+
+    .clear-search:hover {
+        color: #dc3545;
+    }
+
+    .table {
+        margin-bottom: 0;
+    }
+
+    .table th {
+        border-top: none;
+        background-color: #f8f9fa;
+        cursor: pointer;
+        user-select: none;
+        white-space: nowrap;
+    }
+
+    .table th:hover {
+        background-color: #e9ecef;
+    }
+
+    .table tbody tr:hover {
+        background-color: rgba(0, 123, 255, 0.05);
+    }
+
+    .password-mask {
+        font-family: monospace;
+        letter-spacing: 1px;
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: 0.5rem;
+        justify-content: center;
+    }
+
+    /* Paginación */
+    .pagination-container {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1rem;
+        border-top: 1px solid #e9ecef;
+    }
+
+    .pagination {
+        display: flex;
+        gap: 0.25rem;
+    }
+
+    .pagination-info {
+        color: #6c757d;
+        font-size: 0.875rem;
+    }
+
+    /* Modales */
+    .modal-content {
+        border: none;
+        box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
+        border-radius: 0.5rem;
+        overflow: hidden;
+    }
+
+    .modal-header {
+        border-bottom: 1px solid #e9ecef;
+        background-color: #f8f9fa;
+        padding: 1rem 1.5rem;
+    }
+
+    .modal-title {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: #343a40;
+        font-weight: 500;
+    }
+
+    .modal-footer {
+        border-top: 1px solid #e9ecef;
+        padding: 1rem 1.5rem;
+        background-color: #f8f9fa;
+    }
+
+    /* Badges */
+    .badge {
+        padding: 0.35em 0.65em;
+        font-weight: 500;
+        border-radius: 0.25rem;
     }
 
     /* Estilos responsivos */
     @@media (max-width: 767.98px) {
-        h3 {
-            font-size: 1.5rem;
-            text-align: center;
+        .page-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 1rem;
         }
 
-        .table-responsive {
-            overflow-x: auto;
-        }
-
-        .table th, .table td {
-            white-space: nowrap;
-        }
-
-        .btn {
-            margin: 2px 0;
-        }
-
-        /* Ajustes para inputs en dispositivos móviles */
-        .form-control {
+        .header-actions {
             width: 100%;
-            box-sizing: border-box;
+        }
+
+        .header-actions .btn {
+            width: 100%;
+        }
+
+        .action-buttons {
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .pagination {
+            overflow-x: auto;
+            width: 100%;
+            justify-content: center;
+            padding-bottom: 0.5rem;
+        }
+
+        .pagination-container {
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .search-box {
+            max-width: 100%;
+        }
+
+        .modal-dialog {
+            margin: 0.5rem;
         }
     }
 
     @@media (min-width: 768px) and (max-width: 991.98px) {
-        /* Ajustes para tablets */
-        h3 {
-            font-size: 1.75rem;
-            text-align: center;
-        }
-
-        .table-responsive {
-            overflow-x: auto;
-        }
-
-        .table th, .table td {
-            white-space: nowrap;
-        }
-
-        .btn {
-            margin: 2px 0;
+        .pagination-container {
+            flex-direction: column;
+            gap: 1rem;
         }
     }
 
-    /* Estilos adicionales si es necesario */
-</style>
+    /* Accesibilidad y estilo general */
+    .table th, .table td {
+        vertical-align: middle;
+    }
+
+    button:focus {
+        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+        outline: none;
+    }
+
+    .input-group-text {
+        background-color: #f8f9fa;
+    }
+
+    .form-control:focus {
+        border-color: #80bdff;
+        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.15);
+    }
+
+    /* Animaciones suaves */
+    .table tbody tr,
+    .btn,
+    .form-control {
+        transition: all 0.2s ease;
+    }
+
+    /* Notificaciones (requiere implementación de servicio de notificaciones) */
+    .toast-container {
+        position: fixed;
+        top: 1rem;
+        right: 1rem;
+        z-index: 9999;
+    }
+
+    .toast {
+        background-color: white;
+        border-radius: 0.25rem;
+        box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.1);
+        margin-bottom: 0.5rem;
+        width: 350px;
+        max-width: 100%;
+        overflow: hidden;
+    }
+
+    .toast-success {
+        border-left: 4px solid #28a745;
+    }
+
+    .toast-error {
+        border-left: 4px solid #dc3545;
+    }
+
+    .toast-warning {
+        border-left: 4px solid #ffc107;
+    }
+
+    .toast-info {
+        border-left: 4px solid #17a2b8;
+    }
+    </style>

@@ -62,7 +62,22 @@ namespace FerrexWeb.Services
                 await _context.SaveChangesAsync();
             }
         }
-        
+
+        public Task<List<FreightQuotation>> GetCalendarItemsAsync(int userId) =>
+    _context.FreightQuotations
+        .Where(q => q.UserId == userId
+                    && q.Status != (int)FreightStatus.Quotation)
+        .AsNoTracking()
+        .OrderBy(q => q.FreightDate)
+        .ToListAsync();
+
+        public Task<List<FreightQuotation>> GetCalendarItemsForAllUsersAsync() =>
+    _context.FreightQuotations
+        .Where(q => q.Status == (int)FreightStatus.Ordered
+                 || q.Status == (int)FreightStatus.Expired)
+        .AsNoTracking()
+        .ToListAsync();
+
 
     }
 }

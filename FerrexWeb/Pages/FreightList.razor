@@ -1,0 +1,206 @@
+﻿@page "/admin/FreightList"
+@using FerrexWeb.Models
+@using Microsoft.AspNetCore.Authorization
+@using FerrexWeb.Services
+@attribute [Authorize(Roles = "SuperAdmin")]
+@inject FreightQuotationService QuotationSvc
+@inject FreightConfirmationService ConfirmSvc
+@inject IJSRuntime JS
+
+<div class="container-fluid p-4">
+    <div class="card shadow">
+        <div class="card-header bg-primary text-white">
+            <h3 class="mb-0">Fletes pendientes de confirmación</h3>
+        </div>
+        <div class="card-body">
+            @if (rows == null)
+            {
+                <div class="d-flex justify-content-center my-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Cargando...</span>
+                    </div>
+                    <span class="ms-2">Cargando información...</span>
+                </div>
+            }
+            else if (!rows.Any())
+            {
+                <div class="alert alert-info">
+                    No hay fletes pendientes de confirmación.
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Cotización</th>
+                                <th>Origen → Destino</th>
+                                <th>Cliente</th>
+                                <th>Fecha flete</th>
+                                <th>Estado</th>
+                                <th style="width:250px">Confirmación</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var row in rows)
+                            {
+                                <tr>
+                                    <td class="align-middle fw-bold">@row.Quotation.QuotationNumber</td>
+                                    <td class="align-middle">
+                                        <div>@row.Quotation.Origin</div>
+                                        <div class="text-primary">→ @row.Quotation.Destination</div>
+                                    </td>
+                                    <td class="align-middle">
+                                        <div>@row.Quotation.User.Name</div>
+                                        <div class="text-muted"><small>@row.Quotation.User.Email</small></div>
+                                    </td>
+                                    <td class="align-middle">@row.Quotation.FreightDate.ToString("dd/MM/yyyy")</td>
+                                    <td class="align-middle">
+                                        <span class="badge bg-warning text-dark">@((FreightStatus)row.Quotation.Status)</span>
+                                    </td>
+                                    <td class="align-middle">
+                                        @if (row.Link == null)
+                                        {
+                                            <button class="btn btn-primary w-100"
+                                                    @onclick="() => GenerateLink(row)">
+                                                <i class="bi bi-link-45deg"></i> Generar link
+                                            </button>
+                                        }
+                                        else
+                                        {
+                                            <div class="input-group mb-1">
+                                                <input class="form-control"
+                                                       readonly
+                                                       value="@row.Link" />
+                                                <button class="btn btn-outline-secondary"
+                                                        @onclick="() => Copy(row.Link)">
+                                                    <i class="bi bi-clipboard"></i>
+                                                </button>
+                                            </div>
+                                            <button class="btn btn-sm btn-outline-primary w-100"
+                                                    @onclick="() => RegenerateLink(row)">
+                                                <i class="bi bi-arrow-repeat"></i> Regenerar
+                                            </button>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@code
+{
+    /// Pequeño view-model por fila
+    private class Row
+    {
+        public FreightQuotation Quotation { get; init; }
+        public string Link { get; set; }
+    }
+
+    private List<Row> rows;
+    private Dictionary<int, string> existingLinks = new Dictionary<int, string>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Sólo los "Ordered" (1) aún no confirmados
+        var list = await QuotationSvc.GetAllFreightQuotationsAsync();
+        rows = list
+               .Where(q => q.Status == (int)FreightStatus.Ordered)
+               .Select(q => new Row { Quotation = q })
+               .ToList();
+
+        // Cargar enlaces existentes
+        foreach (var row in rows)
+        {
+            var existingLink = await ConfirmSvc.GetExistingLinkAsync(row.Quotation.Id);
+            if (!string.IsNullOrEmpty(existingLink))
+            {
+                row.Link = existingLink;
+                existingLinks[row.Quotation.Id] = existingLink;
+            }
+        }
+    }
+
+    private async Task GenerateLink(Row row)
+    {
+        // Verificar si ya existe un link para esta cotización
+        if (existingLinks.TryGetValue(row.Quotation.Id, out string existingLink))
+        {
+            row.Link = existingLink;
+        }
+        else
+        {
+            string newLink = await ConfirmSvc.CreateLinkAsync(row.Quotation.Id);
+            row.Link = newLink;
+            existingLinks[row.Quotation.Id] = newLink;
+        }
+    }
+
+    private async Task RegenerateLink(Row row)
+    {
+        bool confirm = await JS.InvokeAsync<bool>("confirm", "¿Está seguro que desea regenerar el enlace? El enlace anterior dejará de funcionar.");
+        if (confirm)
+        {
+            string newLink = await ConfirmSvc.CreateLinkAsync(row.Quotation.Id, forceNew: true);
+            row.Link = newLink;
+            existingLinks[row.Quotation.Id] = newLink;
+        }
+    }
+
+    private async Task Copy(string text)
+    {
+        await JS.InvokeVoidAsync("navigator.clipboard.writeText", text);
+
+        // Mostrar una notificación más elegante
+        await JS.InvokeVoidAsync("showToast", "Enlace copiado al portapapeles");
+    }
+}
+
+<!-- Agregar al final del archivo _Host.cshtml o similar -->
+<script>
+    function showToast(message) {
+        // Si estás usando Bootstrap 5
+        var toastContainer = document.createElement('div');
+        toastContainer.className = 'position-fixed bottom-0 end-0 p-3';
+        toastContainer.style.zIndex = 11;
+
+        var toastEl = document.createElement('div');
+        toastEl.className = 'toast align-items-center text-white bg-success border-0';
+        toastEl.setAttribute('role', 'alert');
+        toastEl.setAttribute('aria-live', 'assertive');
+        toastEl.setAttribute('aria-atomic', 'true');
+
+        var toastBody = document.createElement('div');
+        toastBody.className = 'd-flex';
+
+        var messageDiv = document.createElement('div');
+        messageDiv.className = 'toast-body';
+        messageDiv.textContent = message;
+
+        var closeButton = document.createElement('button');
+        closeButton.type = 'button';
+        closeButton.className = 'btn-close btn-close-white me-2 m-auto';
+        closeButton.setAttribute('data-bs-dismiss', 'toast');
+        closeButton.setAttribute('aria-label', 'Close');
+
+        toastBody.appendChild(messageDiv);
+        toastBody.appendChild(closeButton);
+        toastEl.appendChild(toastBody);
+        toastContainer.appendChild(toastEl);
+
+        document.body.appendChild(toastContainer);
+
+        var toast = new bootstrap.Toast(toastEl);
+        toast.show();
+
+        setTimeout(() => {
+            toastContainer.remove();
+        }, 3000);
+    }
+</script>

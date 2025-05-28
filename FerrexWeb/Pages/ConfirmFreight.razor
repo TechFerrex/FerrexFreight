@@ -1,0 +1,630 @@
+﻿@page "/confirmfreight"
+@using FerrexWeb.Shared
+@using FerrexWeb.Services
+@inject FreightConfirmationService ConfirmationSvc
+@inject NavigationManager Nav
+@inject IJSRuntime JSRuntime
+
+<style>
+    :root {
+        --primary-color: #1976D2;
+        --success-color: #2E7D32;
+        --warning-color: #FF9800;
+        --error-color: #D32F2F;
+        --background-color: #f5f7fa;
+        --road-color: #5D6D7E;
+        --map-color: #E8F5E9;
+    }
+
+    .freight-container {
+        min-height: 80vh;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        padding: 2rem;
+        background: linear-gradient(135deg, var(--background-color) 0%, #e4e8eb 100%);
+        border-radius: 1rem;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        margin: 2rem auto;
+        max-width: 600px;
+        position: relative;
+        overflow: visible;
+    }
+
+    /* Carretera animada */
+    .road-container {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 60px;
+        background-color: var(--road-color);
+        overflow: hidden;
+        z-index: 1;
+    }
+
+    .road-divider {
+        position: absolute;
+        height: 6px;
+        width: 50px;
+        background-color: #fff;
+        top: 50%;
+        transform: translateY(-50%);
+        animation: moveDivider 2s linear infinite;
+    }
+
+    @@keyframes moveDivider {
+        0%
+
+    {
+        left: -50px;
+    }
+
+    100% {
+        left: 100%;
+    }
+
+    }
+
+    /* ——— Elimino aquí todo el CSS del camión “viejo” ——— */
+
+    /* Mapa circular con pin de ubicación */
+    .map-container {
+        position: relative;
+        width: 80px;
+        height: 80px;
+        margin: 1rem auto;
+        z-index: 5;
+    }
+
+    .map-circle {
+        width: 100%;
+        height: 100%;
+        background-color: var(--map-color);
+        border-radius: 50%;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        opacity: 0;
+        transform: scale(0.5);
+        animation: mapScaleIn 0.8s ease-out 0.3s forwards;
+    }
+
+    @@keyframes mapScaleIn {
+        0%
+
+    {
+        transform: scale(0.5);
+        opacity: 0;
+    }
+
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+
+    }
+
+    .map-detail {
+        position: absolute;
+        background-color: #C5E1A5;
+        border-radius: 50%;
+    }
+
+        .map-detail:nth-child(1) {
+            width: 30px;
+            height: 30px;
+            top: 10px;
+            left: 15px;
+        }
+
+        .map-detail:nth-child(2) {
+            width: 20px;
+            height: 20px;
+            bottom: 20px;
+            right: 15px;
+        }
+
+    .map-road {
+        position: absolute;
+        width: 8px;
+        height: 40px;
+        background-color: #90A4AE;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+    }
+
+        .map-road:before {
+            content: '';
+            position: absolute;
+            width: 30px;
+            height: 8px;
+            background-color: #90A4AE;
+            bottom: 0;
+            left: -11px;
+        }
+
+    .location-pin {
+        position: absolute;
+        top: -60px;
+        left: 50%;
+        width: 24px;
+        height: 24px;
+        margin-left: -12px;
+        transform-origin: bottom center;
+        animation: pinDrop 1s cubic-bezier(.17,.67,.24,1.31) 0.8s forwards;
+    }
+
+    .pin-head {
+        position: absolute;
+        width: 24px;
+        height: 24px;
+        background-color: #D32F2F;
+        border-radius: 50% 50% 50% 0;
+        transform: rotate(-45deg);
+        box-shadow: 0 3px 6px rgba(0,0,0,0.2);
+    }
+
+    .pin-inner {
+        position: absolute;
+        width: 12px;
+        height: 12px;
+        background-color: #fff;
+        border-radius: 50%;
+        top: 6px;
+        left: 6px;
+    }
+
+    .pin-shadow {
+        position: absolute;
+        width: 20px;
+        height: 6px;
+        background-color: rgba(0,0,0,0.2);
+        border-radius: 50%;
+        bottom: -15px;
+        left: 2px;
+        transform: scale(0);
+        animation: shadowGrow 0.6s ease-out 1.5s forwards;
+    }
+
+    @@keyframes pinDrop {
+        0%
+
+    {
+        top: -60px;
+        transform: scale(0.8) rotate(0deg);
+    }
+
+    50% {
+        transform: scale(1.2) rotate(5deg);
+    }
+
+    75% {
+        top: 10px;
+        transform: scale(1.1) rotate(-5deg);
+    }
+
+    100% {
+        top: 10px;
+        transform: scale(1) rotate(0deg);
+    }
+
+    }
+    @@keyframes shadowGrow {
+        0%
+
+    {
+        transform: scale(0);
+        opacity: 0;
+    }
+
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+
+    }
+
+    .pin-ripple {
+        position: absolute;
+        width: 40px;
+        height: 40px;
+        background-color: rgba(211,47,47,0.3);
+        border-radius: 50%;
+        top: 2px;
+        left: -8px;
+        transform: scale(0);
+        opacity: 0;
+        animation: rippleEffect 1.5s ease-out 1.5s;
+    }
+    @@keyframes rippleEffect {
+        0%
+
+    {
+        transform: scale(0);
+        opacity: 0.8;
+    }
+
+    100% {
+        transform: scale(3);
+        opacity: 0;
+    }
+
+    }
+
+    /* Nubes animadas */
+    .cloud {
+        position: absolute;
+        background-color: #fff;
+        border-radius: 50px;
+        width: 80px;
+        height: 30px;
+        top: 50px;
+        opacity: 0.7;
+        animation: moveCloud linear infinite;
+    }
+
+        .cloud:before, .cloud:after {
+            content: '';
+            position: absolute;
+            background-color: #fff;
+            border-radius: 50%;
+        }
+
+        .cloud:before {
+            width: 35px;
+            height: 35px;
+            top: -15px;
+            left: 10px;
+        }
+
+        .cloud:after {
+            width: 45px;
+            height: 45px;
+            top: -20px;
+            right: 15px;
+        }
+
+    .cloud-1 {
+        left: -80px;
+        animation-duration: 25s;
+    }
+
+    .cloud-2 {
+        left: -80px;
+        top: 100px;
+        animation-duration: 35s;
+        animation-delay: 5s;
+    }
+    @@keyframes moveCloud {
+        0%
+
+    {
+        left: -80px;
+    }
+
+    100% {
+        left: 100%;
+    }
+
+    }
+
+    /* Status, loading, botones, check & confetti */
+    .status-container {
+        position: relative;
+        z-index: 20;
+        width: 100%;
+        padding: 1.5rem;
+        border-radius: 1rem;
+        background-color: rgba(255,255,255,0.9);
+        box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        transform: translateY(20px);
+        opacity: 0;
+        animation: fadeUp 0.5s ease-out 0.7s forwards;
+    }
+
+    .loading-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .loading-spinner {
+        display: inline-block;
+        width: 60px;
+        height: 60px;
+        border: 6px solid rgba(25,118,210,0.1);
+        border-radius: 50%;
+        border-top-color: var(--primary-color);
+        animation: spin 1s linear infinite;
+    }
+
+    .button-container {
+        margin-top: 2rem;
+        opacity: 0;
+        transform: translateY(20px);
+        animation: fadeUp 0.5s ease-out 1s forwards;
+    }
+
+    .btn-freight {
+        padding: 0.75rem 2rem;
+        font-size: 1.1rem;
+        font-weight: 600;
+        border-radius: 50px;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
+
+    .btn-success {
+        background-color: var(--success-color);
+        border-color: var(--success-color);
+    }
+
+        .btn-success:hover {
+            background-color: #1B5E20;
+            border-color: #1B5E20;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(46,125,50,0.3);
+        }
+
+    .btn-primary {
+        background-color: var(--primary-color);
+        border-color: var(--primary-color);
+    }
+
+        .btn-primary:hover {
+            background-color: #0D47A1;
+            border-color: #0D47A1;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(25,118,210,0.3);
+        }
+
+    .check-mark {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        display: block;
+        stroke-width: 5;
+        stroke: var(--success-color);
+        stroke-miterlimit: 10;
+        margin: 0 auto 1.5rem;
+    }
+
+    .check-mark__circle {
+        stroke-dasharray: 166;
+        stroke-dashoffset: 166;
+        fill: none;
+        animation: stroke 0.6s cubic-bezier(0.65,0,0.45,1) forwards;
+    }
+
+    .check-mark__check {
+        transform-origin: 50% 50%;
+        stroke-dasharray: 48;
+        stroke-dashoffset: 48;
+        animation: stroke 0.3s cubic-bezier(0.65,0,0.45,1) 0.8s forwards;
+    }
+    @@keyframes stroke {
+        100%
+
+    {
+        stroke-dashoffset: 0;
+    }
+
+    }
+    @@keyframes fadeUp {
+        0%
+
+    {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    100% {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    }
+    @@keyframes spin {
+        0%
+
+    {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
+
+    }
+
+    .confetti {
+        position: absolute;
+        width: 10px;
+        height: 10px;
+        opacity: 0;
+        animation: confettiFall 4s ease-out forwards;
+    }
+    @@keyframes confettiFall {
+        0%
+
+    {
+        transform: translateY(-100px) rotate(0deg);
+        opacity: 1;
+    }
+
+    100% {
+        transform: translateY(500px) rotate(360deg);
+        opacity: 0;
+    }
+
+    }
+
+    @@media (max-width: 768px) {
+        .freight-container
+
+    {
+        margin: 1rem;
+        padding: 1.5rem;
+    }
+
+    .road-container {
+        height: 40px;
+    }
+
+    }
+    @@media (max-width: 480px) {
+        .freight-container
+
+    {
+        padding: 1rem;
+    }
+
+    .road-container {
+        height: 30px;
+    }
+
+    h3 {
+        font-size: 1.5rem;
+    }
+
+    }
+</style>
+
+<div class="container">
+    <div class="freight-container">
+        <div class="cloud cloud-1"></div>
+        <div class="cloud cloud-2"></div>
+
+        <div class="road-container">
+            <div class="road-divider"></div>
+            <div class="road-divider" style="left: 120px;"></div>
+            <div class="road-divider" style="left: 240px;"></div>
+        </div>
+
+        @* --- Estado de carga inicial --- *@
+        @if (!loaded)
+        {
+            <div class="loading-container">
+                <div class="loading-spinner"></div>
+                <div class="status-container">
+                    <h3>Verificando tu envío...</h3>
+                    <p class="text-muted">Estamos consultando el estado de tu flete</p>
+                </div>
+            </div>
+        }
+        @* --- Token inválido --- *@
+        else if (!tokenValid)
+        {
+            <TruckLoader />
+            <div class="status-container">
+                <i class="bi bi-x-circle-fill text-danger" style="font-size: 3rem;"></i>
+                <h3>El enlace ya expiró o es inválido.</h3>
+                <p class="text-muted">Verifica el enlace o contacta con soporte</p>
+                <div class="button-container">
+                    <button class="btn btn-freight btn-primary" @onclick='() => Nav.NavigateTo("/")'>
+                        <i class="bi bi-house-door me-2"></i> Ir al inicio
+                    </button>
+                </div>
+            </div>
+        }
+        @* --- Pendiente de confirmación --- *@
+        else if (!confirmed)
+        {
+            <div class="map-container">
+                <div class="map-circle">
+                    <div class="map-detail"></div>
+                    <div class="map-detail"></div>
+                    <div class="map-road"></div>
+                </div>
+                <div class="location-pin">
+                    <div class="pin-head"><div class="pin-inner"></div></div>
+                    <div class="pin-shadow"></div>
+                    <div class="pin-ripple"></div>
+                </div>
+            </div>
+            <div class="status-container">
+                <i class="bi bi-geo-alt-fill text-danger" style="font-size: 3rem;"></i>
+                <h3>¿Recibiste tu flete?</h3>
+                <p class="text-muted">Por favor confirma si has recibido correctamente la entrega</p>
+                <div class="button-container">
+                    <button class="btn btn-freight btn-success" @onclick="ConfirmWithEffect">
+                        <i class="bi bi-check-lg me-2"></i> Sí, confirmar recepción
+                    </button>
+                </div>
+            </div>
+        }
+        @* --- Confirmado con éxito --- *@
+        else
+        {
+            <TruckLoader />
+            <div class="status-container">
+                <svg class="check-mark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52">
+                    <circle class="check-mark__circle" cx="26" cy="26" r="25" fill="none" />
+                    <path class="check-mark__check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8" />
+                </svg>
+                <h3>¡Gracias! Tu flete se ha confirmado</h3>
+                <p class="text-muted">Hemos registrado la recepción de tu envío</p>
+                <div class="button-container">
+                    <button class="btn btn-freight btn-primary" @onclick='() => Nav.NavigateTo("/")'>
+                        <i class="bi bi-house-door me-2"></i> Ir al inicio
+                    </button>
+                </div>
+            </div>
+            @for (int i = 0; i < 30; i++)
+            {
+                var color = i % 5 == 0 ? "#1976D2" :
+                i % 5 == 1 ? "#2E7D32" :
+                i % 5 == 2 ? "#F57F17" :
+                i % 5 == 3 ? "#D32F2F" :
+                "#7B1FA2";
+                var left = $"{Random.Shared.Next(5, 95)}%";
+                var delay = $"{Random.Shared.Next(0, 2000)}ms";
+                var size = $"{Random.Shared.Next(5, 15)}px";
+                <div class="confetti"
+                     style="left:@left; animation-delay:@delay; width:@size; height:@size; background-color:@color;">
+                </div>
+            }
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter, SupplyParameterFromQuery] public string? token { get; set; }
+    private bool loaded;
+    private bool tokenValid;
+    private bool confirmed;
+    private bool isConfirming;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Task.Delay(1500);
+        if (!string.IsNullOrWhiteSpace(token))
+            tokenValid = await ConfirmationSvc.IsTokenValidAsync(token);
+        loaded = true;
+    }
+
+    private async Task ConfirmWithEffect()
+    {
+        isConfirming = true;
+        await InvokeAsync(StateHasChanged);
+
+        // Llamada al servicio
+        confirmed = await ConfirmationSvc.ConfirmAsync(token!);
+        tokenValid = confirmed;              // <- Si prefieres: tokenValid = !confirmed;
+        isConfirming = false;
+        await InvokeAsync(StateHasChanged);   // fuerza un render justo después
+
+        // Mostrar confetti
+        await JSRuntime.InvokeVoidAsync("eval", @"
+            document.querySelectorAll('.confetti')
+                    .forEach(el => el.style.opacity = '1');
+        ");
+
+        isConfirming = false;
+    }
+}

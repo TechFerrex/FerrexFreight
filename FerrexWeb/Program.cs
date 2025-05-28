@@ -30,11 +30,24 @@ builder.Services.AddScoped<CircuitHandler, CircuitSessionHandler>();
 builder.Services.AddScoped<CircuitAccessor>();
 builder.Services.AddAuthorizationCore();
 builder.Services.AddDbContextFactory<ApplicationDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+{
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"),
+        sqlOptions =>
+        {
+            sqlOptions.EnableRetryOnFailure(
+                maxRetryCount: 5,
+                maxRetryDelay: TimeSpan.FromSeconds(30),
+                errorNumbersToAdd: null);
+            sqlOptions.CommandTimeout(30);
+        });
 
+    // Deshabilitar tracking para operaciones de solo lectura
+    options.UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking);
+});
 builder.Services.AddSingleton<ProductoService>();
 builder.Services.AddSingleton<ProductStateService>();
 builder.Services.AddSingleton<CategoryStateContainer>();
+builder.Services.AddSingleton<GoogleCalendarService>();
 builder.Services.AddScoped<AuthenticationStateProvider, CustomAuthenticationStateProvider>();
 builder.Services.AddScoped<CategoryService>();
 builder.Services.AddScoped<ShoppingCartService>();
@@ -46,6 +59,7 @@ builder.Services.AddScoped<SubCategoryService>();
 builder.Services.AddScoped<SubCategory2Service>();
 builder.Services.AddScoped<ProductSyncService>();
 builder.Services.AddScoped<QuotationService>();
+builder.Services.AddScoped<FreightConfirmationService>();
 builder.Services.AddScoped<FreightQuotationService>();
 builder.Services.AddTransient<SeekerService>();
 builder.Services.AddTransient<PdfService>();

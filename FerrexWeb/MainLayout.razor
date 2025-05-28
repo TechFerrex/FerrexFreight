@@ -1,28 +1,39 @@
-﻿@using Microsoft.AspNetCore.Components
+﻿<!-- MainLayout.razor -->
+@using Microsoft.AspNetCore.Components
 @inherits LayoutComponentBase
 @inject IJSRuntime JSRuntime
 @using FerrexWeb.Pages
 @using FerrexWeb.Layout
 
-<PageTitle>FerrExpress</PageTitle>
-<div class="sticky-nav">
-    <NavMenu />
-</div>
 
-<div class="page">
-    <main>
+<PageTitle>FerrExpress</PageTitle>
+
+<!-- Contenedor general que llena toda la altura de la ventana -->
+<div class="page d-flex flex-column min-vh-100">
+
+    <!-- Barra de navegación fija -->
+    <div class="sticky-nav">
+        <NavMenu/>
+    </div>
+
+    <!-- Contenido que puede crecer; empuja el footer hacia abajo -->
+    <main class="flex-fill">
         <article class="content px-1">
             @Body
         </article>
-        <Footer />
     </main>
-</div>
-<CookieConsent />
 
+    <!-- Un solo footer para toda la app -->
+    <Footer />
+
+</div>
+
+<CookieConsent />
 <a href="https://wa.me/50432024761?text=Hola%20FerrExpress" class="whatsapp" target="_blank">
     <i class="fab fa-whatsapp"></i>
-</a>    
+</a>
 <NotificationComponent />
+
 <style>
     .sticky-nav {
         position: fixed;

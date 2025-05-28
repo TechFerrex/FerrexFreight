@@ -62,4 +62,13 @@ namespace FerrexWeb.Models
         public User User { get; set; }               // ← navegación
 
     }
+    public enum FreightStatus
+    {
+        Quotation = 0,
+        Ordered = 1,
+        Expired = 2,
+        Pending = 3,
+        Delivered=4
+    }
+
 }

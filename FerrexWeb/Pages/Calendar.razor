@@ -1,0 +1,980 @@
+﻿@page "/calendar"
+@using System.Globalization
+@using FerrexWeb.Models
+@using FerrexWeb.Services
+@inject FreightQuotationService QuotationService
+@inject NavigationManager NavigationManager
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IJSRuntime JSRuntime
+
+<div class="calendar-page @(_loading ? "loading" : "")">
+    @if (_loading)
+    {
+        <div class="loading-overlay">
+            <div class="spinner-container">
+                <div class="spinner"></div>
+                <p>Cargando...</p>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="calendar-header-container">
+            <div class="calendar-title">
+                <h3>Calendario de Fletes</h3>
+                <div class="calendar-filters">
+                    <div class="filter-item">
+                        <span class="filter-indicator" style="background-color: #28a745"></span>
+                        <span>Ordenada</span>
+                    </div>
+                    <div class="filter-item">
+                        <span class="filter-indicator" style="background-color: #ffc107"></span>
+                        <span>Pendiente</span>
+                    </div>
+                    <div class="filter-item">
+                        <span class="filter-indicator" style="background-color: #dc3545"></span>
+                        <span>Expirada</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="month-selector">
+                <button class="btn-month" @onclick="PreviousMonth">
+                    <i class="fas fa-chevron-left"></i>
+                </button>
+                <h4>@CurrentMonth.ToString("MMMM yyyy", new CultureInfo("es-ES"))</h4>
+                <button class="btn-month" @onclick="NextMonth">
+                    <i class="fas fa-chevron-right"></i>
+                </button>
+            </div>
+        </div>
+
+        <div class="calendar-container">
+            <div class="calendar-grid">
+                <div class="calendar-weekdays">
+                    @foreach (var day in DaysOfWeek)
+                    {
+                        <div class="weekday">@day</div>
+                    }
+                </div>
+
+                <div class="calendar-days">
+                    @for (int i = 0; i < FirstDayOfMonth; i++)
+                    {
+                        <div class="day empty"></div>
+                    }
+
+                    @for (int day = 1; day <= DaysInMonth; day++)
+                    {
+                        var currentDate = new DateTime(CurrentMonth.Year, CurrentMonth.Month, day);
+                        var eventsForDay = _events.Where(e => e.Start.Date == currentDate.Date).ToList();
+                        var isSelected = SelectedDay.Date == currentDate.Date;
+                        var dayClass = GetDayClass(currentDate, eventsForDay, isSelected);
+
+                        <div class="day @dayClass" @onclick="() => ShowEventsForDay(currentDate)">
+                            <div class="day-number">@day</div>
+
+                            @if (eventsForDay.Any())
+                            {
+                                <div class="event-summary">
+                                    @{
+                                        var ordered = eventsForDay.Count(e => e.Status == (int)FreightStatus.Ordered);
+                                        var pending = eventsForDay.Count(e => e.Status == (int)FreightStatus.Pending);
+                                        var expired = eventsForDay.Count(e => e.Status == (int)FreightStatus.Expired);
+                                    }
+
+                                    @if (ordered > 0)
+                                    {
+                                        <div class="event-count" style="background-color: #28a745">@ordered</div>
+                                    }
+
+                                    @if (pending > 0)
+                                    {
+                                        <div class="event-count" style="background-color: #ffc107">@pending</div>
+                                    }
+
+                                    @if (expired > 0)
+                                    {
+                                        <div class="event-count" style="background-color: #dc3545">@expired</div>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <div class="events-panel @(SelectedEvents.Any() ? "has-events" : "")">
+                @if (SelectedEvents.Any())
+                {
+                    <div class="events-header">
+                        <h5>Fletes: @SelectedDay.ToString("d MMMM yyyy", new CultureInfo("es-ES"))</h5>
+                        <span class="events-count">@SelectedEvents.Count fletes</span>
+                    </div>
+
+                    <div class="events-list">
+                        @foreach (var ev in SelectedEvents)
+                        {
+                            <div class="event-card" @onclick="() => NavigateToDetails(ev.QuotationId)">
+                                <div class="event-status" style="background-color: @GetColorHex(ev.Status)"></div>
+                                <div class="event-details">
+                                    <div class="event-title">@ev.Title</div>
+                                    <div class="event-info">
+                                        <div class="event-time">
+                                            <i class="far fa-clock"></i>
+                                            @ev.Start.ToString("HH:mm") - @ev.End.ToString("HH:mm")
+                                        </div>
+                                        <div class="event-route">
+                                            <i class="fas fa-route"></i>
+                                            @ev.Origin - @ev.Destination
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="event-badge" style="background-color: @GetColorHex(ev.Status)">
+                                    @GetStatusText(ev.Status)
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="no-events">
+                        <i class="far fa-calendar-times"></i>
+                        <p>No hay fletes programados para este día</p>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+
+    <div class="modal fade" id="freightModal" tabindex="-1" role="dialog" aria-labelledby="freightModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+                <div class="modal-header" style="background-color: @GetColorHex(SelectedFreight?.Status ?? 0); color: white;">
+                    <h5 class="modal-title" id="freightModalLabel">
+                        Detalles del Flete @(SelectedFreight?.Title ?? "")
+                    </h5>
+                    <button type="button" class="close text-white" @onclick="CloseFreightModal">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    @if (SelectedFreight != null)
+                    {
+                        <div class="row">
+                            <!-- Columna de información general -->
+                            <div class="col-md-6">
+                                <div class="card mb-3">
+                                    <div class="card-header bg-light">
+                                        <h6 class="mb-0">Información General</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row mb-2">
+                                            <div class="col-12"><strong>ID:</strong> @SelectedFreight.QuotationId</div>
+                                        </div>
+                                        <div class="row mb-2">
+                                            <div class="col-6"><strong>Fecha:</strong> @SelectedFreight.Start.ToString("dd/MM/yyyy")</div>
+                                            <div class="col-6"><strong>Hora:</strong> @SelectedFreight.Start.ToString("HH:mm")</div>
+                                        </div>
+                                        <div class="row mb-2">
+                                            <div class="col-12">
+                                                <strong>Estado:</strong>
+                                                <span class="badge" style="background-color: @GetColorHex(SelectedFreight.Status); color: white;">
+                                                    @GetStatusText(SelectedFreight.Status)
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div class="row mb-2">
+                                            <div class="col-12"><strong>Tipo de camión:</strong> @SelectedFreight.TruckType</div>
+                                        </div>
+                                        <div class="row mb-2">
+                                            <div class="col-12">
+                                                <strong>Costo total:</strong>
+                                                @SelectedFreight.TotalCost.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="card mb-3">
+                                    <div class="card-header bg-light">
+                                        <h6 class="mb-0">Detalles de la Ruta</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="mb-2">
+                                            <strong>Origen:</strong> @SelectedFreight.Origin
+                                        </div>
+                                        <div class="mb-3">
+                                            <strong>Destino:</strong> @SelectedFreight.Destination
+                                        </div>
+                                        <div class="d-flex justify-content-between text-center mt-3">
+                                            <div class="border rounded p-2 flex-fill mr-2">
+                                                <i class="fas fa-road text-primary mb-2"></i>
+                                                <h5 id="routeDistance">@DistanceEstimate km</h5>
+                                                <small class="text-muted">Distancia</small>
+                                            </div>
+                                            <div class="border rounded p-2 flex-fill mr-2">
+                                                <i class="fas fa-clock text-warning mb-2"></i>
+                                                <h5 id="routeDuration">@DurationEstimate min</h5>
+                                                <small class="text-muted">Tiempo Estimado</small>
+                                            </div>
+                                            <div class="border rounded p-2 flex-fill">
+                                                <i class="fas fa-gas-pump text-danger mb-2"></i>
+                                                <h5 id="fuelEstimate">@FuelEstimate L</h5>
+                                                <small class="text-muted">Combustible Est.</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Columna del mapa -->
+                            <div class="col-md-6">
+                                <div class="card mb-3 h-100">
+                                    <div class="card-header bg-light">
+                                        <h6 class="mb-0">Mapa de Ruta</h6>
+                                    </div>
+                                    <div class="card-body p-2 d-flex flex-column">
+                                        <div id="freightMapContainer" style="flex-grow: 1; min-height: 300px; border: 1px solid #ddd; border-radius: 5px;"></div>
+                                        <div class="text-center mt-2">
+                                            <small class="text-muted">
+                                                <i class="fas fa-info-circle"></i>
+                                                Ruta desde @SelectedFreight.Origin hasta @SelectedFreight.Destination
+                                            </small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Información de Cliente -->
+                        <div class="card mt-3">
+                            <div class="card-header bg-light">
+                                <h6 class="mb-0">Información del Cliente</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-2"><strong>Nombre:</strong> @ClientName</div>
+                                        <div class="mb-2"><strong>Email:</strong> @ClientEmail</div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-2"><strong>Teléfono:</strong> @ClientPhone</div>
+                                        <div class="mb-2"><strong>Empresa:</strong> @ClientCompany</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="text-center">
+                            <p>No se ha seleccionado ningún flete.</p>
+                        </div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseFreightModal">Cerrar</button>
+                    <button type="button" class="btn btn-info" @onclick="EditFreight">
+                        <i class="fas fa-edit mr-1"></i> Editar
+                    </button>
+                    <button type="button" class="btn btn-primary" @onclick="PrintFreightDetails">
+                        <i class="fas fa-print mr-1"></i> Imprimir
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<style>
+    /* Variables de colores y dimensiones */
+    :root {
+        --primary-color: #1976d2;
+        --primary-light: #e3f2fd;
+        --primary-dark: #1565c0;
+        --secondary-color: #f5f5f5;
+        --success-color: #28a745;
+        --warning-color: #ffc107;
+        --danger-color: #dc3545;
+        --muted-color: #6c757d;
+        --border-color: #dee2e6;
+        --text-color: #333;
+        --text-light: #666;
+        --text-lightest: #999;
+        --border-radius: 8px;
+        --shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+
+    /* Estilos generales */
+    .calendar-page {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        color: var(--text-color);
+        position: relative;
+    }
+
+    /* Overlay de carga */
+    .loading-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(255, 255, 255, 0.8);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+        border-radius: var(--border-radius);
+    }
+
+    .spinner-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .spinner {
+        width: 50px;
+        height: 50px;
+        border: 3px solid var(--primary-light);
+        border-top: 3px solid var(--primary-color);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+
+    @@keyframes spin {
+        0%
+
+    {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
+
+    }
+
+    /* Cabecera del calendario */
+    .calendar-header-container {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        margin-bottom: 20px;
+    }
+
+    .calendar-title {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+        .calendar-title h3 {
+            margin: 0;
+            font-size: 1.8rem;
+            font-weight: 600;
+            color: var(--primary-dark);
+        }
+
+    .calendar-filters {
+        display: flex;
+        gap: 20px;
+        flex-wrap: wrap;
+    }
+
+    .filter-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.85rem;
+        color: var(--text-light);
+    }
+
+    .filter-indicator {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+    }
+
+    .month-selector {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        padding: 10px 0;
+    }
+
+        .month-selector h4 {
+            margin: 0;
+            font-size: 1.3rem;
+            font-weight: 500;
+            text-transform: capitalize;
+        }
+
+    .btn-month {
+        background-color: var(--primary-light);
+        color: var(--primary-color);
+        border: none;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+        .btn-month:hover {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+    /* Contenedor principal del calendario */
+    .calendar-container {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    /* Rejilla del calendario */
+    .calendar-grid {
+        border-radius: var(--border-radius);
+        overflow: hidden;
+        box-shadow: var(--shadow);
+        background-color: white;
+    }
+
+    /* Días de la semana */
+    .calendar-weekdays {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        background-color: var(--primary-color);
+        color: white;
+    }
+
+    .weekday {
+        padding: 15px 10px;
+        text-align: center;
+        font-weight: 500;
+        font-size: 0.9rem;
+    }
+
+    /* Días del mes */
+    .calendar-days {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+    }
+
+    .day {
+        min-height: 110px;
+        padding: 8px;
+        border-right: 1px solid var(--border-color);
+        border-bottom: 1px solid var(--border-color);
+        position: relative;
+        transition: all 0.2s ease;
+        cursor: pointer;
+    }
+
+        .day:hover {
+            background-color: var(--secondary-color);
+        }
+
+        .day.today {
+            background-color: var(--primary-light);
+        }
+
+        .day.selected {
+            background-color: rgba(25, 118, 210, 0.15);
+            box-shadow: inset 0 0 0 2px var(--primary-color);
+        }
+
+        .day.empty {
+            background-color: #f9f9f9;
+            cursor: default;
+        }
+
+    .day-number {
+        font-weight: 500;
+        margin-bottom: 8px;
+        font-size: 0.95rem;
+    }
+
+    /* Resumen de eventos */
+    .event-summary {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+
+    .event-count {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 0.8rem;
+        font-weight: 500;
+    }
+
+    /* Panel de eventos */
+    .events-panel {
+        background-color: white;
+        border-radius: var(--border-radius);
+        box-shadow: var(--shadow);
+        overflow: hidden;
+    }
+
+    .events-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 15px 20px;
+        background-color: var(--primary-color);
+        color: white;
+    }
+
+        .events-header h5 {
+            margin: 0;
+            font-size: 1.1rem;
+            font-weight: 500;
+        }
+
+    .events-count {
+        font-size: 0.8rem;
+        background-color: rgba(255, 255, 255, 0.2);
+        padding: 4px 10px;
+        border-radius: 20px;
+    }
+
+    .events-list {
+        max-height: 350px;
+        overflow-y: auto;
+        padding: 10px;
+    }
+
+    .event-card {
+        display: flex;
+        border-radius: var(--border-radius);
+        overflow: hidden;
+        background-color: white;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+        margin-bottom: 10px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+        .event-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 3px 8px rgba(0,0,0,0.12);
+        }
+
+    .event-status {
+        width: 6px;
+    }
+
+    .event-details {
+        flex-grow: 1;
+        padding: 12px 15px;
+    }
+
+    .event-title {
+        font-weight: 500;
+        margin-bottom: 5px;
+    }
+
+    .event-info {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .event-time, .event-route {
+        font-size: 0.8rem;
+        color: var(--text-lightest);
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+
+    .event-badge {
+        display: flex;
+        align-items: center;
+        padding: 0 15px;
+        color: white;
+        font-size: 0.8rem;
+        font-weight: 500;
+        white-space: nowrap;
+    }
+
+    .no-events {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 40px 20px;
+        color: var(--text-lightest);
+        text-align: center;
+    }
+
+        .no-events i {
+            font-size: 3rem;
+            margin-bottom: 15px;
+        }
+
+    /* Responsive */
+    @@media (min-width: 768px) {
+        .calendar-header-container
+
+    {
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .calendar-container {
+        flex-direction: row;
+    }
+
+    .calendar-grid {
+        flex: 7;
+    }
+
+    .events-panel {
+        flex: 3;
+        max-height: 600px;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .events-list {
+        flex-grow: 1;
+        max-height: unset;
+    }
+
+    }
+
+    @@media (max-width: 767px) {
+        .day
+
+    {
+        min-height: 80px;
+    }
+
+    .events-panel:not(.has-events) {
+        display: none;
+    }
+
+    }
+
+    @@media (max-width: 576px) {
+        .calendar-weekdays, .calendar-days
+
+    {
+        grid-template-columns: repeat(7, 1fr);
+    }
+
+    .weekday {
+        padding: 10px 5px;
+        font-size: 0.8rem;
+    }
+
+    .day {
+        min-height: 60px;
+        padding: 5px;
+    }
+
+    .day-number {
+        font-size: 0.85rem;
+        margin-bottom: 4px;
+    }
+
+    .event-count {
+        width: 18px;
+        height: 18px;
+        font-size: 0.7rem;
+    }
+
+    }
+</style>
+
+@code {
+    private bool _loading = true;
+
+    private List<CalendarEventDto> _events = new();
+    private List<CalendarEventDto> SelectedEvents = new();
+    private DateTime CurrentMonth = DateTime.Today;
+    private DateTime SelectedDay = DateTime.Today;
+
+    private string[] DaysOfWeek = { "Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb" };
+
+    private int FirstDayOfMonth => (int)new DateTime(CurrentMonth.Year, CurrentMonth.Month, 1).DayOfWeek;
+    private int DaysInMonth => DateTime.DaysInMonth(CurrentMonth.Year, CurrentMonth.Month);
+
+    protected override async Task OnInitializedAsync()
+    {
+        _loading = true;  // activamos el spinner
+
+        try
+        {
+            var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var user = authState.User;
+            var userId = int.Parse(user.FindFirst("UserId")?.Value ?? "0");
+
+            // Obtener los datos de la base de datos
+            var quotations = await QuotationService.GetCalendarItemsForAllUsersAsync();
+
+            // Mapear los datos de la base de datos al modelo CalendarEventDto
+            _events = quotations.Select(q => new CalendarEventDto
+                {
+                    QuotationId = q.Id,
+                    Title = $"Flete #{q.QuotationNumber}",
+                    Start = q.FreightDate,
+                    End = q.FreightDate.AddHours(2), // Asumimos 2 horas de duración
+                    Status = q.Status,
+                    Origin = q.Origin,
+                    Destination = q.Destination,
+                    TruckType = q.TruckType,
+                    TotalCost = q.TotalCost
+                }).ToList();
+
+            ShowEventsForDay(DateTime.Today);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al cargar datos: {ex.Message}");
+        }
+        finally
+        {
+            _loading = false; // desactivamos el spinner
+            StateHasChanged();
+        }
+    }
+
+    private void PreviousMonth()
+    {
+        CurrentMonth = CurrentMonth.AddMonths(-1);
+    }
+
+    private void NextMonth()
+    {
+        CurrentMonth = CurrentMonth.AddMonths(1);
+    }
+
+    private void ShowEventsForDay(DateTime date)
+    {
+        SelectedDay = date;
+        SelectedEvents = _events.Where(e => e.Start.Date == date.Date).ToList();
+        StateHasChanged();
+    }
+
+    private void NavigateToDetails(int quotationId)
+    {
+        NavigationManager.NavigateTo($"/quotation-details/{quotationId}");
+    }
+
+    private string GetDayClass(DateTime date, List<CalendarEventDto> events, bool isSelected)
+    {
+        var classes = new List<string>();
+
+        if (date.Date == DateTime.Today.Date)
+        {
+            classes.Add("today");
+        }
+
+        if (isSelected)
+        {
+            classes.Add("selected");
+        }
+
+        if (events.Any())
+        {
+            classes.Add("has-events");
+        }
+
+        return string.Join(" ", classes);
+    }
+
+    private string GetColorHex(int status)
+    {
+        return status switch
+        {
+            (int)FreightStatus.Ordered => "#28a745", // Verde para ordenadas
+            (int)FreightStatus.Expired => "#dc3545", // Rojo para expiradas
+            (int)FreightStatus.Pending => "#ffc107", // Amarillo para pendientes
+            _ => "#6c757d" // Gris para otros estados
+        };
+    }
+
+    private string GetStatusText(int status)
+    {
+        return status switch
+        {
+            (int)FreightStatus.Ordered => "Ordenada",
+            (int)FreightStatus.Expired => "Expirada",
+            (int)FreightStatus.Pending => "Pendiente",
+            _ => "Desconocido"
+        };
+    }
+
+    // Modelo de datos mejorado para los eventos del calendario
+    public class CalendarEventDto
+    {
+        public int QuotationId { get; set; }
+        public string Title { get; set; } = string.Empty;
+        public DateTime Start { get; set; }
+        public DateTime End { get; set; }
+        public int Status { get; set; }
+        // Campos adicionales desde FreightQuotation
+        public string Origin { get; set; } = string.Empty;
+        public string Destination { get; set; } = string.Empty;
+        public string TruckType { get; set; } = string.Empty;
+        public decimal TotalCost { get; set; }
+    }
+
+    // Add these properties to your Calendar.razor class
+    private CalendarEventDto? SelectedFreight { get; set; }
+    private bool IsFreightModalOpen { get; set; } = false;
+
+    // Client information - In a real app, you'd fetch this from the database
+    private string ClientName { get; set; } = "Cliente Ejemplo";
+    private string ClientEmail { get; set; } = "cliente@ejemplo.com";
+    private string ClientPhone { get; set; } = "(+504) 9999-8888";
+    private string ClientCompany { get; set; } = "Empresa S.A.";
+
+    // Route information - In a real app, you'd calculate this based on origin/destination
+    private string DistanceEstimate { get; set; } = "150.5";
+    private string DurationEstimate { get; set; } = "180";
+    private string FuelEstimate { get; set; } = "45.2";
+
+    // Method to open the modal when clicking on an event in your calendar
+    private void OpenFreightModal(CalendarEventDto freight)
+    {
+        SelectedFreight = freight;
+        IsFreightModalOpen = true;
+
+        // In a real application, you would fetch client data and route data here
+        // LoadClientData(freight.QuotationId);
+        // CalculateRouteEstimates(freight.Origin, freight.Destination);
+
+        // Invoke JavaScript to show the modal and initialize the map
+        StateHasChanged();
+        JSRuntime.InvokeVoidAsync("showFreightModal", freight.Origin, freight.Destination);
+    }
+
+    private void CloseFreightModal()
+    {
+        IsFreightModalOpen = false;
+        SelectedFreight = null;
+
+        // Invoke JavaScript to hide the modal
+        JSRuntime.InvokeVoidAsync("hideFreightModal");
+    }
+
+    private void EditFreight()
+    {
+        if (SelectedFreight != null)
+        {
+            NavigationManager.NavigateTo($"/edit-quotation/{SelectedFreight.QuotationId}");
+        }
+    }
+
+    private void PrintFreightDetails()
+    {
+        if (SelectedFreight != null)
+        {
+            JSRuntime.InvokeVoidAsync("printFreightDetails");
+        }
+    }
+}
+
+<script>
+    // Function to show the freight modal and initialize the map
+    window.showFreightModal = function(origin, destination) {
+        $('#freightModal').modal('show');
+
+        // Initialize map (using a placeholder function - you'll need to implement this with your mapping API)
+        setTimeout(() => {
+            initializeFreightMap(origin, destination);
+        }, 500);
+    };
+
+    // Function to hide the freight modal
+    window.hideFreightModal = function() {
+        $('#freightModal').modal('hide');
+    };
+
+    // Function to initialize the map with the freight route
+    window.initializeFreightMap = function(origin, destination) {
+        // This is a placeholder function
+        // In a real application, you would use a mapping API like Google Maps, Leaflet, etc.
+        // to display the route between origin and destination
+
+        const mapContainer = document.getElementById('freightMapContainer');
+        if (mapContainer) {
+            // Placeholder for map initialization
+            mapContainer.innerHTML = `
+                <div style="height: 100%; display: flex; align-items: center; justify-content: center;
+                            background-color: #f8f9fa; border-radius: 5px;">
+                    <div style="text-align: center;">
+                        <i class="fas fa-map-marked-alt" style="font-size: 3rem; color: #6c757d;"></i>
+                        <p style="margin-top: 10px;">Aquí se mostraría el mapa con la ruta de:</p>
+                        <p><strong>${origin}</strong> a <strong>${destination}</strong></p>
+                    </div>
+                </div>
+            `;
+        }
+    };
+
+    // Function to print freight details
+    window.printFreightDetails = function() {
+        // Create a new window with the content to print
+        const printWindow = window.open('', '_blank');
+
+        // Get the freight information from the modal
+        const title = document.querySelector('#freightModalLabel').textContent;
+        const freightInfo = document.querySelector('.modal-body').cloneNode(true);
+
+        // Create the print content
+        printWindow.document.write(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>${title}</title>
+                <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+                <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.1/css/all.min.css">
+                <style>
+                    body { padding: 20px; }
+                    @@media print {
+                        .no-print { display: none; }
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="row mb-4">
+                        <div class="col">
+                            <h2>${title}</h2>
+                            <p class="text-muted">Impreso el ${new Date().toLocaleString()}</p>
+                        </div>
+                        <div class="col-auto">
+                            <button class="btn btn-primary no-print" onclick="window.print()">
+                                <i class="fas fa-print mr-1"></i> Imprimir
+                            </button>
+                        </div>
+                    </div>
+                    <div class="content">
+                        ${freightInfo.outerHTML}
+                    </div>
+                </div>
+            </body>
+            </html>
+        `);
+
+        printWindow.document.close();
+    };
+</script>

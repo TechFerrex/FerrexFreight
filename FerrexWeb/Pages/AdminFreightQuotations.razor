@@ -25,35 +25,57 @@
             </div>
         </div>
         <div class="card-body">
-            <div class="row mb-3">
-                <div class="col-md-3">
-                    <div class="input-group">
-                        <div class="input-group-prepend">
-                            <span class="input-group-text">Filtrar</span>
-                        </div>
-                        <input type="text" class="form-control" placeholder="Buscar cotización..." @bind="searchTerm" @bind:event="oninput" @onkeyup="FilterQuotations" />
-                    </div>
+            <div class="row mb-3 align-items-end">
+              <div class="col-md-2">
+                <!-- Buscar -->
+                <div class="input-group">
+                  <div class="input-group-prepend">
+                    <span class="input-group-text">Filtrar</span>
+                  </div>
+                  <input type="text" class="form-control" placeholder="Buscar cotización..."
+                         @bind="searchTerm" @bind:event="oninput" @onkeyup="FilterQuotations" />
                 </div>
-                <div class="col-md-3">
-                    <select class="form-control" @bind="statusFilter">
-                        <option value="-1">Todos los estados</option>
-                        <option value="0">Cotización</option>
-                        <option value="1">Ordenada</option>
-                        <option value="2">Expirada</option>
-                    </select>
-                </div>
-                <div class="col-md-3">
-                    <input type="date" class="form-control" @bind="dateFilter" />
-                </div>
-                <div class="col-md-3">
-                    <button class="btn btn-primary" @onclick="ApplyFilters">
-                        <i class="fas fa-filter mr-1"></i> Aplicar Filtros
-                    </button>
-                    <button class="btn btn-secondary ml-2" @onclick="ClearFilters">
-                        <i class="fas fa-times mr-1"></i> Limpiar
-                    </button>
-                </div>
+              </div>
+
+              <div class="col-md-2">
+                <!-- Estado -->
+                <select class="form-control" @bind="statusFilter">
+                  <option value="-1">Todos los estados</option>
+                  <option value="0">Cotización</option>
+                  <option value="1">Ordenada</option>
+                  <option value="2">Expirada</option>
+                  <option value="3">Pendiente</option>
+                  <option value="4">Entregada</option>
+                </select>
+              </div>
+
+              <div class="col-md-2">
+                <!-- Fecha -->
+                <input type="date" class="form-control" @bind="dateFilter" />
+              </div>
+
+              <div class="col-md-2">
+                <!-- Usuario -->
+                <select class="form-control" @bind="userFilter">
+                  <option value="0">Todos los usuarios</option>
+                  @foreach (var u in userList)
+                  {
+                    <option value="@u.Id">@u.Name</option>
+                  }
+                </select>
+              </div>
+
+              <div class="col-md-4 text-right">
+                <!-- Botones a la derecha -->
+                <button class="btn btn-primary mr-2" @onclick="ApplyFilters">
+                  <i class="fas fa-filter mr-1"></i> Aplicar Filtros
+                </button>
+                <button class="btn btn-secondary" @onclick="ClearFilters">
+                  <i class="fas fa-times mr-1"></i> Limpiar
+                </button>
+              </div>
             </div>
+
 
             <div class="row mb-3">
                 <div class="col-md-3">
@@ -194,6 +216,8 @@
                                             <option value="0">Cotización</option>
                                             <option value="1">Ordenada</option>
                                             <option value="2">Expirada</option>
+                                            <option value="3">Pendiente</option>
+                                            <option value="4">Entregada</option>
                                         </select>
                                     </td>
                                     <td>
@@ -432,7 +456,11 @@
     private bool sortAscending = true;
     private int currentPage = 1;
     private int pageSize = 10;
-    private int totalPages = 1;
+    private int totalPages = 1; 
+
+    private List<User> userList = new();
+    private int userFilter = 0;       // 0 = Todos
+
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -458,7 +486,18 @@
     private async Task LoadData()
     {
         allQuotations = await FreightQuotationService.GetAllFreightQuotationsAsync();
-        ApplyFilters();
+
+    // Extraer usuarios únicos de las cotizaciones
+    userList = allQuotations?
+        .Where(q => q.User != null)
+        .Select(q => q.User)
+        .GroupBy(u => u.Id)
+        .Select(g => g.First())
+        .OrderBy(u => u.Name)
+        .ToList()
+      ?? new List<User>();
+
+    ApplyFilters();
     }
 
     private async Task RefreshData()
@@ -478,12 +517,12 @@
         if (!string.IsNullOrWhiteSpace(searchTerm))
         {
             query = query.Where(q =>
-                q.QuotationNumber.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
-                q.Origin.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
-                q.Destination.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
-                q.Id.ToString().Contains(searchTerm) ||
-                q.User.Name.Contains(searchTerm, StringComparison.OrdinalIgnoreCase)    // 👈
-            );
+               q.QuotationNumber.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+               q.Origin.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+               q.Destination.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+               q.Id.ToString().Contains(searchTerm) ||
+               (q.User != null && q.User.Name.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
+           );
         }
 
         if (statusFilter >= 0)
@@ -494,6 +533,10 @@
         if (dateFilter.HasValue)
         {
             query = query.Where(q => q.FreightDate.Date == dateFilter.Value.Date);
+        }
+        if (userFilter > 0)
+        {
+            query = query.Where(q => q.User != null && q.User.Id == userFilter);
         }
 
         // Apply sorting
@@ -531,8 +574,8 @@
                 break;
             case "UserName":
                 query = sortAscending
-                       ? query.OrderBy(q => q.User.Name)
-                       : query.OrderByDescending(q => q.User.Name);
+                   ? query.OrderBy(q => q.User != null ? q.User.Name : string.Empty)
+                   : query.OrderByDescending(q => q.User != null ? q.User.Name : string.Empty);
                 break;
             case nameof(FreightQuotation.FreightDate):
                 query = sortAscending ? query.OrderBy(q => q.FreightDate) : query.OrderByDescending(q => q.FreightDate);
@@ -580,6 +623,7 @@
         searchTerm = "";
         statusFilter = -1;
         dateFilter = null;
+        userFilter = 0;
         currentPage = 1;
         ApplyFilters();
     }
@@ -697,6 +741,8 @@
             0 => "Cotización",
             1 => "Ordenada",
             2 => "Expirada",
+            3 => "Pendiente",
+            4 => "Entregada",
             _ => "Desconocido"
         };
     }
@@ -705,9 +751,11 @@
     {
         return status switch
         {
-            0 => "bg-warning text-dark",
-            1 => "bg-success text-white",
-            2 => "bg-secondary text-white",
+            0 => "bg-info text-dark",
+            1 => "bg-primary text-white",
+            2 => "bg-danger text-white",
+            3 => "bg-warning text-dark",
+            4 => "bg-success text-white",
             _ => ""
         };
     }

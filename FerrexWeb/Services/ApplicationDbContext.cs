@@ -22,6 +22,7 @@ namespace FerrexWeb.Services
         public DbSet<VigaVariant> VigaVariants { get; set; }
         public DbSet<FreightQuotation> FreightQuotations { get; set; } // Nueva propiedad para la tabla de cotizaciones de flete  
         public DbSet<EmailVerification> EmailVerifications { get; set; }
+        public DbSet<FreightConfirmation> FreightConfirmations { get; set; }
         public DbSet<PasswordReset> PasswordResets { get; set; }
 
 

@@ -14,7 +14,7 @@
     @if (mostrarBotonAdmin)
     {
             <div class="row text-center">
-                <div class="col-md-4 mb-3">
+                @* <div class="col-md-4 mb-3">
                     <div class="card h-100 shadow-sm">
                         <div class="card-body">
                             <i class="fas fa-box fa-3x mb-3"></i>
@@ -23,8 +23,8 @@
                             <button class="btn btn-primary" @onclick="IrAOrdenes">Gestionar Órdenes</button>
                         </div>
                     </div>
-                </div>
-                <div class="col-md-4 mb-3">
+                </div> *@
+                @* <div class="col-md-4 mb-3">
                     <div class="card h-100 shadow-sm">
                         <div class="card-body">
                             <i class="fas fa-file-invoice fa-3x mb-3"></i>
@@ -33,7 +33,7 @@
                             <button class="btn btn-primary" @onclick="IrACotizaciones">Gestionar Cotizaciones</button>
                         </div>
                     </div>
-                </div>
+                </div> *@
                 <div class="col-md-4 mb-3">
                     <div class="card h-100 shadow-sm">
                         <div class="card-body">
@@ -44,7 +44,7 @@
                         </div>
                     </div>
                 </div>
-                <div class="col-md-4 mb-3">
+                @* <div class="col-md-4 mb-3">
                     <div class="card h-100 shadow-sm">
                         <div class="card-body">
                             <i class="fas fa-upload fa-3x mb-3"></i>
@@ -53,17 +53,27 @@
                         <button class="btn btn-primary" @onclick="IrAUpdateProduct">Actualizar</button>
                         </div>
                     </div>
-                </div>
-            <div class="col-md-4 mb-3">
-                <div class="card h-100 shadow-sm">
-                    <div class="card-body">
-                        <i class="fas fa-truck fa-3x mb-3"></i>
-                        <h5 class="card-title">Fletes</h5>
-                        <p class="card-text">Ver todos los fletes y los ordenados</p>
-                        <button class="btn btn-primary" @onclick="IrAFreights">Ver Fletes</button>
+                </div> *@
+                <div class="col-md-4 mb-3">
+                    <div class="card h-100 shadow-sm">
+                        <div class="card-body">
+                            <i class="fas fa-truck fa-3x mb-3"></i>
+                            <h5 class="card-title">Fletes</h5>
+                            <p class="card-text">Ver todos los fletes y los ordenados</p>
+                            <button class="btn btn-primary" @onclick="IrAFreights">Ver Fletes</button>
+                        </div>
                     </div>
                 </div>
-            </div>
+                <div class="col-md-4 mb-3">
+                    <div class="card h-100 shadow-sm">
+                        <div class="card-body">
+                            <i class="fas fa-link fa-3x mb-3"></i>
+                            <h5 class="card-title">Creacion de Links</h5>
+                            <p class="card-text">Aqui puedes crear links para confirmacion de contra</p>
+                        <button class="btn btn-primary" @onclick="IrAListaLink">Crear Link</button>
+                        </div>
+                    </div>
+                </div>
 
             </div>
     }
@@ -104,5 +114,9 @@
     private void IrAFreights()
     {
         NavigationManager.NavigateTo("/admin/freightquotations");
+    }
+    private void IrAListaLink()
+    {
+        NavigationManager.NavigateTo("/admin/FreightList");
     }
 }

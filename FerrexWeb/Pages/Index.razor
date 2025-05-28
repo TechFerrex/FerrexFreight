@@ -164,6 +164,12 @@
 
     protected override void OnInitialized()
     {
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(100); // Dar tiempo para que se cargue la UI primero
+            isConnected = await DbContext.Database.CanConnectAsync();
+            await InvokeAsync(StateHasChanged);
+        });
         base.OnInitialized();
 
         // // Configurar el timer para rotar imágenes
@@ -174,22 +180,22 @@
         // };
     }
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        // if (firstRender)
-        // {
-        //     // Pequeña demora para permitir que la interfaz se cargue primero
-        //     await Task.Delay(300);
+    // protected override async Task OnAfterRenderAsync(bool firstRender)
+    // {
+    //     // if (firstRender)
+    //     // {
+    //     //     // Pequeña demora para permitir que la interfaz se cargue primero
+    //     //     await Task.Delay(300);
 
-        //     // Marcar como cargada la primera imagen
-        //     isLoaded = true;
-        //     StateHasChanged();
+    //     //     // Marcar como cargada la primera imagen
+    //     //     isLoaded = true;
+    //     //     StateHasChanged();
 
-        //     // Iniciar rotación después de que la página esté completamente cargada
-        //     await Task.Delay(1500);
-        //     rotationTimer.Start();
-        // }
-    }
+    //     //     // Iniciar rotación después de que la página esté completamente cargada
+    //     //     await Task.Delay(1500);
+    //     //     rotationTimer.Start();
+    //     // }
+    // }
 
     // // Método optimizado para cambiar imágenes
     // private async void RotateImage()
