@@ -46,8 +46,6 @@ namespace FerrexWeb.Models
         [ForeignKey("id_image")]
         public Image Image { get; set; }
 
-        private List<Products> productsInSameSubcat = new();
-    
         [NotMapped]
         public string ImageUrl
         {

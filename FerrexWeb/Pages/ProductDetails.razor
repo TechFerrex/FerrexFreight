@@ -296,6 +296,9 @@ else
                                ? producto.Size.Trim()
                                : (AvailableSizes.Any() ? AvailableSizes.First() : null);
 
+            // Guardar descripción original del producto
+            descOriginal = producto.DescProducto;
+
             if (IsAluzinc)
             {
                 aluzincVariants = await ProductService.GetAllAluzincVariantsAsync();

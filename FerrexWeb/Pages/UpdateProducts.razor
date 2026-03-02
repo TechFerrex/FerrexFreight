@@ -1,5 +1,7 @@
 ﻿@page "/updateproduct"
 @using FerrexWeb.Services
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "SuperAdmin")]
 @inject ProductSyncService ProductSyncService
 
 <div class="container my-5">

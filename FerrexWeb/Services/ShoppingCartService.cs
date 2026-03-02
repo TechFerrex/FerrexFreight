@@ -95,9 +95,13 @@ namespace FerrexWeb.Services
 
 
 
-        public async Task RemoveFromCartAsync(Products product)
+        public async Task RemoveFromCartAsync(Products product, string? aluzincCalibre = null, string? aluzincMilimetro = null, string? aluzincColor = null)
         {
-            var cartItem = Items.Find(item => item.Product.IdProducto == product.IdProducto);
+            var cartItem = Items.Find(item =>
+                item.Product.IdProducto == product.IdProducto &&
+                item.AluzincCalibre == aluzincCalibre &&
+                item.AluzincMilimetro == aluzincMilimetro &&
+                item.AluzincColor == aluzincColor);
             if (cartItem != null)
             {
                 Items.Remove(cartItem);

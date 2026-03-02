@@ -106,10 +106,37 @@
 @code {
     [Parameter] public int Id { get; set; }
     private Quotation quotation;
+    private bool isAuthorized = false;
 
     protected override async Task OnInitializedAsync()
     {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (!user.Identity.IsAuthenticated)
+        {
+            NavigationManager.NavigateTo("/userinfo?returnUrl=/quotationdetails/" + Id);
+            return;
+        }
+
         quotation = await QuotationService.GetQuotationByIdAsync(Id);
+
+        if (quotation == null)
+        {
+            NavigationManager.NavigateTo("/quotations");
+            return;
+        }
+
+        // Verificar que el usuario es dueño o SuperAdmin
+        var userIdStr = user.FindFirstValue(System.Security.Claims.ClaimTypes.NameIdentifier);
+        if (user.IsInRole("SuperAdmin") || (int.TryParse(userIdStr, out var uid) && uid == quotation.UserID))
+        {
+            isAuthorized = true;
+        }
+        else
+        {
+            NavigationManager.NavigateTo("/quotations");
+        }
     }
 
     private async Task PlaceOrder()
@@ -139,7 +166,8 @@
                     Line = item.Line,
                     ProductId = item.ProductId,
                     Quantity = item.Quantity,
-                    Price = item.Price
+                    Price = item.Price,
+                    CustomDescription1 = item.CustomDescription
                 }).ToList()
             };
 
@@ -158,9 +186,9 @@
 
         foreach (var item in quotation.QuotedItems)
         {
-            var codigo = item.Product.Codigo;
-            var descripcion = item.Product.DescProducto;
-            var unidad = item.Product.Unit;
+            var codigo = item.Product?.Codigo ?? "";
+            var descripcion = !string.IsNullOrEmpty(item.CustomDescription) ? item.CustomDescription : (item.Product?.DescProducto ?? "Sin descripción");
+            var unidad = item.Product?.Unit ?? "N/A";
             var cantidad = item.Quantity;
             var precio = item.Price.ToString("N2");
             var importe = (item.Price * item.Quantity).ToString("N2");
@@ -333,7 +361,36 @@
         await CartService.ClearCartAsync();
         foreach (var item in quotation.QuotedItems)
         {
-            await CartService.AddToCartAsync(item.Product, item.Quantity);
+            // Extraer variantes Aluzinc de la descripción personalizada
+            decimal? aluzincLargo = null;
+            string? aluzincCalibre = null;
+            string? aluzincMilimetro = null;
+            string? aluzincColor = null;
+
+            bool isAluzinc = !string.IsNullOrEmpty(item.CustomDescription) && item.CustomDescription.Contains("Aluzinc");
+            if (isAluzinc)
+            {
+                var matchCalibre = System.Text.RegularExpressions.Regex.Match(item.CustomDescription, @"Calibre:\s*(.+?)\s*\|");
+                var matchMilimetro = System.Text.RegularExpressions.Regex.Match(item.CustomDescription, @"Milímetro:\s*(.+?)mm");
+                var matchColor = System.Text.RegularExpressions.Regex.Match(item.CustomDescription, @"Color:\s*(.+?)\s*\|");
+                var matchLargo = System.Text.RegularExpressions.Regex.Match(item.CustomDescription, @"Largo:\s*(\d+(\.\d+)?)ft");
+
+                if (matchCalibre.Success) aluzincCalibre = matchCalibre.Groups[1].Value.Trim();
+                if (matchMilimetro.Success) aluzincMilimetro = matchMilimetro.Groups[1].Value.Trim();
+                if (matchColor.Success) aluzincColor = matchColor.Groups[1].Value.Trim();
+                if (matchLargo.Success) aluzincLargo = decimal.Parse(matchLargo.Groups[1].Value);
+            }
+
+            await CartService.AddToCartAsync(
+                item.Product,
+                item.Quantity,
+                aluzincLargo: aluzincLargo,
+                aluzincCalibre: aluzincCalibre,
+                aluzincMilimetro: aluzincMilimetro,
+                aluzincColor: aluzincColor,
+                customDescription: isAluzinc ? item.CustomDescription : null,
+                customPricePerPie: isAluzinc ? item.Price : null
+            );
         }
 
         CartService.CurrentQuotationId = quotation.Id;

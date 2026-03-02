@@ -4,6 +4,7 @@
     @using Blazored.LocalStorage
     @using System.Security.Claims
     @using Microsoft.AspNetCore.Components.Authorization
+    @implements IDisposable
     @inject OrderService OrderService
     @inject AuthenticationStateProvider AuthenticationStateProvider
     @inject IJSRuntime JSRuntime
@@ -108,7 +109,7 @@
                                         <td>@isvProducto.ToString("C")</td>
                                         <td>@totalProducto.ToString("C")</td>
                                         <td>
-                                            <button class="btn btn-danger" @onclick="() => RemoveFromCart(item.Product)">
+                                            <button class="btn btn-danger" @onclick="() => RemoveFromCart(item)">
                                                 <i class="fas fa-trash-alt"></i>
                                             </button>
                                         </td>
@@ -162,7 +163,7 @@
                                     <p><strong>ISV:</strong> @isvProducto.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</p>
                                     <p><strong>Total:</strong> @totalProducto.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</p>
 
-                                    <button class="btn btn-danger" @onclick="() => RemoveFromCart(item.Product)">
+                                    <button class="btn btn-danger" @onclick="() => RemoveFromCart(item)">
                                         <i class="fas fa-trash-alt"></i> Eliminar
                                     </button>
                                 </div>
@@ -290,7 +291,7 @@
                             else if (!isAuthenticated)
                             {
                                 <p class="text-danger mt-2 text-center">
-                                    Debesx iniciar sesión para cotizar u ordenar.
+                                    Debes iniciar sesión para cotizar u ordenar.
                                 </p>
                             }
                             else if (string.IsNullOrWhiteSpace(deliveryInstructions))
@@ -405,9 +406,9 @@
                 await JSRuntime.InvokeVoidAsync("alert", jsEx.Message);
             }
         }
-        private async Task RemoveFromCart(Products product)
+        private async Task RemoveFromCart(CartItem item)
         {
-            await CartService.RemoveFromCartAsync(product);
+            await CartService.RemoveFromCartAsync(item.Product, item.AluzincCalibre, item.AluzincMilimetro, item.AluzincColor);
         }
         private async Task UpdateQuantity(CartItem item, ChangeEventArgs e)
         {
@@ -501,7 +502,7 @@
                 if (!isSuperAdmin)
                 {
                     // APLICA SOLO PARA USUARIOS NORMALES
-                    var userIdInt = int.Parse(userId);
+                    if (!int.TryParse(userId, out var userIdInt)) return;
                     var userQuotations = await QuotationService.GetQuotationsByUserIdAsync(userIdInt);
 
                     // Count solo las no ordenadas (o todas si prefieres).
@@ -560,7 +561,7 @@
                         Freight = freight,
                         ISV = isvGeneral,
                         Total = totalCotizacion,
-                        UserID = int.Parse(userId),
+                        UserID = int.TryParse(userId, out var quid) ? quid : 0,
                         QuotationNumber = nuevoNumeroCotizacion,
                         FreightLatitude = selectedLatitude,
                         FreightLongitude = selectedLongitude,
@@ -642,17 +643,18 @@
             }
             var newOrderNumber = $"ORD-{Guid.NewGuid().ToString().Substring(0, 8)}";
             var subtotal = CartService.GetTotalPrice();
-            var tax = subtotal * 0.15m;
-            var totalOrder = subtotal + tax + (decimal)freightPrice;
+            var freight = (decimal)freightPrice;
+            var tax = (subtotal + freight) * 0.15m;
+            var totalOrder = subtotal + tax + freight;
             // Ejemplo dentro de IniciarProcesoOrden()
             var newOrder = new Order
                 {
                     OrderNumber = newOrderNumber,
-                    UserId = int.Parse(userId),
+                    UserId = int.TryParse(userId, out var uid) ? uid : 0,
                     OrderDate = DateTime.Now,
                     Subtotal = subtotal,
                     Tax = tax,
-                    Freight = (decimal)freightPrice,
+                    Freight = freight,
                     Total = totalOrder,
                     DeliveryInstructions = deliveryInstructions,
                     FreightLatitude = selectedLatitude,

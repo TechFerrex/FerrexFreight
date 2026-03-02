@@ -26,7 +26,7 @@ namespace FerrexWeb.Services
         public async Task<SubCategory> GetSubCategoryByIdAsync(int subCategoryId)
         {
             return await _dbContext.SubCategories
-                .Include(s => s.SubCategories2) // opcional es pendejo
+                .Include(s => s.SubCategories2)
                 .FirstOrDefaultAsync(s => s.id_subcategory == subCategoryId);
         }
     }

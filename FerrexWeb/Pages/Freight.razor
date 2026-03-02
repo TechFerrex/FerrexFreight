@@ -3,9 +3,13 @@
 @using System.Security.Claims
 @using FerrexWeb.Models
 @using FerrexWeb.Services
+@using System.Text.Json
 @inject IJSRuntime JS
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject FreightQuotationService FreightQuotationService
+@inject IConfiguration Configuration
+@implements IDisposable
+<input id="stops-json" type="hidden" />
 
 <div class="container my-5">
     <div class="card shadow">
@@ -16,30 +20,116 @@
             <div id="alertMessage" class="alert alert-warning" style="display: none; margin-bottom: 15px;" role="alert"></div>
             <div class="row">
                 <div class="col-md-4">
-                    <button class="btn btn-secondary w-100 mb-2" @onclick="ActivateMapSelection">Seleccionar en el Mapa</button>
-                    <div class="d-flex align-items-center justify-content-center my-2">
+                                     <!-- Sección de Ruta Mejorada -->
+                    <div class="route-container mb-4">
+                        <h4 class="route-title">
+                            <i class="fas fa-route"></i> Tu Ruta
+                        </h4>
+
+                        <!-- Lista de ubicaciones reordenable -->
+                        <div class="route-list">
+                            <!-- Origen -->
+                            <div class="route-item origin-item">
+                                <div class="route-icon">
+                                    <i class="fas fa-circle" style="color: #28a745;"></i>
+                                </div>
+                                <div class="route-content">
+                                    <label class="route-label">Origen</label>
+                                    <input id="origin-input"
+                                           type="text"
+                                           class="form-control route-input"
+                                           placeholder="¿Desde dónde sales?"
+                                           @bind="OriginAddress" />
+                                </div>
+                                <div class="route-controls">
+                                    <button class="btn btn-sm btn-outline-primary" @onclick='() => SelectLocationOnMap("origin")' title="Seleccionar en mapa">
+                                        <i class="fas fa-map-marker-alt"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Paradas intermedias -->
+                            @for (int i = 0; i < Stops.Count; i++)
+                            {
+                                int index = i; // Captura para el closure
+                                var stopKey = $"stop-{index}-{Stops[index].GetHashCode()}";
+                                               <div class="route-item stop-item" @key="stopKey">
+                                                   <div class="route-icon">
+                                                       <span class="stop-number">@(i + 1)</span>
+                                                   </div>
+                                                   <div class="route-content">
+                                                       <label class="route-label">Parada @(i + 1)</label>
+                                                       <input type="text"
+                                                              class="form-control route-input stop-input"
+                                                              placeholder="¿Dónde vas a parar?"
+                                                              @bind="Stops[index].Address"
+                                                              @bind:event="oninput"
+                                                              id="stop-input-@index" />
+                                                   </div>
+                                                   <div class="route-controls">
+                                                       <button class="btn btn-sm btn-outline-primary me-1"
+                                                               @onclick='() => SelectLocationOnMap($"stop-{i}")'
+                                                               title="Seleccionar en mapa">
+                                                           <i class="fas fa-map-marker-alt"></i>
+                                                       </button>
+                                                       <div class="btn-group-vertical">
+                                                           <button class="btn btn-sm btn-outline-secondary"
+                                                                   @onclick="() => MoveStopUp(index)"
+                                                                   disabled="@(index == 0)"
+                                                                   title="Mover arriba">
+                                                               <i class="fas fa-chevron-up"></i>
+                                                           </button>
+                                                           <button class="btn btn-sm btn-outline-secondary"
+                                                                   @onclick="() => MoveStopDown(index)"
+                                                                   disabled="@(index == Stops.Count - 1)"
+                                                                   title="Mover abajo">
+                                                               <i class="fas fa-chevron-down"></i>
+                                                           </button>
+                                                       </div>
+                                                       <button class="btn btn-sm btn-outline-danger ms-1"
+                                                               @onclick="() => RemoveStop(index)"
+                                                               title="Eliminar parada">
+                                                           <i class="fas fa-times"></i>
+                                                       </button>
+                                                   </div>
+                                               </div>
+                            }
+
+                            <!-- Destino -->
+                            <div class="route-item destination-item">
+                                <div class="route-icon">
+                                    <i class="fas fa-circle" style="color: #dc3545;"></i>
+                                </div>
+                                <div class="route-content">
+                                    <label class="route-label">Destino</label>
+                                    <input id="destination-input"
+                                           type="text"
+                                           class="form-control route-input"
+                                           placeholder="¿A dónde vas?"
+                                           @bind="DestinationAddress" />
+                                </div>
+                                <div class="route-controls">
+                                    <button class="btn btn-sm btn-outline-primary" @onclick='() => SelectLocationOnMap("destination")' title="Seleccionar en mapa">
+                                        <i class="fas fa-map-marker-alt"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Botón para agregar parada -->
+                        <div class="add-stop-section">
+                            <button class="btn btn-outline-success w-100" @onclick="AddStopManually">
+                                <i class="fas fa-plus"></i> Agregar Parada
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="d-flex align-items-center justify-content-center my-3">
                         <hr style="flex-grow: 1; border-top: 1px dashed #6c757d; margin: 0;">
-                        <span style="margin: 0 10px; color: #6c757d;">o</span>
+                        <span style="margin: 0 10px; color: #6c757d; font-weight: 500;">Detalles del Flete</span>
                         <hr style="flex-grow: 1; border-top: 1px dashed #6c757d; margin: 0;">
                     </div>
-                    <div class="mb-3">
-                        <label for="origin-input" class="form-label">Escribe el Origen</label>
-                        <input id="origin-input" type="text" class="form-control" placeholder="Ingresa origen o usa selección en mapa" />
-                    </div>
-                    <div class="mb-3">
-                        <label for="destination-input" class="form-label">Escribe el Destino</label>
-                        <input id="destination-input" type="text" class="form-control" placeholder="Ingresa destino o usa selección en mapa" />
-                    </div>
-                    @* <div class="mb-3">
-                        <label for="truck-type" class="form-label">Tipo de Camión</label>
-                        <select id="truck-type" class="form-select" @onchange="UpdateTruckCosts">
-                            <option value="pickup">Tipo Pickup</option>
-                            <option value="panel">Tipo Panelita</option>
-                            <option value="small">Camión Pequeño (6 ton)</option>
-                            <option value="medium">Camión Mediano (12 ton)</option>
-                            <option value="big">Cabezal</option>
-                        </select>
-                    </div> *@
+
                     <div class="mb-3">
                         <label class="form-label">Tipo de Camión</label>
                         <div class="truck-selection d-flex flex-wrap gap-3">
@@ -55,24 +145,25 @@
                                 <i class="fas fa-truck"></i>
                                 <div class="truck-name">Camión Pequeño (6 ton)</div>
                             </div>
-                            @* <div class="truck-card @(selectedTruckType == "medium" ? "active" : "")"
-                                 data-truck-type="medium"
-                                 @onclick='() => SelectTruckType("medium")'>
-                                <i class="fas fa-truck-moving"></i>
-                                <div class="truck-name">Camión Mediano (12 ton)</div>
-                            </div> *@
                         </div>
                         <input id="truck-type" type="hidden" value="@selectedTruckType" />
                     </div>
+
                     <div class="mb-3">
                         <label for="freight-date" class="form-label">Fecha de Programación</label>
                         <input id="freight-date" type="date" class="form-control" min="@MinDate" />
                     </div>
+
                     <div class="mb-3">
-                        <button class="btn btn-success w-100 mb-2" @onclick="CalculateRoute">Calcular Ruta</button>
-                        <button class="btn btn-danger w-100" @onclick="ClearData">Limpiar datos</button>
+                        <button class="btn btn-success w-100 mb-2" @onclick="CalculateRoute">
+                            <i class="fas fa-calculator"></i> Calcular Ruta
+                        </button>
+                        <button class="btn btn-outline-danger w-100" @onclick="ClearData">
+                            <i class="fas fa-trash"></i> Limpiar datos
+                        </button>
                     </div>
                 </div>
+
                 <div class="col-md-8">
                     <div id="map-container" style="position: relative;">
                         <div id="map" style="height: 500px; width: 100%;"></div>
@@ -98,6 +189,13 @@
     private string MinDate { get; set; } = DateTime.Now.AddDays(1).ToString("yyyy-MM-dd");
     private DotNetObjectReference<Freight> dotNetRef;
 
+    // Propiedades para los campos de entrada
+    private string OriginAddress { get; set; } = "";
+    private string DestinationAddress { get; set; } = "";
+
+    // Lista de paradas intermedias
+    private List<StopDto> Stops { get; set; } = new();
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (_firstRender)
@@ -105,7 +203,10 @@
             dotNetRef = DotNetObjectReference.Create(this);
             try
             {
-                await JS.InvokeVoidAsync("loadGoogleMapsScript", dotNetRef);
+                var apiKey = Configuration["GoogleMaps:ApiKey"];
+                await JS.InvokeVoidAsync("loadGoogleMapsScript", dotNetRef, apiKey);
+                // Inicializar autocompletado para todos los campos
+                await InitializeAutocomplete();
             }
             catch (JSException jsEx)
             {
@@ -116,112 +217,428 @@
         }
     }
 
+    public void Dispose()
+    {
+        dotNetRef?.Dispose();
+    }
+
+    private async Task InitializeAutocomplete()
+    {
+        // Inicializar autocompletado para origen y destino
+        await JS.InvokeVoidAsync("initializeAutocomplete", "origin-input");
+        await JS.InvokeVoidAsync("initializeAutocomplete", "destination-input");
+
+        // Inicializar autocompletado para paradas existentes
+        for (int i = 0; i < Stops.Count; i++)
+        {
+            await JS.InvokeVoidAsync("initializeAutocomplete", $"stop-input-{i}");
+        }
+    }
+
+    // Agregar nueva parada
+    private async Task AddStopManually()
+    {
+        Stops.Add(new StopDto("", 0m, 0m));
+        int newIndex = Stops.Count - 1;
+
+        // StateHasChanged se llama automáticamente después de eventos de UI
+        // Solo esperamos para que el DOM se actualice antes de inicializar autocomplete
+        await Task.Yield();
+        await JS.InvokeVoidAsync("initializeAutocomplete", $"stop-input-{newIndex}");
+    }
 
     [JSInvokable]
-    public async Task<string> SaveFreightQuotation(decimal distanceKm, decimal costPerKm, decimal baseCost, decimal insuranceCost, decimal totalCost, string truckType, string insuranceOption, string origin, string destination, string freightDate, decimal freightLatitude, decimal freightLongitude)
+    public async Task SelectTruckType(string type)
+    {
+        if (selectedTruckType == type) return; // Evitar re-render innecesario
+        selectedTruckType = type;
+        await JS.InvokeVoidAsync("applyTruckSelectionEffect", type);
+    }
+    // Seleccionar ubicación en el mapa
+    private async Task SelectLocationOnMap(string locationType)
+    {
+        await JS.InvokeVoidAsync("selectLocationOnMap", locationType);
+    }
+
+    // Mover parada hacia arriba
+    private async Task MoveStopUp(int index)
+    {
+        if (index <= 0) return;
+        (Stops[index - 1], Stops[index]) = (Stops[index], Stops[index - 1]);
+        await ReinitializeStopAutocomplete();
+    }
+
+    // Mover parada hacia abajo
+    private async Task MoveStopDown(int index)
+    {
+        if (index >= Stops.Count - 1) return;
+        (Stops[index + 1], Stops[index]) = (Stops[index], Stops[index + 1]);
+        await ReinitializeStopAutocomplete();
+    }
+
+    // Eliminar parada
+    private async Task RemoveStop(int index)
+    {
+        Stops.RemoveAt(index);
+        await ReinitializeStopAutocomplete();
+    }
+
+    // Reinicializar autocompletado de paradas después de reordenar
+    private async Task ReinitializeStopAutocomplete()
+    {
+        await Task.Yield(); // Esperar actualización del DOM sin bloquear
+        for (int i = 0; i < Stops.Count; i++)
+        {
+            await JS.InvokeVoidAsync("initializeAutocomplete", $"stop-input-{i}");
+        }
+    }
+
+    // ── Tarifas y fórmulas centralizadas en el servidor ──
+    private static readonly Dictionary<string, decimal> TruckRates = new()
+    {
+        ["pickup"] = 33m,
+        ["small"]  = 37m,
+        ["medium"] = 50m
+    };
+
+    private static readonly string[] ValidInsuranceOptions = { "none", "basic", "premium" };
+    private const decimal MaxDistanceKmHonduras = 1000m;
+    private const decimal StopExtraCost = 150m;
+
+    private static (decimal costPerKm, decimal baseCost, decimal insuranceCost, decimal totalCost) CalculateFreightPricing(
+        decimal distanceKm, string truckType, string insuranceOption, int stopCount)
+    {
+        var costPerKm = TruckRates.GetValueOrDefault(truckType, 33m);
+
+        decimal baseCost;
+        decimal baseFlat = truckType == "small" ? 600m : 350m;
+        if (distanceKm <= 6m)
+        {
+            baseCost = baseFlat;
+        }
+        else
+        {
+            baseCost = baseFlat + (distanceKm - 6m) * costPerKm;
+        }
+
+        decimal insuranceCost = insuranceOption switch
+        {
+            "basic"   => baseCost * 0.05m,
+            "premium" => baseCost * 0.10m,
+            _         => 0m
+        };
+
+        decimal extraStopCost = stopCount * StopExtraCost;
+        decimal totalCost = baseCost + insuranceCost + extraStopCost;
+
+        return (costPerKm, baseCost, insuranceCost, totalCost);
+    }
+
+    private string? ValidateFreightInputs(decimal distanceKm, string truckType, string insuranceOption,
+        string origin, string destination, string freightDate, out DateTime parsedDate)
+    {
+        parsedDate = default;
+
+        if (string.IsNullOrWhiteSpace(origin) || string.IsNullOrWhiteSpace(destination))
+            return "Origen y destino son requeridos.";
+
+        if (!TruckRates.ContainsKey(truckType))
+            return $"Tipo de camión inválido: {truckType}";
+
+        if (!ValidInsuranceOptions.Contains(insuranceOption))
+            return $"Opción de seguro inválida: {insuranceOption}";
+
+        if (distanceKm <= 0 || distanceKm > MaxDistanceKmHonduras)
+            return $"Distancia inválida: {distanceKm} km. Debe ser entre 0 y {MaxDistanceKmHonduras} km.";
+
+        if (!DateTime.TryParse(freightDate, out parsedDate))
+            return "Fecha de flete inválida.";
+
+        if (parsedDate.Date < DateTime.Now.Date)
+            return "La fecha del flete debe ser futura.";
+
+        return null; // válido
+    }
+
+    [JSInvokable]
+    public async Task<string> SaveFreightQuotation(decimal distanceKm, decimal costPerKm, decimal baseCost, decimal insuranceCost, decimal totalCost, string truckType, string insuranceOption, string origin, string destination, string freightDate, decimal freightLatitude, decimal freightLongitude, string stopsJson)
     {
         var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
         var user = authState.User;
 
-        // Primero se verifica si el usuario está autenticado
         if (!user.Identity.IsAuthenticated)
-        {
             return "Por favor, inicie sesión para cotizar.";
-        }
 
-        int userId = int.Parse(user.FindFirstValue(ClaimTypes.NameIdentifier));
+        var validationError = ValidateFreightInputs(distanceKm, truckType, insuranceOption, origin, destination, freightDate, out var parsedDate);
+        if (validationError != null)
+            return validationError;
+
+        var stops = string.IsNullOrWhiteSpace(stopsJson)
+                  ? new List<StopDto>()
+                  : JsonSerializer.Deserialize<List<StopDto>>(stopsJson)!;
+
+        // Recalcular precios en el servidor — ignora valores del cliente
+        var (serverCostPerKm, serverBaseCost, serverInsuranceCost, serverTotalCost) =
+            CalculateFreightPricing(distanceKm, truckType, insuranceOption, stops.Count);
+
+        if (!int.TryParse(user.FindFirstValue(ClaimTypes.NameIdentifier), out int userId))
+            return "Error de autenticación.";
 
         var fq = new FreightQuotation
-            {
-                UserId = userId,
-                QuotationNumber = "FQ-" + Guid.NewGuid().ToString().Substring(0, 8),
-                Origin = origin,
-                Destination = destination,
-                FreightDate = DateTime.Parse(freightDate),
-                TruckType = truckType,
-                InsuranceOption = insuranceOption,
-                DistanceKm = distanceKm,
-                CostPerKm = costPerKm,
-                BaseCost = baseCost,
-                InsuranceCost = insuranceCost,
-                TotalCost = totalCost,
-                FreightLatitude = freightLatitude,
-                FreightLongitude = freightLongitude,
-                Status = 0 // 0 = Cotización
-            };
+        {
+            UserId = userId,
+            QuotationNumber = "FQ-" + Guid.NewGuid().ToString().Substring(0, 8),
+            Origin = origin,
+            Destination = destination,
+            FreightDate = parsedDate,
+            TruckType = truckType,
+            InsuranceOption = insuranceOption,
+            DistanceKm = distanceKm,
+            CostPerKm = serverCostPerKm,
+            BaseCost = serverBaseCost,
+            InsuranceCost = serverInsuranceCost,
+            TotalCost = serverTotalCost,
+            FreightLatitude = freightLatitude,
+            FreightLongitude = freightLongitude,
+            Status = 0
+        };
 
         await FreightQuotationService.AddFreightQuotationAsync(fq);
+
+        var entities = stops.Select((s, i) => new FreightStop
+        {
+            FreightQuotationId = fq.Id,
+            Sequence = i + 1,
+            Address = s.Address,
+            Latitude = s.Lat,
+            Longitude = s.Lng
+        });
+        await FreightQuotationService.AddFreightStopsAsync(entities);
+
         return "Cotización guardada correctamente";
     }
+
     [JSInvokable]
-    public async Task<string> SaveFreightOrder(decimal distanceKm, decimal costPerKm, decimal baseCost, decimal insuranceCost, decimal totalCost, string truckType, string insuranceOption, string origin, string destination, string freightDate, decimal freightLatitude, decimal freightLongitude)
+    public async Task<string> SaveFreightOrder(decimal distanceKm, decimal costPerKm, decimal baseCost, decimal insuranceCost, decimal totalCost, string truckType, string insuranceOption, string origin, string destination, string freightDate, decimal freightLatitude, decimal freightLongitude, string stopsJson)
     {
         var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
         var user = authState.User;
 
-        // Se verifica la autenticación antes de parsear el user ID
         if (!user.Identity.IsAuthenticated)
-        {
             return "Por favor, inicie sesión para ordenar el flete.";
-        }
 
-        int userId = int.Parse(user.FindFirstValue(ClaimTypes.NameIdentifier));
+        var validationError = ValidateFreightInputs(distanceKm, truckType, insuranceOption, origin, destination, freightDate, out var parsedDate);
+        if (validationError != null)
+            return validationError;
+
+        var stops = string.IsNullOrWhiteSpace(stopsJson)
+                  ? new List<StopDto>()
+                  : JsonSerializer.Deserialize<List<StopDto>>(stopsJson)!;
+
+        // Recalcular precios en el servidor — ignora valores del cliente
+        var (serverCostPerKm, serverBaseCost, serverInsuranceCost, serverTotalCost) =
+            CalculateFreightPricing(distanceKm, truckType, insuranceOption, stops.Count);
+
+        if (!int.TryParse(user.FindFirstValue(ClaimTypes.NameIdentifier), out int userId))
+            return "Error de autenticación.";
 
         var fq = new FreightQuotation
-            {
-                UserId = userId,
-                QuotationNumber = "FQ-" + Guid.NewGuid().ToString().Substring(0, 8),
-                Origin = origin,
-                Destination = destination,
-                FreightDate = DateTime.Parse(freightDate),
-                TruckType = truckType,
-                InsuranceOption = insuranceOption,
-                DistanceKm = distanceKm,
-                CostPerKm = costPerKm,
-                BaseCost = baseCost,
-                InsuranceCost = insuranceCost,
-                TotalCost = totalCost,
-                FreightLatitude = freightLatitude,
-                FreightLongitude = freightLongitude,
-                Status = 1 // 1 = Ordenada (Hacer Flete)
-            };
+        {
+            UserId = userId,
+            QuotationNumber = "FQ-" + Guid.NewGuid().ToString().Substring(0, 8),
+            Origin = origin,
+            Destination = destination,
+            FreightDate = parsedDate,
+            TruckType = truckType,
+            InsuranceOption = insuranceOption,
+            DistanceKm = distanceKm,
+            CostPerKm = serverCostPerKm,
+            BaseCost = serverBaseCost,
+            InsuranceCost = serverInsuranceCost,
+            TotalCost = serverTotalCost,
+            FreightLatitude = freightLatitude,
+            FreightLongitude = freightLongitude,
+            Status = 1
+        };
 
         await FreightQuotationService.AddFreightQuotationAsync(fq);
+
+        var entities = stops.Select((s, i) => new FreightStop
+        {
+            FreightQuotationId = fq.Id,
+            Sequence = i + 1,
+            Address = s.Address,
+            Latitude = s.Lat,
+            Longitude = s.Lng
+        });
+        await FreightQuotationService.AddFreightStopsAsync(entities);
+
         return "Flete ordenado exitosamente";
     }
 
     private string selectedTruckType { get; set; } = "pickup";
-    private async Task SelectTruckType(string type)
-    {
-        selectedTruckType = type;
-        await JS.InvokeVoidAsync("applyTruckSelectionEffect", type);
-        await JS.InvokeVoidAsync("updateTruckCosts");
-
-        _ = JS.InvokeVoidAsync("updateTruckCosts");
-    }
-
     private async Task ActivateMapSelection() => await JS.InvokeVoidAsync("activateMapSelection");
+
     private async Task CalculateRoute()
     {
         var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
 
-        // 1.  ¿Está autenticado?
         if (!authState.User.Identity.IsAuthenticated)
         {
-            // 2.  Muestra un aviso en el navegador y sale
             await JS.InvokeVoidAsync("showAlert",
                 "Por favor, inicie sesión o regístrese para poder calcular el flete.");
             return;
         }
 
-        // 3.  Continúa con el cálculo normal
-        await JS.InvokeVoidAsync("calculateRoute");
+        var stopsJson = JsonSerializer.Serialize(Stops);
+        await JS.InvokeVoidAsync("calculateRoute", stopsJson);
     }
-    private async Task UpdateTruckCosts() => await JS.InvokeVoidAsync("updateTruckCosts");
-    private async Task ClearData() => await JS.InvokeVoidAsync("clearData");
+    private async Task UpdateTruckCosts()
+    {
+        await JS.InvokeVoidAsync("updateTruckCosts", selectedTruckType);
+    }
+    private async Task ClearData()
+    {
+        OriginAddress = "";
+        DestinationAddress = "";
+        Stops.Clear();
+        // StateHasChanged se llama automáticamente después del evento
+        await JS.InvokeVoidAsync("clearData");
+    }
 }
 
 <style>
+    /* Estilos para la sección de ruta mejorada */
+    .route-container {
+        background: #f8f9fa;
+        border-radius: 12px;
+        padding: 20px;
+        border: 1px solid #e9ecef;
+    }
+
+    .route-title {
+        color: #495057;
+        font-size: 1.1rem;
+        font-weight: 600;
+        margin-bottom: 15px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .route-list {
+        position: relative;
+    }
+
+    .route-item {
+        display: flex;
+        align-items: flex-start;
+        margin-bottom: 15px;
+        position: relative;
+        background: white;
+        border-radius: 8px;
+        padding: 12px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        transition: all 0.3s ease;
+    }
+
+        .route-item:hover {
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+            transform: translateY(-1px);
+        }
+
+        .route-item:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            left: 23px;
+            bottom: -15px;
+            width: 2px;
+            height: 15px;
+            background: linear-gradient(to bottom, #dee2e6, transparent);
+            z-index: 1;
+        }
+
+    .route-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 30px;
+        height: 30px;
+        margin-right: 12px;
+        flex-shrink: 0;
+        position: relative;
+        z-index: 2;
+    }
+
+    .stop-number {
+        background: #007bff;
+        color: white;
+        border-radius: 50%;
+        width: 24px;
+        height: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.8rem;
+        font-weight: 600;
+    }
+
+    .route-content {
+        flex-grow: 1;
+        margin-right: 12px;
+    }
+
+    .route-label {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #6c757d;
+        margin-bottom: 4px;
+        display: block;
+    }
+
+    .route-input {
+        border: 1px solid #dee2e6;
+        border-radius: 6px;
+        font-size: 0.95rem;
+        transition: all 0.3s ease;
+    }
+
+        .route-input:focus {
+            border-color: #007bff;
+            box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+        }
+
+    .route-controls {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        flex-shrink: 0;
+    }
+
+    .btn-group-vertical .btn {
+        padding: 2px 6px;
+        font-size: 0.7rem;
+    }
+
+    /* Estilos específicos para origen y destino */
+    .origin-item {
+        border-left: 4px solid #28a745;
+    }
+
+    .destination-item {
+        border-left: 4px solid #dc3545;
+    }
+
+    .stop-item {
+        border-left: 4px solid #007bff;
+    }
+
+    /* Sección para agregar parada */
+    .add-stop-section {
+        margin-top: 15px;
+        padding-top: 15px;
+        border-top: 2px dashed #dee2e6;
+    }
 
     /* Mejoras visuales para el contenedor de selección de camiones */
     .truck-selection {
@@ -230,10 +647,9 @@
         gap: 15px;
         justify-content: center;
         margin-top: 10px;
-        perspective: 1000px; /* Añade profundidad para efectos 3D */
+        perspective: 1000px;
     }
 
-    /* Estilo base mejorado para las tarjetas de camiones */
     .truck-card {
         border: 2px solid #e0e0e0;
         border-radius: 10px;
@@ -249,14 +665,12 @@
         z-index: 1;
     }
 
-        /* Efecto hover avanzado */
         .truck-card:hover {
             transform: translateY(-8px) scale(1.05);
             box-shadow: 0 10px 20px rgba(0,0,0,0.15);
             border-color: #F5C144;
         }
 
-        /* Efecto más destacado para la carta activa */
         .truck-card.active {
             background-color: #fffcf0;
             border-color: #F5C144;
@@ -264,7 +678,6 @@
             transform: translateY(-5px);
         }
 
-        /* Mejora visual para los iconos */
         .truck-card i {
             display: block;
             margin-bottom: 10px;
@@ -273,18 +686,15 @@
             transition: all 0.3s ease;
         }
 
-        /* Cambia color del icono en hover */
         .truck-card:hover i {
             color: #F5C144;
             transform: scale(1.1);
         }
 
-        /* Color del icono en la carta activa */
         .truck-card.active i {
             color: #F5C144;
         }
 
-        /* Nombre del camión con estilo mejorado */
         .truck-card .truck-name {
             font-weight: 500;
             margin-top: 5px;
@@ -298,7 +708,6 @@
             color: #333;
         }
 
-        /* Efecto de destello al seleccionar */
         .truck-card::after {
             content: '';
             position: absolute;
@@ -316,14 +725,12 @@
             animation: shine 1.5s ease-out;
         }
 
-    /* Animación de destello */
     @@keyframes shine {
         100% {
             transform: translateX(100%);
         }
     }
 
-    /* Efecto pulsante sutil para la carta activa */
     @@keyframes pulse {
         0% {
             box-shadow: 0 0 0 0 rgba(245, 193, 68, 0.7);
@@ -342,52 +749,21 @@
         animation: pulse 2s infinite;
     }
 
-    /* Mejoras para responsividad */
-    @@media (max-width: 768px) {
-        .truck-selection {
-            gap: 10px;
-        }
-
-        .truck-card {
-            width: calc(33.33% - 10px);
-            padding: 12px 8px;
-            min-width: 90px;
-        }
-
-            .truck-card i {
-                font-size: 1.8rem;
-                margin-bottom: 5px;
-            }
-
-            .truck-card .truck-name {
-                font-size: 0.8rem;
-            }
-    }
-
-    @@media (max-width: 480px) {
-        .truck-selection {
-            gap: 8px;
-        }
-
-        .truck-card {
-            width: calc(50% - 8px);
-            padding: 10px 5px;
-        }
-    }
-
     .btn-success {
         background-color: #F5C144;
         border-color: #F5C144;
+        font-weight: 600;
     }
 
         .btn-success:hover {
-            background-color: #A7A9AC;
-            border-color: #A7A9AC;
+            background-color: #d4a832;
+            border-color: #d4a832;
         }
 
     .btn-secondary {
         background-color: #000000;
         border-color: #000000;
+        font-weight: 600;
     }
 
         .btn-secondary:hover {
@@ -395,15 +771,22 @@
             border-color: #A7A9AC;
         }
 
+    .btn-outline-danger:hover {
+        background-color: #dc3545;
+        border-color: #dc3545;
+    }
+
     .card {
-        border-radius: 0.5rem;
+        border-radius: 0.75rem;
+        border: none;
     }
 
     .header-card {
-        background-color: #007bff;
-        color: white;
-        border-top-left-radius: 0.5rem;
-        border-top-right-radius: 0.5rem;
+        background-color: #F5C144;
+        color: #333;
+        border-top-left-radius: 0.75rem;
+        border-top-right-radius: 0.75rem;
+        font-weight: 700;
     }
 
     .pac-container {
@@ -468,5 +851,47 @@
         #map {
             height: 300px;
         }
+
+        .route-item {
+            padding: 8px;
+        }
+
+        .route-controls {
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .truck-selection {
+            gap: 10px;
+        }
+
+        .truck-card {
+            width: calc(50% - 10px);
+            padding: 12px 8px;
+            min-width: 120px;
+        }
+
+            .truck-card i {
+                font-size: 1.8rem;
+                margin-bottom: 5px;
+            }
+
+            .truck-card .truck-name {
+                font-size: 0.8rem;
+            }
     }
+
+    @@media (max-width: 480px) {
+        .truck-card {
+            width: 100%;
+            max-width: 200px;
+        }
+    }
+
+    .map-selected {
+        background-color: #e9ecef;
+        color: #6c757d;
+        font-style: italic;
+    }
+
 </style>

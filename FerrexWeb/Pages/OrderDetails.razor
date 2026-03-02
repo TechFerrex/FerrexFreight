@@ -22,7 +22,7 @@
                 <div class="row">
                     <div class="col-md-6">
                         <h4>Número de Orden: <strong>@order.OrderNumber</strong></h4>
-                        <p><strong>Cliente:</strong> @order.User.Name</p>
+                        <p><strong>Cliente:</strong> @(order.User?.Name ?? "N/A")</p>
                         <p><strong>Fecha:</strong> @order.OrderDate.ToString("dd/MM/yyyy")</p>
                         <p><strong>Flete:</strong> @order.Freight.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</p>
                     </div>
@@ -144,7 +144,25 @@
     {
         var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
         user = authState.User;
+
+        if (!user.Identity.IsAuthenticated)
+        {
+            return;
+        }
+
         order = await OrderService.GetOrderByIdAsync(Id);
+
+        if (order == null)
+        {
+            return;
+        }
+
+        // Verificar que el usuario es dueño o SuperAdmin
+        var userIdStr = user.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!user.IsInRole("SuperAdmin") && !(int.TryParse(userIdStr, out var uid) && uid == order.UserId))
+        {
+            order = null; // No autorizado, no mostrar datos
+        }
     }
 
     private void OpenChangeStatusModal()

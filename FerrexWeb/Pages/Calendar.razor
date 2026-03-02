@@ -1,7 +1,10 @@
 ﻿@page "/calendar"
 @using System.Globalization
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Authorization
 @using FerrexWeb.Models
 @using FerrexWeb.Services
+@attribute [Authorize(Roles = "SuperAdmin")]
 @inject FreightQuotationService QuotationService
 @inject NavigationManager NavigationManager
 @inject AuthenticationStateProvider AuthenticationStateProvider
@@ -261,7 +264,6 @@
                                     </div>
                                     <div class="col-md-6">
                                         <div class="mb-2"><strong>Teléfono:</strong> @ClientPhone</div>
-                                        <div class="mb-2"><strong>Empresa:</strong> @ClientCompany</div>
                                     </div>
                                 </div>
                             </div>
@@ -739,7 +741,11 @@
                     Origin = q.Origin,
                     Destination = q.Destination,
                     TruckType = q.TruckType,
-                    TotalCost = q.TotalCost
+                    TotalCost = q.TotalCost,
+                    DistanceKm = q.DistanceKm,
+                    ClientName = q.User?.Name ?? "Sin nombre",
+                    ClientEmail = q.User?.Email ?? "Sin email",
+                    ClientPhone = q.User?.PhoneNumber ?? "Sin teléfono"
                 }).ToList();
 
             ShowEventsForDay(DateTime.Today);
@@ -774,7 +780,7 @@
 
     private void NavigateToDetails(int quotationId)
     {
-        NavigationManager.NavigateTo($"/quotation-details/{quotationId}");
+        NavigationManager.NavigateTo($"/freightquotations");
     }
 
     private string GetDayClass(DateTime date, List<CalendarEventDto> events, bool isSelected)
@@ -834,22 +840,26 @@
         public string Destination { get; set; } = string.Empty;
         public string TruckType { get; set; } = string.Empty;
         public decimal TotalCost { get; set; }
+        public decimal DistanceKm { get; set; }
+        // Datos del cliente desde User
+        public string ClientName { get; set; } = string.Empty;
+        public string ClientEmail { get; set; } = string.Empty;
+        public string ClientPhone { get; set; } = string.Empty;
     }
 
     // Add these properties to your Calendar.razor class
     private CalendarEventDto? SelectedFreight { get; set; }
     private bool IsFreightModalOpen { get; set; } = false;
 
-    // Client information - In a real app, you'd fetch this from the database
-    private string ClientName { get; set; } = "Cliente Ejemplo";
-    private string ClientEmail { get; set; } = "cliente@ejemplo.com";
-    private string ClientPhone { get; set; } = "(+504) 9999-8888";
-    private string ClientCompany { get; set; } = "Empresa S.A.";
+    // Client information populated from FreightQuotation.User
+    private string ClientName { get; set; } = "";
+    private string ClientEmail { get; set; } = "";
+    private string ClientPhone { get; set; } = "";
 
-    // Route information - In a real app, you'd calculate this based on origin/destination
-    private string DistanceEstimate { get; set; } = "150.5";
-    private string DurationEstimate { get; set; } = "180";
-    private string FuelEstimate { get; set; } = "45.2";
+    // Route information populated from FreightQuotation data
+    private string DistanceEstimate { get; set; } = "0";
+    private string DurationEstimate { get; set; } = "0";
+    private string FuelEstimate { get; set; } = "0";
 
     // Method to open the modal when clicking on an event in your calendar
     private void OpenFreightModal(CalendarEventDto freight)
@@ -857,11 +867,17 @@
         SelectedFreight = freight;
         IsFreightModalOpen = true;
 
-        // In a real application, you would fetch client data and route data here
-        // LoadClientData(freight.QuotationId);
-        // CalculateRouteEstimates(freight.Origin, freight.Destination);
+        // Populate client and route data from the DTO
+        ClientName = freight.ClientName;
+        ClientEmail = freight.ClientEmail;
+        ClientPhone = freight.ClientPhone;
+        DistanceEstimate = freight.DistanceKm.ToString("F1");
+        // Estimate duration: ~60 km/h average speed in Honduras
+        var estimatedMinutes = (int)(freight.DistanceKm / 60m * 60m);
+        DurationEstimate = estimatedMinutes.ToString();
+        // Estimate fuel: ~15 km/L average
+        FuelEstimate = (freight.DistanceKm / 15m).ToString("F1");
 
-        // Invoke JavaScript to show the modal and initialize the map
         StateHasChanged();
         JSRuntime.InvokeVoidAsync("showFreightModal", freight.Origin, freight.Destination);
     }
@@ -879,7 +895,7 @@
     {
         if (SelectedFreight != null)
         {
-            NavigationManager.NavigateTo($"/edit-quotation/{SelectedFreight.QuotationId}");
+            NavigationManager.NavigateTo($"/freightquotations");
         }
     }
 

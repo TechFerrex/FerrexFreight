@@ -128,7 +128,7 @@
 
     private async Task UpdateProfile()
     {
-        var dbUser = await DbContext.Users.FindAsync(userId);
+        var dbUser = await DbContext.Users.AsTracking().FirstOrDefaultAsync(u => u.Id == userId);
         if (dbUser == null)
         {
             profileUpdateError = "Usuario no encontrado.";
@@ -178,7 +178,13 @@
             return;
         }
 
-        var dbUser = await DbContext.Users.FindAsync(userId);
+        if (!IsPasswordValid(newPassword))
+        {
+            changePasswordError = "La contraseña debe tener al menos 8 caracteres, una mayúscula, un número y un carácter especial.";
+            return;
+        }
+
+        var dbUser = await DbContext.Users.AsTracking().FirstOrDefaultAsync(u => u.Id == userId);
         if (dbUser == null)
         {
             changePasswordError = "Usuario no encontrado.";
@@ -202,6 +208,13 @@
         {
             changePasswordError = "Error al cambiar la contraseña: " + ex.Message;
         }
+    }
+
+    private static bool IsPasswordValid(string password)
+    {
+        if (string.IsNullOrEmpty(password) || password.Length < 8) return false;
+        return password.Any(char.IsUpper) && password.Any(char.IsDigit)
+            && password.Any(c => !char.IsLetterOrDigit(c));
     }
 
     private async Task Logout()

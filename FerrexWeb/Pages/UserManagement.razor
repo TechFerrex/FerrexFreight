@@ -8,6 +8,9 @@
 <div class="user-management-container">
     <div class="page-header">
         <h3><i class="fas fa-users"></i> Gestión de Usuarios</h3>
+        <button class="btn btn-success" @onclick="OpenAddUserModal">
+            <i class="fas fa-user-plus"></i> Agregar Usuario
+        </button>
     </div>
 
     @if (users == null)
@@ -62,7 +65,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            @if (filteredUsers.Count == 0)
+                            @if (pagedUsers.Count == 0)
                             {
                                 <tr>
                                     <td colspan="7" class="text-center">No se encontraron usuarios</td>
@@ -70,7 +73,7 @@
                             }
                             else
                             {
-                                @foreach (var user in filteredUsers)
+                                @foreach (var user in pagedUsers)
                                 {
                                     <tr>
                                         <td>@user.Name</td>
@@ -246,10 +249,16 @@
                     <button type="button" class="btn-close" @onclick="CloseModals"></button>
                 </div>
                 <div class="modal-body">
+                    @if (!string.IsNullOrEmpty(errorMessage))
+                    {
+                        <div class="alert alert-danger">
+                            <i class="fas fa-exclamation-circle"></i> @errorMessage
+                        </div>
+                    }
                     <EditForm Model="@newUser" OnValidSubmit="AddUser">
                         <DataAnnotationsValidator />
                         <ValidationSummary />
-                        
+
                         <div class="form-group mb-3">
                             <label for="newUserName">Nombre</label>
                             <div class="input-group">
@@ -320,6 +329,7 @@
 @code {
     private List<User> users;
     private List<User> filteredUsers = new List<User>();
+    private List<User> pagedUsers = new List<User>();
     private User userToEdit;
     private User userToDelete;
     private User newUser = new User();
@@ -328,18 +338,19 @@
     private bool showAddModal = false;
     private bool showPassword = false;
     private string searchTerm = "";
-    
+    private string errorMessage = "";
+
     // Paginación
     private int currentPage = 1;
     private int itemsPerPage = 10;
     private int totalPages => (int)Math.Ceiling(filteredUsers.Count / (double)itemsPerPage);
-    
+
     // Ordenamiento
     private string currentSortField = "Name";
     private bool isAscending = true;
-    
-    // Roles disponibles
-    private List<string> availableRoles = new List<string> { "Usuario", "Admin", "SuperAdmin" };
+
+    // Roles disponibles (sincronizados con el sistema de login)
+    private List<string> availableRoles = new List<string> { "User", "Admin", "SuperAdmin" };
 
     protected override async Task OnInitializedAsync()
     {
@@ -362,19 +373,30 @@
         else
         {
             filteredUsers = users
-                .Where(u => 
-                    u.Name.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
-                    u.Email.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
-                    u.Role.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
-                    u.PhoneNumber.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
+                .Where(u =>
+                    (u.Name?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                    (u.Email?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                    (u.Role?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                    (u.PhoneNumber?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false))
                 .ToList();
         }
-        
+
         // Reaplicar ordenamiento
         SortUsers(currentSortField, updateSortDirection: false);
-        
+
         // Restablecer a primera página si el filtro cambia
         currentPage = 1;
+
+        // Aplicar paginación
+        ApplyPagination();
+    }
+
+    private void ApplyPagination()
+    {
+        pagedUsers = filteredUsers
+            .Skip((currentPage - 1) * itemsPerPage)
+            .Take(itemsPerPage)
+            .ToList();
     }
 
     private void ClearSearch()
@@ -389,42 +411,45 @@
         {
             isAscending = !isAscending;
         }
-        
+
         currentSortField = field;
-        
+
         switch (field)
         {
             case "Name":
-                filteredUsers = isAscending 
+                filteredUsers = isAscending
                     ? filteredUsers.OrderBy(u => u.Name).ToList()
                     : filteredUsers.OrderByDescending(u => u.Name).ToList();
                 break;
             case "Email":
-                filteredUsers = isAscending 
+                filteredUsers = isAscending
                     ? filteredUsers.OrderBy(u => u.Email).ToList()
                     : filteredUsers.OrderByDescending(u => u.Email).ToList();
                 break;
             case "Role":
-                filteredUsers = isAscending 
+                filteredUsers = isAscending
                     ? filteredUsers.OrderBy(u => u.Role).ToList()
                     : filteredUsers.OrderByDescending(u => u.Role).ToList();
                 break;
             case "PhoneNumber":
-                filteredUsers = isAscending 
-                    ? filteredUsers.OrderBy(u => u.PhoneNumber).ToList()
-                    : filteredUsers.OrderByDescending(u => u.PhoneNumber).ToList();
+                filteredUsers = isAscending
+                    ? filteredUsers.OrderBy(u => u.PhoneNumber ?? "").ToList()
+                    : filteredUsers.OrderByDescending(u => u.PhoneNumber ?? "").ToList();
                 break;
             case "CreateTime":
-                filteredUsers = isAscending 
+                filteredUsers = isAscending
                     ? filteredUsers.OrderBy(u => u.CreateTime).ToList()
                     : filteredUsers.OrderByDescending(u => u.CreateTime).ToList();
                 break;
             default:
-                filteredUsers = isAscending 
+                filteredUsers = isAscending
                     ? filteredUsers.OrderBy(u => u.Name).ToList()
                     : filteredUsers.OrderByDescending(u => u.Name).ToList();
                 break;
         }
+
+        // Aplicar paginación después de ordenar
+        ApplyPagination();
     }
 
     private void EditUser(User user)
@@ -522,34 +547,50 @@
 
     private async Task AddUser()
     {
+        errorMessage = "";
+
         try
         {
-            if (newUser != null && !string.IsNullOrWhiteSpace(newUser.NewPassword))
+            if (newUser == null || string.IsNullOrWhiteSpace(newUser.NewPassword))
             {
-                var user = new User
-                {
-                    Name = newUser.Name,
-                    Email = newUser.Email,
-                    PhoneNumber = newUser.PhoneNumber,
-                    Role = newUser.Role,
-                    CreateTime = DateTime.Now,
-                    Password = BCrypt.Net.BCrypt.HashPassword(newUser.NewPassword)
-                };
-                
-                await DbContext.Users.AddAsync(user);
-                await DbContext.SaveChangesAsync();
-                
-                // Notificación (implementar servicio de notificaciones)
-                // NotificationService.Success("Usuario creado con éxito");
-                
-                CloseModals();
-                await LoadUsers();
+                errorMessage = "La contraseña es requerida.";
+                return;
             }
+
+            if (string.IsNullOrWhiteSpace(newUser.Name) || string.IsNullOrWhiteSpace(newUser.Email))
+            {
+                errorMessage = "Nombre y email son requeridos.";
+                return;
+            }
+
+            // Validar email duplicado (case-insensitive)
+            var emailExists = await DbContext.Users.AnyAsync(u => u.Email.ToLower() == newUser.Email.ToLower());
+            if (emailExists)
+            {
+                errorMessage = "Ya existe un usuario con ese email.";
+                return;
+            }
+
+            var user = new User
+            {
+                Name = newUser.Name,
+                Email = newUser.Email,
+                PhoneNumber = newUser.PhoneNumber ?? "",
+                Role = newUser.Role ?? "User",
+                CreateTime = DateTime.Now,
+                Password = BCrypt.Net.BCrypt.HashPassword(newUser.NewPassword),
+                EmailConfirmed = true // Admin crea usuarios ya confirmados
+            };
+
+            await DbContext.Users.AddAsync(user);
+            await DbContext.SaveChangesAsync();
+
+            CloseModals();
+            await LoadUsers();
         }
         catch (Exception ex)
         {
-            // Manejo de errores (implementar servicio de notificaciones)
-            // NotificationService.Error($"Error al crear usuario: {ex.Message}");
+            errorMessage = $"Error al crear usuario: {ex.Message}";
             Console.WriteLine($"Error creando usuario: {ex.Message}");
         }
     }
@@ -565,7 +606,7 @@
         {
             "SuperAdmin" => "bg-danger",
             "Admin" => "bg-warning",
-            "Usuario" => "bg-info",
+            "User" => "bg-info",
             _ => "bg-secondary"
         };
     }
@@ -576,6 +617,7 @@
         if (currentPage > 1)
         {
             currentPage--;
+            ApplyPagination();
         }
     }
 
@@ -584,6 +626,7 @@
         if (currentPage < totalPages)
         {
             currentPage++;
+            ApplyPagination();
         }
     }
 
@@ -592,7 +635,15 @@
         if (page >= 1 && page <= totalPages)
         {
             currentPage = page;
+            ApplyPagination();
         }
+    }
+
+    private void OpenAddUserModal()
+    {
+        newUser = new User { Role = "User", EmailConfirmed = true };
+        errorMessage = "";
+        showAddModal = true;
     }
 }
 

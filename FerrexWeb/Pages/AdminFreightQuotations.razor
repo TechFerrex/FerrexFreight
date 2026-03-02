@@ -3,6 +3,7 @@
 @using FerrexWeb.Services
 @using Microsoft.AspNetCore.Authorization
 @using System.Security.Claims
+@using System.Text.Json
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject FreightQuotationService FreightQuotationService
 @inject NavigationManager NavigationManager
@@ -10,6 +11,7 @@
 @inject IJSRuntime JS
 
 @attribute [Authorize(Roles = "SuperAdmin")]
+@implements IDisposable
 
 <div class="container-fluid">
     <div class="card shadow mb-4">
@@ -19,61 +21,61 @@
                 <button class="btn btn-outline-primary" @onclick="RefreshData">
                     <i class="fas fa-sync mr-1"></i> Actualizar
                 </button>
-@*                 <button class="btn btn-success ml-2" @onclick="ExportToExcel">
+                @*                 <button class="btn btn-success ml-2" @onclick="ExportToExcel">
                     <i class="fas fa-file-excel mr-1"></i> Exportar a Excel
                 </button> *@
             </div>
         </div>
         <div class="card-body">
             <div class="row mb-3 align-items-end">
-              <div class="col-md-2">
-                <!-- Buscar -->
-                <div class="input-group">
-                  <div class="input-group-prepend">
-                    <span class="input-group-text">Filtrar</span>
-                  </div>
-                  <input type="text" class="form-control" placeholder="Buscar cotización..."
-                         @bind="searchTerm" @bind:event="oninput" @onkeyup="FilterQuotations" />
+                <div class="col-md-2">
+                    <!-- Buscar -->
+                    <div class="input-group">
+                        <div class="input-group-prepend">
+                            <span class="input-group-text">Filtrar</span>
+                        </div>
+                        <input type="text" class="form-control" placeholder="Buscar cotización..."
+                               @bind="searchTerm" @bind:event="oninput" @onkeyup="FilterQuotations" />
+                    </div>
                 </div>
-              </div>
 
-              <div class="col-md-2">
-                <!-- Estado -->
-                <select class="form-control" @bind="statusFilter">
-                  <option value="-1">Todos los estados</option>
-                  <option value="0">Cotización</option>
-                  <option value="1">Ordenada</option>
-                  <option value="2">Expirada</option>
-                  <option value="3">Pendiente</option>
-                  <option value="4">Entregada</option>
-                </select>
-              </div>
+                <div class="col-md-2">
+                    <!-- Estado -->
+                    <select class="form-control" @bind="statusFilter">
+                        <option value="-1">Todos los estados</option>
+                        <option value="0">Cotización</option>
+                        <option value="1">Ordenada</option>
+                        <option value="2">Expirada</option>
+                        <option value="3">Pendiente</option>
+                        <option value="4">Entregada</option>
+                    </select>
+                </div>
 
-              <div class="col-md-2">
-                <!-- Fecha -->
-                <input type="date" class="form-control" @bind="dateFilter" />
-              </div>
+                <div class="col-md-2">
+                    <!-- Fecha -->
+                    <input type="date" class="form-control" @bind="dateFilter" />
+                </div>
 
-              <div class="col-md-2">
-                <!-- Usuario -->
-                <select class="form-control" @bind="userFilter">
-                  <option value="0">Todos los usuarios</option>
-                  @foreach (var u in userList)
-                  {
-                    <option value="@u.Id">@u.Name</option>
-                  }
-                </select>
-              </div>
+                <div class="col-md-2">
+                    <!-- Usuario -->
+                    <select class="form-control" @bind="userFilter">
+                        <option value="0">Todos los usuarios</option>
+                        @foreach (var u in userList)
+                        {
+                            <option value="@u.Id">@u.Name</option>
+                        }
+                    </select>
+                </div>
 
-              <div class="col-md-4 text-right">
-                <!-- Botones a la derecha -->
-                <button class="btn btn-primary mr-2" @onclick="ApplyFilters">
-                  <i class="fas fa-filter mr-1"></i> Aplicar Filtros
-                </button>
-                <button class="btn btn-secondary" @onclick="ClearFilters">
-                  <i class="fas fa-times mr-1"></i> Limpiar
-                </button>
-              </div>
+                <div class="col-md-4 text-right">
+                    <!-- Botones a la derecha -->
+                    <button class="btn btn-primary mr-2" @onclick="ApplyFilters">
+                        <i class="fas fa-filter mr-1"></i> Aplicar Filtros
+                    </button>
+                    <button class="btn btn-secondary" @onclick="ClearFilters">
+                        <i class="fas fa-times mr-1"></i> Limpiar
+                    </button>
+                </div>
             </div>
 
 
@@ -211,8 +213,8 @@
                                     <td class="font-weight-bold">@fq.TotalCost.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</td>
                                     <td>
                                         <select class="form-select form-select-sm @GetStatusSelectClass(fq.Status)"
-                                        @onchange="@(e => OnStatusChanged(fq, int.Parse(e.Value.ToString())))"
-                                        value="@fq.Status">
+                                                @onchange="@(e => OnStatusChanged(fq, int.Parse(e.Value.ToString())))"
+                                                value="@fq.Status">
                                             <option value="0">Cotización</option>
                                             <option value="1">Ordenada</option>
                                             <option value="2">Expirada</option>
@@ -346,14 +348,14 @@
                                 <div class="col-md-6"><strong>Número:</strong> @selectedQuotation.QuotationNumber</div>
                             </div>
                             <div class="row mb-2">
-                                <div class="col-md-6"><strong>Usuario:</strong> @selectedQuotation.User.Name</div>
+                                <div class="col-md-6"><strong>Usuario:</strong> @(selectedQuotation.User?.Name ?? "N/A")</div>
                                 <div class="col-md-6"><strong>Fecha:</strong> @selectedQuotation.FreightDate.ToString("dd/MM/yyyy")</div>
                             </div>
                             <div class="row mb-2">
                                 <div class="col-md-6"><strong>Creado:</strong> @selectedQuotation.CreatedDate.ToString("dd/MM/yyyy HH:mm")</div>
                                 <div class="col-md-6">
                                     <strong>Actualizado:</strong>
-                                    @(selectedQuotation.UpdatedDate.HasValue ? selectedQuotation.UpdatedDate.Value.ToString("dd/MM/yyyy HH:mm") : "N/A")
+                                    @(selectedQuotation.UpdatedDate.HasValue? selectedQuotation.UpdatedDate.Value.ToString("dd/MM/yyyy HH:mm") : "N/A")
                                 </div>
                             </div>
                         </div>
@@ -448,7 +450,6 @@
     private IEnumerable<FreightQuotation> filteredQuotations;
     private FreightQuotation selectedQuotation;
     private DotNetObjectReference<AdminFreightQuotations>? _dotNetRef;
-    private IJSObjectReference _module;
     private string searchTerm = "";
     private int statusFilter = -1;
     private DateTime? dateFilter = null;
@@ -456,18 +457,12 @@
     private bool sortAscending = true;
     private int currentPage = 1;
     private int pageSize = 10;
-    private int totalPages = 1; 
+    private int totalPages = 1;
 
     private List<User> userList = new();
     private int userFilter = 0;       // 0 = Todos
 
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (firstRender)
-            _module = await JS.InvokeAsync<IJSObjectReference>(
-                "import", "./js/freightAdminHelpers.js");
-    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -487,17 +482,17 @@
     {
         allQuotations = await FreightQuotationService.GetAllFreightQuotationsAsync();
 
-    // Extraer usuarios únicos de las cotizaciones
-    userList = allQuotations?
-        .Where(q => q.User != null)
-        .Select(q => q.User)
-        .GroupBy(u => u.Id)
-        .Select(g => g.First())
-        .OrderBy(u => u.Name)
-        .ToList()
-      ?? new List<User>();
+        // Extraer usuarios únicos de las cotizaciones
+        userList = allQuotations?
+            .Where(q => q.User != null)
+            .Select(q => q.User)
+            .GroupBy(u => u.Id)
+            .Select(g => g.First())
+            .OrderBy(u => u.Name)
+            .ToList()
+          ?? new List<User>();
 
-    ApplyFilters();
+        ApplyFilters();
     }
 
     private async Task RefreshData()
@@ -656,8 +651,31 @@
 
     private async Task ViewQuotationRoute(FreightQuotation fq)
     {
-        await JS.InvokeVoidAsync("showRouteModal", fq.Origin, fq.Destination, fq.DistanceKm, fq.TruckType);
+        // 1) Obtener paradas de la BD
+        var stops = await FreightQuotationService
+            .GetStopsByQuotationIdAsync(fq.Id);
+
+        // 2) Crear DTO ligero
+        var stopsDto = stops
+            .OrderBy(s => s.Sequence)
+            .Select(s => new { s.Address, s.Latitude, s.Longitude })
+            .ToList();
+
+        // 3) Serializar JSON
+        var stopsJson = JsonSerializer.Serialize(stopsDto);
+
+        // 4) Invocar JS con parámetro extra
+        await JS.InvokeVoidAsync(
+            "showRouteModal",
+            fq.Origin,
+            fq.Destination,
+            fq.DistanceKm,
+            fq.TruckType,
+            stopsJson
+        );
     }
+
+
 
     private async Task ViewQuotationDetails(FreightQuotation fq)
     {
@@ -692,10 +710,6 @@
     {
         await JS.InvokeVoidAsync("printRouteDetails");
     }
-
-
-
-
 
     private async Task ConfirmDelete(FreightQuotation fq)
     {

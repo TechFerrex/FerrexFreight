@@ -48,6 +48,17 @@ namespace FerrexWeb.Services
                                            f.ExpiresAt > DateTime.UtcNow)
                                .FirstOrDefaultAsync();
             }
+            else
+            {
+                // Invalidar tokens anteriores activos al forzar uno nuevo
+                var oldTokens = await ctx.FreightConfirmations
+                    .Where(f => f.FreightQuotationId == quotationId &&
+                                f.ConfirmedAt == null &&
+                                f.ExpiresAt > DateTime.UtcNow)
+                    .ToListAsync();
+                foreach (var old in oldTokens)
+                    old.ExpiresAt = DateTime.UtcNow;
+            }
 
             if (fc == null)                          // no había, o forceNew = true
             {

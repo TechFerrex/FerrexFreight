@@ -73,11 +73,28 @@ namespace FerrexWeb.Services
 
         public Task<List<FreightQuotation>> GetCalendarItemsForAllUsersAsync() =>
     _context.FreightQuotations
+        .Include(q => q.User)
         .Where(q => q.Status == (int)FreightStatus.Ordered
                  || q.Status == (int)FreightStatus.Expired)
         .AsNoTracking()
         .ToListAsync();
+       
+        
+        public async Task AddFreightStopsAsync(IEnumerable<FreightStop> stops)
+    {
+        _context.FreightStops.AddRange(stops);
+        await _context.SaveChangesAsync();
+    }
 
+
+        public Task<List<FreightStop>> GetStopsByQuotationIdAsync(int quotationId) =>
+        _context.FreightStops
+            .Where(s => s.FreightQuotationId == quotationId)
+            .OrderBy(s => s.Sequence)
+            .ToListAsync();
 
     }
+
+
+
 }

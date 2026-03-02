@@ -21,15 +21,19 @@ else
         <div class="row">
             @foreach (var subcat in subCategories)
             {
+                // Ocultar subcategorías sin SubCategories2 y sin productos
+                bool hasSub2 = subcat.SubCategories2 != null && subcat.SubCategories2.Any();
+                bool hasProducts = firstProductMap.ContainsKey(subcat.id_subcategory);
+                if (!hasSub2 && !hasProducts) continue;
+
                 <div class="col-12 col-md-4 mb-4">
                     <div class="card category-card h-100 border-0">
                         <img src="@subcat.imageCat" class="card-img-top" alt="@subcat.subcategory" />
                         <div class="card-body d-flex flex-column">
                             <h5 class="card-title">@subcat.subcategory</h5>
                             <div class="mt-auto">
-                                @if (subcat.SubCategories2 != null && subcat.SubCategories2.Any())
+                                @if (hasSub2)
                                 {
-                                    <!-- Si tiene sub-cat2, vas a la página subcategory2list -->
                                     <a href="@($"/subcategory2list/{subcat.id_subcategory}")"
                                        class="btn custom-btn">
                                         Ver Mas
@@ -37,19 +41,11 @@ else
                                 }
                                 else
                                 {
-                                    <!-- Si NO tiene SubCategoría2, mostramos el primer producto si existe -->
-                                    @if (!firstProductMap.ContainsKey(subcat.id_subcategory))
-                                    {
-                                        <p class="text-muted" style="font-size: 0.9rem;">Sin productos</p>
-                                    }
-                                    else
-                                    {
-                                        var firstProd = firstProductMap[subcat.id_subcategory];
-                                        <a href="@($"/productdetails/{firstProd.IdProducto}")"
-                                           class="btn custom-btn">
-                                            Ver Producto
-                                        </a>
-                                    }
+                                    var firstProd = firstProductMap[subcat.id_subcategory];
+                                    <a href="@($"/productdetails/{firstProd.IdProducto}")"
+                                       class="btn custom-btn">
+                                        Ver Producto
+                                    </a>
                                 }
                             </div>
                         </div>
@@ -70,14 +66,15 @@ else
     {
         subCategories = await SubCategoryService.GetSubCategoriesByCategoryIdAsync(CategoryId);
 
-        foreach (var subcat in subCategories)
-        {
-            var firstProd = await ProductService.GetFirstProductBySubCategoryAsync(subcat.id_subcategory);
+        // Obtener subcategorías sin SubCategories2 que necesitan primer producto
+        var subcatIdsWithoutSub2 = subCategories
+            .Where(s => s.SubCategories2 == null || !s.SubCategories2.Any())
+            .Select(s => s.id_subcategory)
+            .ToList();
 
-            if (firstProd != null)
-            {
-                firstProductMap[subcat.id_subcategory] = firstProd;
-            }
+        if (subcatIdsWithoutSub2.Any())
+        {
+            firstProductMap = await ProductService.GetFirstProductBySubCategoryIdsAsync(subcatIdsWithoutSub2);
         }
     }
 }

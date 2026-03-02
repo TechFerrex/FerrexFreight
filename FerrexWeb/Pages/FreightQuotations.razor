@@ -2,10 +2,12 @@
 @using FerrexWeb.Models
 @using FerrexWeb.Services
 @using System.Security.Claims
+@using System.Text.Json
 @inject FreightQuotationService FreightQuotationService
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject NavigationManager NavigationManager
 @inject IJSRuntime JS
+@implements IDisposable
 
 <div class="container my-5">
     <h1 class="text-center mb-4">Mis Cotizaciones de Fletes</h1>
@@ -65,16 +67,40 @@
 <!-- Modal para visualizar la ruta de la cotización -->
 <div id="viewModal" class="modal">
     <div class="modal-content">
-        <span class="close">&times;</span>
+        <span class="close" onclick="closeViewModal()">&times;</span>
         <h4 class="modal-title text-center mb-3">Detalle de la Cotización</h4>
-        <div class="mb-2">
-            <strong>Origen:</strong> <span id="modalOrigin"></span>
-        </div>
-        <div class="mb-3">
-            <strong>Destino:</strong> <span id="modalDestination"></span>
-        </div>
-        <div id="modalMapContainer" style="height: 400px; width: 100%; border: 1px solid #ddd; border-radius: 5px;"></div>
-    </div>  
+
+        @if (selectedQuotation != null)
+        {
+            <div class="quotation-details mb-3">
+                <div class="row">
+                    <div class="col-6">
+                        <p><strong>N° Cotización:</strong> @selectedQuotation.QuotationNumber</p>
+                        <p><strong>Fecha:</strong> @selectedQuotation.FreightDate.ToString("dd/MM/yyyy")</p>
+                        <p><strong>Tipo Camión:</strong> @selectedQuotation.TruckType</p>
+                    </div>
+                    <div class="col-6">
+                        <p><strong>Distancia:</strong> @selectedQuotation.DistanceKm.ToString("N2") km</p>
+                        <p><strong>Seguro:</strong> @selectedQuotation.InsuranceOption</p>
+                        <p><strong>Total:</strong> @selectedQuotation.TotalCost.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</p>
+                    </div>
+                </div>
+            </div>
+        }
+
+        <div class="mb-2"><strong>Origen:</strong> <span id="modalOrigin"></span></div>
+        <div class="mb-3"><strong>Destino:</strong> <span id="modalDestination"></span></div>
+        <div id="modalMapContainer" style="height: 350px; width: 100%; border: 1px solid #ddd; border-radius: 5px;"></div>
+
+        @if (selectedQuotation != null && selectedQuotation.Status == 0)
+        {
+            <div class="mt-3 text-center">
+                <button class="btn btn-success" @onclick="ConvertToOrder" disabled="@isConverting">
+                    <i class="fas fa-truck"></i> @(isConverting ? "Procesando..." : "Convertir en Orden")
+                </button>
+            </div>
+        }
+    </div>
 </div>
 
 <style>
@@ -140,10 +166,49 @@
         background-color: #6c757d !important;
         color: #fff;
     }
+
+    .bg-info {
+        background-color: #17a2b8 !important;
+        color: #fff;
+    }
+
+    .bg-success {
+        background-color: #28a745 !important;
+        color: #fff;
+    }
+
+    .quotation-details {
+        background-color: #f8f9fa;
+        padding: 15px;
+        border-radius: 8px;
+        border: 1px solid #dee2e6;
+    }
+
+    .quotation-details p {
+        margin-bottom: 5px;
+    }
+
+    .modal-content {
+        max-width: 700px;
+    }
+
+    .row {
+        display: flex;
+        flex-wrap: wrap;
+    }
+
+    .col-6 {
+        flex: 0 0 50%;
+        max-width: 50%;
+    }
 </style>
 
 @code {
     private List<FreightQuotation> freightQuotations;
+    private FreightQuotation selectedQuotation;
+    private bool isConverting = false;
+    private bool _mapsLoaded = false;
+    private DotNetObjectReference<FreightQuotations> dotNetRef;
 
     protected override async Task OnInitializedAsync()
     {
@@ -163,11 +228,22 @@
         freightQuotations = await FreightQuotationService.GetQuotationsByUserIdAsync(userId);
     }
 
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            dotNetRef = DotNetObjectReference.Create(this);
+            _mapsLoaded = true;
+        }
+    }
+
     private string GetStatusText(int status) => status switch
     {
         0 => "Cotización",
         1 => "Ordenada",
         2 => "Expirada",
+        3 => "Pendiente",
+        4 => "Entregada",
         _ => "Desconocido"
     };
 
@@ -176,11 +252,75 @@
         0 => "badge bg-warning",
         1 => "badge bg-primary",
         2 => "badge bg-danger",
+        3 => "badge bg-info",
+        4 => "badge bg-success",
         _ => "badge bg-secondary"
     };
 
     private async Task ViewQuotation(FreightQuotation fq)
     {
-        await JS.InvokeVoidAsync("showQuotationModal", fq.Origin, fq.Destination);
+        selectedQuotation = fq;
+        StateHasChanged();
+
+        // 1) Traer las paradas
+        var stops = await FreightQuotationService
+                           .GetStopsByQuotationIdAsync(fq.Id);
+
+        // 2) Crear DTO con Address, Lat y Lng
+        var stopsDto = stops
+            .OrderBy(s => s.Sequence)
+            .Select(s => new
+            {
+                s.Address,
+                Lat = s.Latitude,
+                Lng = s.Longitude
+            })
+            .ToList();
+
+        // 3) Serializar a JSON
+        var stopsJson = JsonSerializer.Serialize(stopsDto);
+
+        // 4) Invocar JS pasando origen, destino y paradas
+        await JS.InvokeVoidAsync(
+            "showQuotationModal",
+            fq.Origin,
+            fq.Destination,
+            stopsJson
+        );
+    }
+
+    private async Task ConvertToOrder()
+    {
+        if (selectedQuotation == null || isConverting) return;
+
+        isConverting = true;
+        StateHasChanged();
+
+        try
+        {
+            await FreightQuotationService.UpdateStatusAsync(selectedQuotation.Id, 1);
+            selectedQuotation.Status = 1;
+
+            // Actualizar la lista
+            var item = freightQuotations.FirstOrDefault(q => q.Id == selectedQuotation.Id);
+            if (item != null) item.Status = 1;
+
+            await JS.InvokeVoidAsync("closeViewModal");
+            await JS.InvokeVoidAsync("showToastSimple", "success", "¡Cotización convertida en orden exitosamente!");
+        }
+        catch (Exception ex)
+        {
+            await JS.InvokeVoidAsync("showToastSimple", "error", "Error al convertir: " + ex.Message);
+        }
+        finally
+        {
+            isConverting = false;
+            StateHasChanged();
+        }
+    }
+
+    public void Dispose()
+    {
+        dotNetRef?.Dispose();
     }
 }

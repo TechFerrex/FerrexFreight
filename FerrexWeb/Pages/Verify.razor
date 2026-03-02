@@ -14,7 +14,7 @@
 else if (success)
 {
     <div class="alert alert-success">
-        ¡Correo confirmado! <a href="/login">Inicia sesión</a>.
+        ¡Correo confirmado! <a href="/userinfo">Inicia sesión</a>.
     </div>
 }
 else
@@ -41,6 +41,7 @@ else
         else
         {
             var ev = await DbContext.EmailVerifications
+                        .AsTracking()
                         .Include(ev => ev.User)
                         .FirstOrDefaultAsync(ev => ev.Token == token);
 

@@ -158,13 +158,13 @@
         await JS.InvokeVoidAsync("navigator.clipboard.writeText", text);
 
         // Mostrar una notificación más elegante
-        await JS.InvokeVoidAsync("showToast", "Enlace copiado al portapapeles");
+        await JS.InvokeVoidAsync("showCopyToast", "Enlace copiado al portapapeles");
     }
 }
 
 <!-- Agregar al final del archivo _Host.cshtml o similar -->
 <script>
-    function showToast(message) {
+    function showCopyToast(message) {
         // Si estás usando Bootstrap 5
         var toastContainer = document.createElement('div');
         toastContainer.className = 'position-fixed bottom-0 end-0 p-3';

@@ -1,75 +1,149 @@
-﻿
-function showRouteModal(origin, destination, distance, truckType) {
+﻿// Helper para geocodificar direcciones de texto
+function geocodeAddress(address) {
+    return new Promise((resolve, reject) => {
+        new google.maps.Geocoder().geocode({ address }, (results, status) => {
+            if (status === "OK" && results[0]) {
+                resolve(results[0].geometry.location);
+            } else {
+                reject(status);
+            }
+        });
+    });
+}
+
+async function showRouteModal(origin, destination, distance, truckType, stopsJson) {
+    // 1) Rellenar texto
     document.getElementById("modalOrigin").innerText = origin;
     document.getElementById("modalDestination").innerText = destination;
 
-    // Inicializamos el mapa en el contenedor del modal
-    var map = new google.maps.Map(document.getElementById("modalMapContainer"), {
-        center: { lat: 14.0723, lng: -87.1921 }, // Tegucigalpa, Honduras
+    // 2) Parsear JSON de paradas
+    let stops = [];
+    try {
+        stops = JSON.parse(stopsJson);
+        if (!Array.isArray(stops)) stops = [];
+    } catch (e) {
+        console.warn("showRouteModal: stopsJson inválido", e);
+        stops = [];
+    }
+
+    // 3) Resolver coordenadas de cada parada
+    const resolvedStops = await Promise.all(stops.map(async s => {
+        // Si ya tiene lat/lng válidos, los usamos
+        if ((s.Latitude || 0) !== 0 || (s.Longitude || 0) !== 0) {
+            return new google.maps.LatLng(s.Latitude, s.Longitude);
+        }
+        // Si no, geocodificamos la dirección
+        try {
+            return await geocodeAddress(s.Address);
+        } catch {
+            console.warn("No se pudo geocodificar:", s.Address);
+            return null;
+        }
+    }));
+    const waypoints = resolvedStops
+        .filter(loc => loc)
+        .map(loc => ({ location: loc, stopover: true }));
+
+    // 4) Inicializar mapa
+    const map = new google.maps.Map(
+        document.getElementById("modalMapContainer"), {
+        center: { lat: 14.0723, lng: -87.1921 },
         zoom: 7,
         mapTypeControl: true,
         streetViewControl: false,
         fullscreenControl: true
-    });
+    }
+    );
 
-    var directionsService = new google.maps.DirectionsService();
-    var directionsRenderer = new google.maps.DirectionsRenderer({
-        suppressMarkers: false,
+    // 5) Configurar DirectionsRenderer (sin marcadores automáticos)
+    const ds = new google.maps.DirectionsService();
+    const dr = new google.maps.DirectionsRenderer({
+        map: map,
+        suppressMarkers: true,
         polylineOptions: {
             strokeColor: "#1E88E5",
-            strokeWeight: 5,
-            strokeOpacity: 0.8
+            strokeOpacity: 0.8,
+            strokeWeight: 5
         }
     });
 
-    directionsRenderer.setMap(map);
-
-    directionsService.route({
+    // 6) Calcular la ruta con waypoints
+    ds.route({
         origin: origin,
         destination: destination,
+        waypoints: waypoints,
         travelMode: google.maps.TravelMode.DRIVING
-    }, function (response, status) {
-        if (status === 'OK') {
-            directionsRenderer.setDirections(response);
-
-            // Calcular y mostrar detalles de la ruta
-            var route = response.routes[0];
-            var distanceValue = route.legs[0].distance.text;
-            var durationValue = route.legs[0].duration.text;
-
-            document.getElementById("routeDistance").innerText = distanceValue;
-            document.getElementById("routeDuration").innerText = durationValue;
-
-            // Calcular estimación de combustible basado en el tipo de camión
-            var distanceInKm = distance;
-            var fuelConsumption;
-
-            switch (truckType.toLowerCase()) {
-                case "small":
-                    fuelConsumption = 12; // km/L
-                    break;
-                case "medium":
-                    fuelConsumption = 8; // km/L
-                    break;
-                case "large":
-                    fuelConsumption = 5; // km/L
-                    break;
-                default:
-                    fuelConsumption = 10; // km/L
-            }
-
-            var fuelNeeded = (distanceInKm / fuelConsumption).toFixed(2);
-            document.getElementById("fuelEstimate").innerText = fuelNeeded + " L";
-        } else {
-            console.error("Error al obtener la ruta: " + status);
-            document.getElementById("routeDetails").innerHTML =
-                "<div class='alert alert-danger'><i class='fas fa-exclamation-triangle mr-2'></i>Error al calcular la ruta. Verifique las direcciones.</div>";
+    }, (response, status) => {
+        if (status !== "OK") {
+            console.error("showRouteModal: Error al calcular ruta:", status);
+            return;
         }
+        dr.setDirections(response);
+
+        // 7) Ajustar viewport para incluir toda la ruta
+        const bounds = new google.maps.LatLngBounds();
+        response.routes[0].legs.forEach(leg => {
+            bounds.extend(leg.start_location);
+            bounds.extend(leg.end_location);
+        });
+        map.fitBounds(bounds);
+
+        // 8) Añadir marcadores personalizados
+        // Origen
+        new google.maps.Marker({
+            position: response.routes[0].legs[0].start_location,
+            map: map,
+            title: "Origen"
+        });
+        // Paradas numeradas
+        waypoints.forEach((wp, i) => {
+            new google.maps.Marker({
+                position: wp.location,
+                map: map,
+                label: {
+                    text: String(i + 1),
+                    color: "#fff",
+                    fontWeight: "bold"
+                },
+                title: `Parada ${i + 1}`
+            });
+        });
+        // Destino
+        const lastLeg = response.routes[0].legs.slice(-1)[0];
+        new google.maps.Marker({
+            position: lastLeg.end_location,
+            map: map,
+            title: "Destino"
+        });
+
+        // 9) Mostrar detalles de distancia y duración
+        const totalDistanceMeters = response.routes[0].legs
+            .reduce((sum, leg) => sum + leg.distance.value, 0);
+        const totalDurationSec = response.routes[0].legs
+            .reduce((sum, leg) => sum + leg.duration.value, 0);
+
+        document.getElementById("routeDistance").innerText =
+            (totalDistanceMeters / 1000).toFixed(2) + " km";
+        document.getElementById("routeDuration").innerText =
+            Math.ceil(totalDurationSec / 60) + " min";
+
+        // 10) Estimar combustible según tipo de camión
+        const distKm = parseFloat(distance) || (totalDistanceMeters / 1000);
+        let kmPerLiter;
+        switch (truckType.toLowerCase()) {
+            case "small": kmPerLiter = 12; break;
+            case "medium": kmPerLiter = 8; break;
+            case "large": kmPerLiter = 5; break;
+            default: kmPerLiter = 10; break;
+        }
+        document.getElementById("fuelEstimate").innerText =
+            (distKm / kmPerLiter).toFixed(2) + " L";
     });
 
-    // Mostrar el modal usando Bootstrap
+    // 11) Mostrar el modal Bootstrap
     $('#routeModal').modal('show');
 }
+
 
 function showDetailsModal(dotNetRef) {
     window._quotRef = dotNetRef;      //  ←  la dejamos global

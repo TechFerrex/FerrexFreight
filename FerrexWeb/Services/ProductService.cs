@@ -21,9 +21,17 @@ namespace FerrexWeb.Services
 
         public async Task<List<Products>> GetRandomProductsAsync(int count)
         {
+            // Optimizado: obtener IDs primero, luego seleccionar aleatoriamente
+            var totalCount = await _dbContext.Products.CountAsync();
+            if (totalCount == 0) return new List<Products>();
+
+            var random = new Random();
+            var skipCount = Math.Max(0, random.Next(totalCount - count));
+
             var products = await _dbContext.Products
+                .AsNoTracking()
                 .Include(p => p.Image)
-                .OrderBy(p => Guid.NewGuid())
+                .Skip(skipCount)
                 .Take(count)
                 .ToListAsync();
 
@@ -33,6 +41,7 @@ namespace FerrexWeb.Services
         public async Task<Products> GetProductByIdAsync(int productId)
         {
             var producto = await _dbContext.Products
+                .AsNoTracking()
                 .Include(p => p.Image)
                 .FirstOrDefaultAsync(p => p.IdProducto == productId);
 
@@ -65,53 +74,57 @@ namespace FerrexWeb.Services
         public async Task<List<Products>> GetProductsByTypeAsync(string type)
         {
             return await _dbContext.Products
+                .AsNoTracking()
                 .Include(p => p.Image)
                 .Where(p => p.Types == type)
                 .ToListAsync();
         }
 
-        public async Task<Products> GetVariantAsync(string type, string tipo, string size)
+        public async Task<Products> GetVariantAsync(string type, string size)
         {
             return await _dbContext.Products
+                .AsNoTracking()
                 .Include(p => p.Image)
                 .FirstOrDefaultAsync(p => p.Types == type
-                                       && p.Types == tipo
                                        && p.Size == size);
         }
 
         public async Task<List<Products>> GetProductsByCategoryAsync(int categoryId)
         {
-            var products = await _dbContext.Products
+            return await _dbContext.Products
+                .AsNoTracking()
                 .Include(p => p.Image)
                 .Where(p => p.CategoriaID == categoryId)
                 .ToListAsync();
-
-            return products;
         }
 
 
         public async Task<List<AluzincVariant>> GetAluzincVariantsByProductIdAsync(string productId)
         {
             return await _dbContext.AluzincVariants
+                .AsNoTracking()
                 .Where(a => a.ProductId == productId)
                 .ToListAsync();
         }
 
-
         public async Task<AluzincVariant> GetAluzincVariantByIdAsync(int variantId)
         {
-             return await _dbContext.AluzincVariants
+            return await _dbContext.AluzincVariants
+                .AsNoTracking()
                 .FirstOrDefaultAsync(v => v.Id == variantId);
         }
 
         public async Task<List<AluzincVariant>> GetAllAluzincVariantsAsync()
         {
-            return await _dbContext.AluzincVariants.ToListAsync();
+            return await _dbContext.AluzincVariants
+                .AsNoTracking()
+                .ToListAsync();
         }
 
         public async Task<List<AluzincVariant>> GetAluzincVariantsByCodeAsync(string productCode)
         {
             return await _dbContext.AluzincVariants
+                .AsNoTracking()
                 .Where(a => a.ProductId == productCode)
                 .ToListAsync();
         }
@@ -133,6 +146,7 @@ namespace FerrexWeb.Services
         public async Task<Products> GetFirstProductBySubCategory2Async(int subCategory2Id)
         {
             return await _dbContext.Products
+                .AsNoTracking()
                 .Include(p => p.Image)
                 .Where(p => p.id_subcategory2 == subCategory2Id)
                 .OrderBy(p => p.IdProducto)
@@ -142,6 +156,7 @@ namespace FerrexWeb.Services
         public async Task<List<Products>> GetProductsBySubCategory2Async(int subCategory2Id)
         {
             return await _dbContext.Products
+                .AsNoTracking()
                 .Include(p => p.Image)
                 .Where(p => p.id_subcategory2 == subCategory2Id)
                 .ToListAsync();
@@ -156,6 +171,7 @@ namespace FerrexWeb.Services
         public async Task<Products> GetFirstProductBySubCategoryAsync(int subCategoryId)
         {
             return await _dbContext.Products
+                .AsNoTracking()
                 .Include(p => p.Image)
                 .Where(p => p.id_subcategory == subCategoryId)
                 .OrderBy(p => p.IdProducto)
@@ -165,6 +181,7 @@ namespace FerrexWeb.Services
         public async Task<List<Products>> GetProductsBySubCategoryAsync(int subCategoryId)
         {
             return await _dbContext.Products
+                .AsNoTracking()
                 .Include(p => p.Image)
                 .Where(p => p.id_subcategory == subCategoryId)
                 .ToListAsync();
@@ -172,7 +189,43 @@ namespace FerrexWeb.Services
 
         public async Task<List<VigaVariant>> GetVigaVariantsAsync()
         {
-            return await _dbContext.VigaVariants.ToListAsync();
+            return await _dbContext.VigaVariants
+                .AsNoTracking()
+                .ToListAsync();
+        }
+
+        /// <summary>
+        /// Obtiene el primer producto de cada subcategoría en una sola query (evita N+1).
+        /// </summary>
+        public async Task<Dictionary<int, Products>> GetFirstProductBySubCategoryIdsAsync(IEnumerable<int> subCategoryIds)
+        {
+            var ids = subCategoryIds.ToList();
+            if (!ids.Any()) return new Dictionary<int, Products>();
+
+            return await _dbContext.Products
+                .AsNoTracking()
+                .Include(p => p.Image)
+                .Where(p => ids.Contains(p.id_subcategory))
+                .GroupBy(p => p.id_subcategory)
+                .Select(g => g.OrderBy(p => p.IdProducto).First())
+                .ToDictionaryAsync(p => p.id_subcategory);
+        }
+
+        /// <summary>
+        /// Obtiene el primer producto de cada subcategory2 en una sola query (evita N+1).
+        /// </summary>
+        public async Task<Dictionary<int, Products>> GetFirstProductBySubCategory2IdsAsync(IEnumerable<int> subCategory2Ids)
+        {
+            var ids = subCategory2Ids.ToList();
+            if (!ids.Any()) return new Dictionary<int, Products>();
+
+            return await _dbContext.Products
+                .AsNoTracking()
+                .Include(p => p.Image)
+                .Where(p => p.id_subcategory2.HasValue && ids.Contains(p.id_subcategory2.Value))
+                .GroupBy(p => p.id_subcategory2.Value)
+                .Select(g => g.OrderBy(p => p.IdProducto).First())
+                .ToDictionaryAsync(p => p.id_subcategory2.Value);
         }
 
     }

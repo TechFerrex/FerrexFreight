@@ -15,9 +15,18 @@
 </div>
 
 <div class="container text-center mt-5 mb-5">
-    <NavLink href="/freight" class="btn custom-btn btn-lg">
-        <i class="fa-solid fa-truck animated-truck"></i> COTIZA TU FLETE
-    </NavLink>
+    <div class="row justify-content-center">
+        <div class="col-md-5 mb-3">
+            <NavLink href="/freight" class="btn custom-btn btn-lg w-100">
+                <i class="fa-solid fa-truck animated-truck"></i> COTIZA TU FLETE
+            </NavLink>
+        </div>
+        <div class="col-md-5 mb-3">
+            <NavLink href="/categories" class="btn custom-btn-secondary btn-lg w-100">
+                <i class="fa-solid fa-boxes-stacked"></i> VER PRODUCTOS
+            </NavLink>
+        </div>
+    </div>
 </div>
 
 @* <!-- Banner rotatorio -->
@@ -164,12 +173,6 @@
 
     protected override void OnInitialized()
     {
-        _ = Task.Run(async () =>
-        {
-            await Task.Delay(100); // Dar tiempo para que se cargue la UI primero
-            isConnected = await DbContext.Database.CanConnectAsync();
-            await InvokeAsync(StateHasChanged);
-        });
         base.OnInitialized();
 
         // // Configurar el timer para rotar imágenes
@@ -470,6 +473,22 @@
         .custom-btn:active {
             background-color: #000000;
             color: #F5C144;
+        }
+
+    .custom-btn-secondary {
+        background-color: #2b3044;
+        color: #ffffff;
+        border: none;
+        padding: 10px 20px;
+        font-size: 16px;
+        cursor: pointer;
+        transition: background-color 0.3s, color 0.3s;
+    }
+
+        .custom-btn-secondary:hover,
+        .custom-btn-secondary:active {
+            background-color: #F5C144;
+            color: #000000;
         }
 
     .banner-container {

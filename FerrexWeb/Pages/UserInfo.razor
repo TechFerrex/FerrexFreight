@@ -28,11 +28,19 @@
                     </button>
                     @if (showForgotPasswordOption)
                     {
-                       <button class="user-button" 
+                       <button class="user-button"
                             style="background-color:orange; margin-left:10px;"
                             @onclick="OpenForgotPasswordModal">
                            ¿Olvidaste tu contraseña?
                       </button>
+                    }
+                    @if (showResendVerification)
+                    {
+                        <button class="user-button"
+                                style="background-color:#28a745; margin-left:10px;"
+                                @onclick="ResendVerificationEmail">
+                            Reenviar verificación
+                        </button>
                     }
                 </div>
             </div>
@@ -177,8 +185,11 @@
 
     private string registerMessage;
 
-    private static Dictionary<string, int> loginAttempts = new Dictionary<string, int>();
-    private static Dictionary<string, DateTime> lockouts = new Dictionary<string, DateTime>();
+    private static System.Collections.Concurrent.ConcurrentDictionary<string, int> loginAttempts = new();
+    private static System.Collections.Concurrent.ConcurrentDictionary<string, DateTime> lockouts = new();
+
+    private bool showResendVerification = false;
+    private int? pendingVerificationUserId = null;
 
     private ForgotPasswordModel forgotModel = new();
 
@@ -218,16 +229,22 @@
                 return;
             }
 
-            // 2) Recuperar usuario UNA sola vez
+            // 2) Recuperar usuario UNA sola vez (case-insensitive)
             var user = await DbContext.Users
-                .FirstOrDefaultAsync(u => u.Email == forgotModel.Email);
+                .FirstOrDefaultAsync(u => u.Email.ToLower() == forgotModel.Email.ToLower());
             if (user == null)
             {
-                forgotErrorMsg = "No existe un usuario con ese correo.";
+                // Mensaje genérico para evitar enumeración de usuarios
+                forgotSuccessMsg = "Si existe una cuenta con ese correo, recibirás un enlace para restablecer tu contraseña.";
                 return;
             }
 
-            // 3) Generar token y guardarlo
+            // 3) Invalidar tokens anteriores y generar uno nuevo
+            var oldResets = await DbContext.PasswordResets
+                .Where(x => x.UserId == user.Id)
+                .ToListAsync();
+            DbContext.PasswordResets.RemoveRange(oldResets);
+
             var token = Guid.NewGuid().ToString("N");
             var pr = new PasswordReset
                 {
@@ -262,29 +279,60 @@
     }
 
 
+    private const int MaxLoginAttempts = 5;
+    private const int LockoutMinutes = 15;
+
     private async Task HandleLogin()
     {
         if (isLoggingIn) return;
         isLoggingIn = true;
         showErrorModal = false;
 
+        var emailKey = loginModel.Email?.ToLower() ?? "";
 
-        var user = await DbContext.Users.FirstOrDefaultAsync(u => u.Email == loginModel.Email);
+        // Verificar si está bloqueado
+        if (lockouts.TryGetValue(emailKey, out var lockoutEnd) && DateTime.UtcNow < lockoutEnd)
+        {
+            var remaining = (int)(lockoutEnd - DateTime.UtcNow).TotalMinutes + 1;
+            ShowError($"Demasiados intentos fallidos. Intenta de nuevo en {remaining} minutos.");
+            isLoggingIn = false;
+            return;
+        }
+
+        var user = await DbContext.Users.FirstOrDefaultAsync(u => u.Email.ToLower() == loginModel.Email.ToLower());
         if (user == null || !BCrypt.Net.BCrypt.Verify(loginModel.Password, user.Password))
         {
-            showForgotPasswordOption = true;
-            ShowError("Correo o contraseña incorrectos.");
+            // Incrementar intentos fallidos (thread-safe)
+            var attempts = loginAttempts.AddOrUpdate(emailKey, 1, (_, prev) => prev + 1);
+
+            if (attempts >= MaxLoginAttempts)
+            {
+                lockouts[emailKey] = DateTime.UtcNow.AddMinutes(LockoutMinutes);
+                loginAttempts.TryRemove(emailKey, out _);
+                ShowError($"Demasiados intentos fallidos. Cuenta bloqueada por {LockoutMinutes} minutos.");
+            }
+            else
+            {
+                var remaining = MaxLoginAttempts - attempts;
+                showForgotPasswordOption = true;
+                ShowError($"Correo o contraseña incorrectos. Te quedan {remaining} intentos.");
+            }
             isLoggingIn = false;
             return;
         }
 
         if (!user.EmailConfirmed)
         {
+            pendingVerificationUserId = user.Id;
+            showResendVerification = true;
             ShowError("Verifica tu correo antes de iniciar sesión.");
             isLoggingIn = false;
             return;
         }
 
+        // Login exitoso - limpiar intentos
+        loginAttempts.TryRemove(emailKey, out _);
+        lockouts.TryRemove(emailKey, out _);
 
         // Generar JWT y navegar
         var claims = new List<Claim> {
@@ -350,8 +398,16 @@
             return;
         }
 
-        // 2) Comprobar duplicado
-        if (await DbContext.Users.AnyAsync(u => u.Email == registerModel.Email))
+        // 2) Validar complejidad de contraseña server-side
+        if (!IsPasswordValid(registerModel.Password))
+        {
+            registerMessage = "La contraseña debe tener al menos 8 caracteres, una mayúscula, un número y un carácter especial.";
+            isRegistering = false;
+            return;
+        }
+
+        // 3) Comprobar duplicado (case-insensitive)
+        if (await DbContext.Users.AnyAsync(u => u.Email.ToLower() == registerModel.Email.ToLower()))
         {
             registerMessage = "Este correo ya está registrado.";
             isRegistering = false;
@@ -402,21 +458,7 @@
     {
         showVerifyModal = false;
     }
-    private string SerializeClaims(List<Claim> claims)
-    {
-        var secretKey = _configuration["JwtSettings:SecretKey"];
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));
-        var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
-        var token = new JwtSecurityToken(
-            issuer: _configuration["JwtSettings:Issuer"],
-            audience: _configuration["JwtSettings:Audience"],
-            claims: claims,
-            expires: DateTime.Now.AddHours(8),
-            signingCredentials: creds);
-
-        return new JwtSecurityTokenHandler().WriteToken(token);
-    }
     public class LoginModel
     {
         public string Email { get; set; }
@@ -433,6 +475,58 @@
 
     }
  
+
+    private async Task ResendVerificationEmail()
+    {
+        if (!pendingVerificationUserId.HasValue) return;
+
+        var user = await DbContext.Users.FirstOrDefaultAsync(u => u.Id == pendingVerificationUserId.Value);
+        if (user == null || user.EmailConfirmed) return;
+
+        // Eliminar tokens de verificación anteriores
+        var oldTokens = await DbContext.EmailVerifications
+            .Where(ev => ev.UserId == user.Id)
+            .ToListAsync();
+        DbContext.EmailVerifications.RemoveRange(oldTokens);
+
+        // Generar nuevo token
+        var token = Guid.NewGuid().ToString("N");
+        var ev2 = new EmailVerification
+        {
+            UserId = user.Id,
+            Token = token,
+            ExpiresAt = DateTime.UtcNow.AddMinutes(30),
+            CreatedAt = DateTime.UtcNow
+        };
+        DbContext.EmailVerifications.Add(ev2);
+        await DbContext.SaveChangesAsync();
+
+        var link = $"{NavigationManager.BaseUri.TrimEnd('/')}/verify?token={token}";
+        var html = $@"
+            <p>¡Hola {user.Name}!</p>
+            <p>Haz clic <a href=""{link}"">aquí</a> para verificar tu correo.</p>
+            <p>Expira: {ev2.ExpiresAt:yyyy-MM-dd HH:mm} UTC</p>";
+
+        try
+        {
+            await EmailSender.SendEmailAsync(user.Email, "Verifica tu correo", html);
+            showResendVerification = false;
+            showErrorModal = false;
+            verifyModalMessage = "Se ha reenviado el correo de verificación. Revisa tu bandeja.";
+            showVerifyModal = true;
+        }
+        catch
+        {
+            ShowError("Error al reenviar el correo. Inténtalo más tarde.");
+        }
+    }
+
+    private static bool IsPasswordValid(string password)
+    {
+        if (string.IsNullOrEmpty(password) || password.Length < 8) return false;
+        return password.Any(char.IsUpper) && password.Any(char.IsDigit)
+            && password.Any(c => !char.IsLetterOrDigit(c));
+    }
 
     // Método para abrir el modal
     private void ShowError(string message)

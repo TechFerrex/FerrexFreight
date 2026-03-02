@@ -9,11 +9,6 @@
     private ContactFormModel formModel = new();
     private bool isSubmitted = false;
 
-    private readonly string SmtpServer = "smtp-relay.brevo.com";
-    private readonly int SmtpPort = 587;
-    private readonly string SmtpUser = "830f59001@smtp-brevo.com"; 
-    private readonly string SmtpPass = "9wVEyZBc4CFzpSRO";         
-
     private async Task HandleValidSubmit()
     {
         await SendEmail();
@@ -24,20 +19,21 @@
     {
         try
         {
-            var fromEmail = "techferrexpress@outlook.com";  
+            var brevoConfig = Configuration.GetSection("BrevoSmtp");
+            var fromEmail = brevoConfig["FromEmail"] ?? "techferrexpress@outlook.com";
             var fromName = "Ferrexpress Contact Form";
             var toEmail = "ferrexpresshn@gmail.com";
             var toName = "Ferrexpress";
 
-            var subject = $"[Contacto] {formModel.Subject}";
+            var subject = $"[Contacto] {System.Net.WebUtility.HtmlEncode(formModel.Subject)}";
 
-            var plainTextContent = $"Nombre: {formModel.Name}\n" +
-                                   $"Email: {formModel.Email}\n" +
-                                   $"Mensaje:\n{formModel.Message}";
+            var safeName = System.Net.WebUtility.HtmlEncode(formModel.Name);
+            var safeEmail = System.Net.WebUtility.HtmlEncode(formModel.Email);
+            var safeMessage = System.Net.WebUtility.HtmlEncode(formModel.Message);
 
-            var htmlContent = $"<p><strong>Nombre:</strong> {formModel.Name}</p>" +
-                              $"<p><strong>Email:</strong> {formModel.Email}</p>" +
-                              $"<p><strong>Mensaje:</strong></p><p>{formModel.Message}</p>";
+            var htmlContent = $"<p><strong>Nombre:</strong> {safeName}</p>" +
+                              $"<p><strong>Email:</strong> {safeEmail}</p>" +
+                              $"<p><strong>Mensaje:</strong></p><p>{safeMessage}</p>";
 
             using var mailMessage = new MailMessage()
                 {
@@ -47,10 +43,13 @@
                     IsBodyHtml = true
                 };
             mailMessage.To.Add(new MailAddress(toEmail, toName));
-            
-            using var smtpClient = new SmtpClient(SmtpServer, SmtpPort)
+
+            var smtpHost = brevoConfig["Host"] ?? "smtp-relay.brevo.com";
+            var smtpPort = int.TryParse(brevoConfig["Port"], out var p) ? p : 587;
+
+            using var smtpClient = new SmtpClient(smtpHost, smtpPort)
                 {
-                    Credentials = new NetworkCredential(SmtpUser, SmtpPass),
+                    Credentials = new NetworkCredential(brevoConfig["User"], brevoConfig["Pass"]),
                     EnableSsl = true
                 };
             await smtpClient.SendMailAsync(mailMessage);

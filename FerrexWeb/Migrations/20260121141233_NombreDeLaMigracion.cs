@@ -5,7 +5,7 @@
 namespace FerrexWeb.Migrations
 {
     /// <inheritdoc />
-    public partial class AddClientColumnToQuotations : Migration
+    public partial class NombreDeLaMigracion : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)

@@ -87,43 +87,43 @@ app.UseSession();
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseResponseCompression();
-//app.Use(async (context, next) =>
-//{
-//    context.Response.Headers.Remove("Server");
-//    context.Response.Headers.Remove("X-Powered-By");
-//    context.Response.Headers["X-Content-Type-Options"] = "nosniff";
-//    context.Response.Headers["X-Frame-Options"] = "DENY";
-//    context.Response.Headers["X-XSS-Protection"] = "1; mode=block";
-//    context.Response.Headers["Referrer-Policy"] = "no-referrer";
-//    context.Response.Headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()";
-//    context.Response.Headers["Strict-Transport-Security"] = "max-age=63072000; includeSubDomains; preload";
-//        context.Response.Headers["Content-Security-Policy"] =
-//    "default-src 'self'; " +
-//  "script-src 'self' 'unsafe-eval' " +
-//      "https://maps.googleapis.com " +
-//      "https://maps.gstatic.com " +
-//      "https://code.jquery.com " +
-//      "https://cdnjs.cloudflare.com " +
-//      "https://unpkg.com; " +
-//  "connect-src 'self' " +
-//      "https://maps.googleapis.com " +
-//      "https://maps.gstatic.com; " +
-//  "style-src 'self' 'unsafe-inline' " +
-//      "https://fonts.googleapis.com " +
-//      "https://cdn.jsdelivr.net " +
-//      "https://cdnjs.cloudflare.com " +
-//      "https://unpkg.com; " +
-//  // aquí ampliamos img-src:
-//  "img-src 'self' data: https://maps.gstatic.com https://maps.googleapis.com https://*.gstatic.com https:; " +
-//  "font-src 'self' " +
-//      "https://fonts.gstatic.com " +
-//      "https://cdn.jsdelivr.net " +
-//      "https://cdnjs.cloudflare.com; " +
-//  "frame-ancestors 'none'; " +
-//  "object-src 'none';";
+app.Use(async (context, next) =>
+{
+    context.Response.Headers.Remove("Server");
+    context.Response.Headers.Remove("X-Powered-By");
+    context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+    context.Response.Headers["X-Frame-Options"] = "DENY";
+    context.Response.Headers["X-XSS-Protection"] = "1; mode=block";
+    context.Response.Headers["Referrer-Policy"] = "no-referrer";
+    context.Response.Headers["Permissions-Policy"] = "geolocation=(self), microphone=(), camera=()";
+    context.Response.Headers["Strict-Transport-Security"] = "max-age=63072000; includeSubDomains; preload";
+    context.Response.Headers["Content-Security-Policy"] =
+        "default-src 'self'; " +
+        "script-src 'self' 'unsafe-eval' 'unsafe-inline' " +
+            "https://maps.googleapis.com " +
+            "https://maps.gstatic.com " +
+            "https://code.jquery.com " +
+            "https://cdnjs.cloudflare.com " +
+            "https://unpkg.com; " +
+        "connect-src 'self' " +
+            "https://maps.googleapis.com " +
+            "https://maps.gstatic.com " +
+            "wss: ws:; " +
+        "style-src 'self' 'unsafe-inline' " +
+            "https://fonts.googleapis.com " +
+            "https://cdn.jsdelivr.net " +
+            "https://cdnjs.cloudflare.com " +
+            "https://unpkg.com; " +
+        "img-src 'self' data: https://maps.gstatic.com https://maps.googleapis.com https://*.gstatic.com https:; " +
+        "font-src 'self' " +
+            "https://fonts.gstatic.com " +
+            "https://cdn.jsdelivr.net " +
+            "https://cdnjs.cloudflare.com; " +
+        "frame-ancestors 'none'; " +
+        "object-src 'none';";
 
-//    await next();
-//});
+    await next();
+});
 
 app.MapBlazorHub();
 app.MapFallbackToPage("/_Host");
