@@ -78,7 +78,7 @@
                                     <tr>
                                         <td>@user.Name</td>
                                         <td>@user.Email</td>
-                                        <td><span class="badge @GetRoleBadgeClass(user.Role)">@user.Role</span></td>
+                                        <td><span class="badge @GetRoleBadgeClass(user.Role?.Name)">@user.Role?.Name</span></td>
                                         <td><span class="password-mask">••••••••</span></td>
                                         <td>@user.PhoneNumber</td>
                                         <td>@user.CreateTime.ToString("dd/MM/yyyy HH:mm")</td>
@@ -192,7 +192,7 @@
                         </div>
                         
                         <div class="form-group mb-3">
-                            <label>Rol actual: <span class="badge @GetRoleBadgeClass(userToEdit.Role)">@userToEdit.Role</span></label>
+                            <label>Rol actual: <span class="badge @GetRoleBadgeClass(userToEdit.Role?.Name)">@userToEdit.Role?.Name</span></label>
                             <div class="mt-2">
                                 <small class="form-text text-muted">El rol no puede modificarse en esta pantalla.</small>
                             </div>
@@ -303,14 +303,14 @@
                             <label for="userRole">Rol</label>
                             <div class="input-group">
                                 <span class="input-group-text"><i class="fas fa-user-tag"></i></span>
-                                <InputSelect id="userRole" @bind-Value="newUser.Role" class="form-select">
+                                <InputSelect id="userRole" @bind-Value="newUser.RoleId" class="form-select">
                                     @foreach (var role in availableRoles)
                                     {
-                                        <option value="@role">@role</option>
+                                        <option value="@role.Id">@role.Name</option>
                                     }
                                 </InputSelect>
                             </div>
-                            <ValidationMessage For="@(() => newUser.Role)" />
+                            <ValidationMessage For="@(() => newUser.RoleId)" />
                         </div>
                         
                         <div class="modal-footer">
@@ -349,17 +349,18 @@
     private string currentSortField = "Name";
     private bool isAscending = true;
 
-    // Roles disponibles (sincronizados con el sistema de login)
-    private List<string> availableRoles = new List<string> { "User", "Admin", "SuperAdmin" };
+    // Roles disponibles (se cargan de la BD)
+    private List<Role> availableRoles = new List<Role>();
 
     protected override async Task OnInitializedAsync()
     {
+        availableRoles = await DbContext.Roles.ToListAsync();
         await LoadUsers();
     }
 
     private async Task LoadUsers()
     {
-        users = await DbContext.Users.ToListAsync();
+        users = await DbContext.Users.Include(u => u.Role).ToListAsync();
         FilterUsers();
         SortUsers(currentSortField);
     }
@@ -376,7 +377,7 @@
                 .Where(u =>
                     (u.Name?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false) ||
                     (u.Email?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false) ||
-                    (u.Role?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                    (u.Role?.Name?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false) ||
                     (u.PhoneNumber?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false))
                 .ToList();
         }
@@ -428,8 +429,8 @@
                 break;
             case "Role":
                 filteredUsers = isAscending
-                    ? filteredUsers.OrderBy(u => u.Role).ToList()
-                    : filteredUsers.OrderByDescending(u => u.Role).ToList();
+                    ? filteredUsers.OrderBy(u => u.Role?.Name).ToList()
+                    : filteredUsers.OrderByDescending(u => u.Role?.Name).ToList();
                 break;
             case "PhoneNumber":
                 filteredUsers = isAscending
@@ -460,6 +461,7 @@
             Name = user.Name,
             Email = user.Email,
             PhoneNumber = user.PhoneNumber,
+            RoleId = user.RoleId,
             Role = user.Role,
             CreateTime = user.CreateTime,
             NewPassword = ""
@@ -576,7 +578,7 @@
                 Name = newUser.Name,
                 Email = newUser.Email,
                 PhoneNumber = newUser.PhoneNumber ?? "",
-                Role = newUser.Role ?? "User",
+                RoleId = newUser.RoleId > 0 ? newUser.RoleId : 1,
                 CreateTime = DateTime.Now,
                 Password = BCrypt.Net.BCrypt.HashPassword(newUser.NewPassword),
                 EmailConfirmed = true // Admin crea usuarios ya confirmados
@@ -641,7 +643,7 @@
 
     private void OpenAddUserModal()
     {
-        newUser = new User { Role = "User", EmailConfirmed = true };
+        newUser = new User { RoleId = 1, EmailConfirmed = true };
         errorMessage = "";
         showAddModal = true;
     }

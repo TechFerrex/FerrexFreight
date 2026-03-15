@@ -1,0 +1,338 @@
+@page "/admin/inventory"
+@using Microsoft.AspNetCore.Authorization
+@using FerrexWeb.Models
+@using FerrexWeb.Services
+@attribute [Authorize(Roles = "SuperAdmin")]
+@inject InventoryService InventoryService
+@inject NavigationManager NavigationManager
+
+<PageTitle>Inventario - Dashboard</PageTitle>
+
+<div class="inventory-dashboard-container">
+    <div class="page-header">
+        <h3><i class="fas fa-warehouse"></i> Dashboard de Inventario</h3>
+        <div class="header-actions">
+            <button class="btn btn-primary" @onclick="GoToCities">
+                <i class="fas fa-city"></i> Gestionar Ciudades
+            </button>
+            <button class="btn btn-success" @onclick="GoToPoints">
+                <i class="fas fa-map-marker-alt"></i> Gestionar Puntos
+            </button>
+        </div>
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="loader-container">
+            <div class="loader">
+                <div class="circle"></div>
+                <div class="circle"></div>
+                <div class="circle"></div>
+            </div>
+            <p>Cargando datos de inventario...</p>
+        </div>
+    }
+    else
+    {
+        <!-- Summary Cards -->
+        <div class="row mb-4">
+            <div class="col-md-3 col-6 mb-3">
+                <div class="card summary-card border-primary">
+                    <div class="card-body text-center">
+                        <i class="fas fa-city fa-2x text-primary mb-2"></i>
+                        <h4 class="mb-0">@totalCities</h4>
+                        <small class="text-muted">Ciudades Activas</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 col-6 mb-3">
+                <div class="card summary-card border-success">
+                    <div class="card-body text-center">
+                        <i class="fas fa-map-marker-alt fa-2x text-success mb-2"></i>
+                        <h4 class="mb-0">@totalPoints</h4>
+                        <small class="text-muted">Puntos de Inventario</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 col-6 mb-3">
+                <div class="card summary-card border-info">
+                    <div class="card-body text-center">
+                        <i class="fas fa-boxes fa-2x text-info mb-2"></i>
+                        <h4 class="mb-0">@totalProducts</h4>
+                        <small class="text-muted">Total Stock</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 col-6 mb-3">
+                <div class="card summary-card @(lowStockAlerts > 0 ? "border-danger" : "border-secondary")">
+                    <div class="card-body text-center">
+                        <i class="fas fa-exclamation-triangle fa-2x @(lowStockAlerts > 0 ? "text-danger" : "text-secondary") mb-2"></i>
+                        <h4 class="mb-0">@lowStockAlerts</h4>
+                        <small class="text-muted">Alertas Bajo Stock</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Low Stock Alerts Table -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-exclamation-triangle text-warning"></i> Alertas de Bajo Stock</h5>
+            </div>
+            <div class="card-body">
+                @if (lowStockItems == null || lowStockItems.Count == 0)
+                {
+                    <div class="text-center text-muted py-4">
+                        <i class="fas fa-check-circle fa-3x mb-3 text-success"></i>
+                        <p>No hay alertas de bajo stock. Todo el inventario está en niveles normales.</p>
+                    </div>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="table table-hover mobile-cards">
+                            <thead>
+                                <tr>
+                                    <th>Ciudad</th>
+                                    <th>Punto</th>
+                                    <th>Código</th>
+                                    <th>Producto</th>
+                                    <th>Cantidad</th>
+                                    <th>Mínimo</th>
+                                    <th>Estado</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var item in lowStockItems)
+                                {
+                                    <tr>
+                                        <td data-label="Ciudad">@item.InventoryPoint?.City?.Name</td>
+                                        <td data-label="Punto">@item.InventoryPoint?.Name</td>
+                                        <td data-label="Código"><code>@item.Product?.Codigo</code></td>
+                                        <td data-label="Producto">@item.Product?.DescProducto</td>
+                                        <td data-label="Cantidad"><strong>@item.Quantity</strong></td>
+                                        <td data-label="Mínimo">@item.MinStock</td>
+                                        <td data-label="Estado">
+                                            <span class="badge @GetStockBadgeClass(item.StockStatus)">
+                                                @item.StockStatus
+                                            </span>
+                                        </td>
+                                        <td data-label="">
+                                            <button class="btn btn-sm btn-outline-primary"
+                                                    @onclick="() => GoToPointInventory(item.InventoryPointId)">
+                                                <i class="fas fa-eye"></i> Ver
+                                            </button>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private bool isLoading = true;
+    private int totalCities;
+    private int totalPoints;
+    private int totalProducts;
+    private int lowStockAlerts;
+    private List<InventoryItem> lowStockItems = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            totalCities = await InventoryService.GetActiveCitiesCountAsync();
+            totalPoints = await InventoryService.GetActivePointsCountAsync();
+            totalProducts = await InventoryService.GetTotalInventoryQuantityAsync();
+            lowStockAlerts = await InventoryService.GetLowStockAlertCountAsync();
+            lowStockItems = await InventoryService.GetLowStockItemsAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error cargando dashboard: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private string GetStockBadgeClass(string status) => status switch
+    {
+        "Sin Stock" => "bg-danger",
+        "Bajo Stock" => "bg-warning text-dark",
+        "Normal" => "bg-success",
+        _ => "bg-secondary"
+    };
+
+    private void GoToCities() => NavigationManager.NavigateTo("/admin/cities");
+    private void GoToPoints() => NavigationManager.NavigateTo("/admin/inventorypoints");
+    private void GoToPointInventory(int pointId) => NavigationManager.NavigateTo($"/admin/inventory/{pointId}");
+}
+
+<style>
+    .inventory-dashboard-container {
+        padding: 1rem;
+        max-width: 1400px;
+        margin: 0 auto;
+    }
+
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid #e9ecef;
+    }
+
+    .page-header h3 {
+        margin: 0;
+        color: #2c3e50;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 1.4rem;
+    }
+
+    .header-actions {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .summary-card {
+        border-left-width: 4px !important;
+        transition: transform 0.2s;
+    }
+
+    .summary-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+
+    .loader-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        margin: 3rem 0;
+    }
+
+    .loader {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+
+    .circle {
+        width: 12px;
+        height: 12px;
+        background-color: #3498db;
+        border-radius: 50%;
+        margin: 0 6px;
+        animation: bounce 1.4s infinite ease-in-out both;
+    }
+
+    .circle:nth-child(1) { animation-delay: -0.32s; }
+    .circle:nth-child(2) { animation-delay: -0.16s; }
+
+    @@keyframes bounce {
+        0%, 80%, 100% { transform: scale(0); opacity: 0.3; }
+        40% { transform: scale(1); opacity: 1; }
+    }
+
+    .card {
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        border-radius: 0.5rem;
+        border: none;
+        margin-bottom: 1rem;
+    }
+
+    .card-header {
+        background-color: #f8f9fa;
+        padding: 1rem;
+        border-bottom: 1px solid #e9ecef;
+    }
+
+    .table th {
+        border-top: none;
+        background-color: #f8f9fa;
+        white-space: nowrap;
+    }
+
+    .table tbody tr:hover {
+        background-color: rgba(0, 123, 255, 0.05);
+    }
+
+    .badge { padding: 0.35em 0.65em; font-weight: 500; }
+
+    /* ── Mobile: card view ── */
+    @@media (max-width: 767.98px) {
+        .inventory-dashboard-container { padding: 0.5rem; }
+
+        .page-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 1rem;
+        }
+        .page-header h3 { font-size: 1.2rem; }
+        .header-actions {
+            width: 100%;
+            flex-direction: column;
+        }
+        .header-actions .btn { width: 100%; }
+
+        .summary-card .card-body { padding: 0.75rem; }
+        .summary-card .card-body h4 { font-size: 1.3rem; }
+        .summary-card .card-body .fa-2x { font-size: 1.4em; }
+
+        .mobile-cards thead { display: none; }
+        .mobile-cards tbody tr {
+            display: block;
+            margin-bottom: 0.75rem;
+            border: 1px solid #dee2e6;
+            border-radius: 0.5rem;
+            padding: 0.75rem;
+            background: #fff;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        }
+        .mobile-cards tbody td {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.3rem 0;
+            border: none;
+            font-size: 0.9rem;
+        }
+        .mobile-cards tbody td::before {
+            content: attr(data-label);
+            font-weight: 600;
+            color: #495057;
+            margin-right: 1rem;
+            flex-shrink: 0;
+        }
+        .mobile-cards tbody td:last-child {
+            justify-content: flex-end;
+            padding-top: 0.5rem;
+            border-top: 1px solid #eee;
+            margin-top: 0.25rem;
+        }
+        .mobile-cards tbody td:last-child::before { display: none; }
+
+        .card-header h5 { font-size: 1rem; }
+    }
+
+    /* ── Tablet ── */
+    @@media (min-width: 768px) and (max-width: 991.98px) {
+        .page-header h3 { font-size: 1.25rem; }
+        .header-actions .btn { font-size: 0.85rem; padding: 0.35rem 0.75rem; }
+    }
+</style>

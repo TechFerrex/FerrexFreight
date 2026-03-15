@@ -1,0 +1,537 @@
+@page "/admin/cities"
+@using Microsoft.AspNetCore.Authorization
+@using FerrexWeb.Models
+@using FerrexWeb.Services
+@attribute [Authorize(Roles = "SuperAdmin")]
+@inject InventoryService InventoryService
+@inject NavigationManager NavigationManager
+
+<PageTitle>Gestión de Ciudades</PageTitle>
+
+<div class="cities-container">
+    <div class="page-header">
+        <h3><i class="fas fa-city"></i> Gestión de Ciudades</h3>
+        <div class="header-actions">
+            <button class="btn btn-outline-secondary" @onclick="GoBack">
+                <i class="fas fa-arrow-left"></i> Volver
+            </button>
+            <button class="btn btn-success" @onclick="OpenAddModal">
+                <i class="fas fa-plus"></i> Agregar Ciudad
+            </button>
+        </div>
+    </div>
+
+    @if (cities == null)
+    {
+        <div class="loader-container">
+            <div class="loader">
+                <div class="circle"></div>
+                <div class="circle"></div>
+                <div class="circle"></div>
+            </div>
+            <p>Cargando ciudades...</p>
+        </div>
+    }
+    else
+    {
+        <div class="card">
+            <div class="card-header">
+                <div class="search-box">
+                    <i class="fas fa-search search-icon"></i>
+                    <input type="text" class="form-control search-input" placeholder="Buscar ciudades..."
+                           @bind-value="searchTerm" @bind-value:event="oninput" @onkeyup="FilterCities" />
+                    @if (!string.IsNullOrEmpty(searchTerm))
+                    {
+                        <button class="btn btn-sm clear-search" @onclick="ClearSearch">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    }
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover mobile-cards">
+                        <thead>
+                            <tr>
+                                <th @onclick='() => SortCities("Name")'>
+                                    Nombre <SortIconComponent Field="Name" CurrentSort="@currentSortField" Asc="@isAscending" />
+                                </th>
+                                <th @onclick='() => SortCities("Department")'>
+                                    Departamento <SortIconComponent Field="Department" CurrentSort="@currentSortField" Asc="@isAscending" />
+                                </th>
+                                <th>Puntos</th>
+                                <th>Estado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (pagedCities.Count == 0)
+                            {
+                                <tr>
+                                    <td colspan="5" class="text-center no-card">No se encontraron ciudades</td>
+                                </tr>
+                            }
+                            else
+                            {
+                                @foreach (var city in pagedCities)
+                                {
+                                    <tr>
+                                        <td data-label="Nombre">@city.Name</td>
+                                        <td data-label="Departamento">@(city.Department ?? "—")</td>
+                                        <td data-label="Puntos">
+                                            <span class="badge bg-info">@(city.InventoryPoints?.Count ?? 0)</span>
+                                        </td>
+                                        <td data-label="Estado">
+                                            <span class="badge @(city.IsActive ? "bg-success" : "bg-secondary")">
+                                                @(city.IsActive ? "Activa" : "Inactiva")
+                                            </span>
+                                        </td>
+                                        <td data-label="">
+                                            <div class="action-buttons">
+                                                <button class="btn btn-sm btn-outline-info" title="Ver Puntos"
+                                                        @onclick="() => GoToPoints(city.Id)">
+                                                    <i class="fas fa-map-marker-alt"></i>
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-primary" title="Editar"
+                                                        @onclick="() => OpenEditModal(city)">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-danger" title="Eliminar"
+                                                        @onclick="() => OpenDeleteModal(city)">
+                                                    <i class="fas fa-trash-alt"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="pagination-container">
+                    <div class="pagination-info">
+                        Mostrando @pagedCities.Count de @filteredCities.Count ciudades
+                    </div>
+                    @if (filteredCities.Count > itemsPerPage)
+                    {
+                        <div class="pagination">
+                            <button class="btn btn-sm @(currentPage == 1 ? "btn-secondary disabled" : "btn-outline-primary")"
+                                    @onclick="PreviousPage" disabled="@(currentPage == 1)">
+                                <i class="fas fa-chevron-left"></i>
+                            </button>
+                            @for (int i = 1; i <= totalPages; i++)
+                            {
+                                var pageNumber = i;
+                                <button class="btn btn-sm @(currentPage == pageNumber ? "btn-primary" : "btn-outline-primary")"
+                                        @onclick="() => GoToPage(pageNumber)">
+                                    @pageNumber
+                                </button>
+                            }
+                            <button class="btn btn-sm @(currentPage == totalPages ? "btn-secondary disabled" : "btn-outline-primary")"
+                                    @onclick="NextPage" disabled="@(currentPage == totalPages)">
+                                <i class="fas fa-chevron-right"></i>
+                            </button>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+<!-- Modal Agregar/Editar -->
+@if (showModal)
+{
+    <div class="modal-backdrop show"></div>
+    <div class="modal fade show" style="display: block;" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas @(isEditing ? "fa-edit" : "fa-plus")"></i>
+                        @(isEditing ? "Editar Ciudad" : "Agregar Ciudad")
+                    </h5>
+                    <button type="button" class="btn-close" @onclick="CloseModals"></button>
+                </div>
+                <div class="modal-body">
+                    @if (!string.IsNullOrEmpty(errorMessage))
+                    {
+                        <div class="alert alert-danger">
+                            <i class="fas fa-exclamation-circle"></i> @errorMessage
+                        </div>
+                    }
+                    <EditForm Model="@editCity" OnValidSubmit="SaveCity">
+                        <DataAnnotationsValidator />
+                        <ValidationSummary />
+
+                        <div class="form-group mb-3">
+                            <label>Nombre de la Ciudad</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-city"></i></span>
+                                <InputText @bind-Value="editCity.Name" class="form-control" placeholder="Ej: San Pedro Sula" />
+                            </div>
+                            <ValidationMessage For="@(() => editCity.Name)" />
+                        </div>
+
+                        <div class="form-group mb-3">
+                            <label>Departamento</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-map"></i></span>
+                                <InputText @bind-Value="editCity.Department" class="form-control" placeholder="Ej: Cortés" />
+                            </div>
+                        </div>
+
+                        <div class="form-check mb-3">
+                            <InputCheckbox @bind-Value="editCity.IsActive" class="form-check-input" id="cityActive" />
+                            <label class="form-check-label" for="cityActive">Ciudad Activa</label>
+                        </div>
+
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" @onclick="CloseModals">Cancelar</button>
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-save"></i> @(isEditing ? "Guardar Cambios" : "Agregar Ciudad")
+                            </button>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Modal Eliminar -->
+@if (showDeleteModal && cityToDelete != null)
+{
+    <div class="modal-backdrop show"></div>
+    <div class="modal fade show" style="display: block;" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-exclamation-triangle text-danger"></i> Confirmar Eliminación</h5>
+                    <button type="button" class="btn-close" @onclick="CloseModals"></button>
+                </div>
+                <div class="modal-body">
+                    @if (!string.IsNullOrEmpty(errorMessage))
+                    {
+                        <div class="alert alert-danger">
+                            <i class="fas fa-exclamation-circle"></i> @errorMessage
+                        </div>
+                    }
+                    <p>¿Está seguro que desea eliminar la ciudad <strong>@cityToDelete.Name</strong>?</p>
+                    @if ((cityToDelete.InventoryPoints?.Count ?? 0) > 0)
+                    {
+                        <div class="alert alert-warning">
+                            <i class="fas fa-info-circle"></i> Esta ciudad tiene <strong>@cityToDelete.InventoryPoints.Count</strong> punto(s) de inventario.
+                            Debe eliminar los puntos antes de eliminar la ciudad.
+                        </div>
+                    }
+                    <p class="text-danger"><i class="fas fa-exclamation-circle"></i> Esta acción no se puede deshacer.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseModals">Cancelar</button>
+                    <button type="button" class="btn btn-danger" @onclick="DeleteCity"
+                            disabled="@((cityToDelete.InventoryPoints?.Count ?? 0) > 0)">
+                        <i class="fas fa-trash-alt"></i> Eliminar Ciudad
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<City>? cities;
+    private List<City> filteredCities = new();
+    private List<City> pagedCities = new();
+    private City editCity = new();
+    private City? cityToDelete;
+    private bool showModal = false;
+    private bool showDeleteModal = false;
+    private bool isEditing = false;
+    private string searchTerm = "";
+    private string errorMessage = "";
+
+    private int currentPage = 1;
+    private int itemsPerPage = 10;
+    private int totalPages => (int)Math.Ceiling(filteredCities.Count / (double)itemsPerPage);
+
+    private string currentSortField = "Name";
+    private bool isAscending = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCities();
+    }
+
+    private async Task LoadCities()
+    {
+        cities = await InventoryService.GetAllCitiesAsync();
+        FilterCities();
+    }
+
+    private void FilterCities()
+    {
+        if (string.IsNullOrWhiteSpace(searchTerm))
+            filteredCities = cities?.ToList() ?? new();
+        else
+            filteredCities = cities?
+                .Where(c =>
+                    (c.Name?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                    (c.Department?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false))
+                .ToList() ?? new();
+
+        SortCities(currentSortField, false);
+        currentPage = 1;
+        ApplyPagination();
+    }
+
+    private void ClearSearch() { searchTerm = ""; FilterCities(); }
+
+    private void SortCities(string field, bool updateDirection = true)
+    {
+        if (updateDirection && field == currentSortField)
+            isAscending = !isAscending;
+        currentSortField = field;
+
+        filteredCities = field switch
+        {
+            "Name" => isAscending ? filteredCities.OrderBy(c => c.Name).ToList() : filteredCities.OrderByDescending(c => c.Name).ToList(),
+            "Department" => isAscending ? filteredCities.OrderBy(c => c.Department ?? "").ToList() : filteredCities.OrderByDescending(c => c.Department ?? "").ToList(),
+            _ => filteredCities
+        };
+        ApplyPagination();
+    }
+
+    private void ApplyPagination()
+    {
+        pagedCities = filteredCities.Skip((currentPage - 1) * itemsPerPage).Take(itemsPerPage).ToList();
+    }
+
+    private void PreviousPage() { if (currentPage > 1) { currentPage--; ApplyPagination(); } }
+    private void NextPage() { if (currentPage < totalPages) { currentPage++; ApplyPagination(); } }
+    private void GoToPage(int page) { currentPage = page; ApplyPagination(); }
+
+    private void OpenAddModal()
+    {
+        editCity = new City { IsActive = true };
+        isEditing = false;
+        errorMessage = "";
+        showModal = true;
+    }
+
+    private void OpenEditModal(City city)
+    {
+        editCity = new City
+        {
+            Id = city.Id,
+            Name = city.Name,
+            Department = city.Department,
+            IsActive = city.IsActive
+        };
+        isEditing = true;
+        errorMessage = "";
+        showModal = true;
+    }
+
+    private void OpenDeleteModal(City city)
+    {
+        cityToDelete = city;
+        errorMessage = "";
+        showDeleteModal = true;
+    }
+
+    private void CloseModals()
+    {
+        showModal = false;
+        showDeleteModal = false;
+        cityToDelete = null;
+        errorMessage = "";
+    }
+
+    private async Task SaveCity()
+    {
+        errorMessage = "";
+        try
+        {
+            if (isEditing)
+                await InventoryService.UpdateCityAsync(editCity);
+            else
+                await InventoryService.AddCityAsync(editCity);
+
+            CloseModals();
+            await LoadCities();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error: {ex.Message}";
+        }
+    }
+
+    private async Task DeleteCity()
+    {
+        errorMessage = "";
+        try
+        {
+            var success = await InventoryService.DeleteCityAsync(cityToDelete!.Id);
+            if (!success)
+            {
+                errorMessage = "No se puede eliminar la ciudad porque tiene puntos de inventario asociados.";
+                return;
+            }
+            CloseModals();
+            await LoadCities();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error: {ex.Message}";
+        }
+    }
+
+    private void GoBack() => NavigationManager.NavigateTo("/admin/inventory");
+    private void GoToPoints(int cityId) => NavigationManager.NavigateTo($"/admin/inventorypoints/{cityId}");
+
+    // Sort icon helper
+    private class SortIconComponent : ComponentBase
+    {
+        [Parameter] public string Field { get; set; } = "";
+        [Parameter] public string CurrentSort { get; set; } = "";
+        [Parameter] public bool Asc { get; set; }
+
+        protected override void BuildRenderTree(Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder builder)
+        {
+            builder.OpenElement(0, "i");
+            builder.AddAttribute(1, "class",
+                Field == CurrentSort
+                    ? (Asc ? "fas fa-sort-up ms-1" : "fas fa-sort-down ms-1")
+                    : "fas fa-sort ms-1 text-muted");
+            builder.CloseElement();
+        }
+    }
+}
+
+<style>
+    .cities-container {
+        padding: 1rem;
+        max-width: 1400px;
+        margin: 0 auto;
+    }
+
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid #e9ecef;
+    }
+
+    .page-header h3 {
+        margin: 0; color: #2c3e50; font-weight: 600;
+        display: flex; align-items: center; gap: 0.5rem; font-size: 1.4rem;
+    }
+
+    .header-actions { display: flex; gap: 0.5rem; }
+
+    .loader-container {
+        display: flex; flex-direction: column; align-items: center;
+        justify-content: center; margin: 3rem 0;
+    }
+    .loader { display: flex; justify-content: center; align-items: center; margin-bottom: 1rem; }
+    .circle {
+        width: 12px; height: 12px; background-color: #3498db;
+        border-radius: 50%; margin: 0 6px;
+        animation: bounce 1.4s infinite ease-in-out both;
+    }
+    .circle:nth-child(1) { animation-delay: -0.32s; }
+    .circle:nth-child(2) { animation-delay: -0.16s; }
+    @@keyframes bounce {
+        0%, 80%, 100% { transform: scale(0); opacity: 0.3; }
+        40% { transform: scale(1); opacity: 1; }
+    }
+
+    .card { box-shadow: 0 4px 6px rgba(0,0,0,0.1); border-radius: 0.5rem; border: none; margin-bottom: 2rem; }
+    .card-header { background-color: #f8f9fa; padding: 1rem; border-bottom: 1px solid #e9ecef; }
+
+    .search-box { position: relative; max-width: 400px; }
+    .search-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #6c757d; }
+    .search-input { padding-left: 35px; padding-right: 35px; border-radius: 20px; }
+    .clear-search { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); border: none; background: none; color: #6c757d; padding: 0; }
+
+    .table th { border-top: none; background-color: #f8f9fa; cursor: pointer; user-select: none; white-space: nowrap; }
+    .table th:hover { background-color: #e9ecef; }
+    .table tbody tr:hover { background-color: rgba(0,123,255,0.05); }
+
+    .action-buttons { display: flex; gap: 0.5rem; justify-content: center; }
+
+    .pagination-container { display: flex; justify-content: space-between; align-items: center; padding: 1rem; border-top: 1px solid #e9ecef; }
+    .pagination { display: flex; gap: 0.25rem; }
+    .pagination-info { color: #6c757d; font-size: 0.875rem; }
+
+    .modal-content { border: none; box-shadow: 0 10px 15px rgba(0,0,0,0.1); border-radius: 0.5rem; }
+    .modal-header { border-bottom: 1px solid #e9ecef; background-color: #f8f9fa; padding: 1rem 1.5rem; }
+    .modal-footer { border-top: 1px solid #e9ecef; padding: 1rem 1.5rem; background-color: #f8f9fa; }
+    .badge { padding: 0.35em 0.65em; font-weight: 500; }
+    .input-group-text { background-color: #f8f9fa; }
+
+    /* ── Mobile: card view ── */
+    @@media (max-width: 767.98px) {
+        .cities-container { padding: 0.5rem; }
+
+        .page-header { flex-direction: column; align-items: flex-start; gap: 1rem; }
+        .page-header h3 { font-size: 1.2rem; }
+        .header-actions { width: 100%; flex-direction: column; }
+        .header-actions .btn { width: 100%; }
+
+        .search-box { max-width: 100%; width: 100%; }
+
+        .mobile-cards thead { display: none; }
+        .mobile-cards tbody tr {
+            display: block;
+            margin-bottom: 0.75rem;
+            border: 1px solid #dee2e6;
+            border-radius: 0.5rem;
+            padding: 0.75rem;
+            background: #fff;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        }
+        .mobile-cards tbody tr:hover { background: #fff; }
+        .mobile-cards tbody td {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.3rem 0;
+            border: none;
+            font-size: 0.9rem;
+        }
+        .mobile-cards tbody td::before {
+            content: attr(data-label);
+            font-weight: 600;
+            color: #495057;
+            margin-right: 1rem;
+            flex-shrink: 0;
+        }
+        .mobile-cards tbody td:last-child {
+            justify-content: flex-end;
+            padding-top: 0.5rem;
+            border-top: 1px solid #eee;
+            margin-top: 0.25rem;
+        }
+        .mobile-cards tbody td:last-child::before { display: none; }
+        .mobile-cards tbody td.no-card { display: block; text-align: center; }
+        .mobile-cards tbody td.no-card::before { display: none; }
+
+        .action-buttons { gap: 0.35rem; }
+
+        .pagination-container { flex-direction: column; gap: 0.75rem; }
+        .pagination { flex-wrap: wrap; justify-content: center; }
+
+        .modal-dialog { margin: 0.5rem; }
+    }
+
+    /* ── Tablet ── */
+    @@media (min-width: 768px) and (max-width: 991.98px) {
+        .page-header h3 { font-size: 1.25rem; }
+        .header-actions .btn { font-size: 0.85rem; padding: 0.35rem 0.75rem; }
+    }
+</style>

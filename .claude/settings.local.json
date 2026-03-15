@@ -6,7 +6,11 @@
       "Bash(dotnet tool restore:*)",
       "Bash(dotnet build:*)",
       "Bash(dotnet ef database update:*)",
-      "Bash(python:*)"
+      "Bash(python:*)",
+      "Bash(wc -l /c/Users/ThinkPad/Desktop/TESTFERREX/TestFreight/FerrexWeb/Pages/*.razor | tail -1)",
+      "Bash(grep -r \"class.*Service\" /c/Users/ThinkPad/Desktop/TESTFERREX/TestFreight/FerrexWeb/Services/*.cs | cut -d: -f2 | sort -u)",
+      "Bash(find /c/Users/ThinkPad/Desktop/TESTFERREX/TestFreight/FerrexWeb -name \"*.css\" 2>/dev/null | head -20)",
+      "Bash(pip install:*)"
     ]
   }
 }

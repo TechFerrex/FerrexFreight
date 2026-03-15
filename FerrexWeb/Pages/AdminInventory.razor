@@ -1,0 +1,927 @@
+@page "/admin/inventory/{PointId:int}"
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.EntityFrameworkCore
+@using FerrexWeb.Models
+@using FerrexWeb.Services
+@attribute [Authorize(Roles = "SuperAdmin")]
+@inject InventoryService InventoryService
+@inject NavigationManager NavigationManager
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject ApplicationDbContext DbContext
+
+<PageTitle>Inventario - @(currentPoint?.Name ?? "Cargando...")</PageTitle>
+
+<div class="inventory-container">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="/admin/inventory" @onclick:preventDefault @onclick="GoToDashboard">Inventario</a></li>
+            <li class="breadcrumb-item"><a href="/admin/inventorypoints" @onclick:preventDefault @onclick="GoToPoints">Puntos</a></li>
+            <li class="breadcrumb-item active">@(currentPoint?.Name ?? "...")</li>
+        </ol>
+    </nav>
+
+    <div class="page-header">
+        <div>
+            <h3><i class="fas fa-boxes"></i> @(currentPoint?.Name ?? "Cargando...")</h3>
+            @if (currentPoint?.City != null)
+            {
+                <small class="text-muted"><i class="fas fa-city"></i> @currentPoint.City.Name</small>
+            }
+        </div>
+        <div class="header-actions">
+            <button class="btn btn-outline-secondary" @onclick="GoToPoints">
+                <i class="fas fa-arrow-left"></i> Volver
+            </button>
+            <button class="btn btn-success" @onclick="OpenAddProductModal">
+                <i class="fas fa-plus"></i> Agregar Producto
+            </button>
+        </div>
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="loader-container">
+            <div class="loader">
+                <div class="circle"></div>
+                <div class="circle"></div>
+                <div class="circle"></div>
+            </div>
+            <p>Cargando inventario...</p>
+        </div>
+    }
+    else
+    {
+        <!-- Summary Cards -->
+        <div class="row mb-4">
+            <div class="col-md-3 col-6 mb-3">
+                <div class="card summary-card border-primary">
+                    <div class="card-body text-center">
+                        <i class="fas fa-cubes fa-2x text-primary mb-2"></i>
+                        <h4 class="mb-0">@items.Count</h4>
+                        <small class="text-muted">Total Productos</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 col-6 mb-3">
+                <div class="card summary-card border-success">
+                    <div class="card-body text-center">
+                        <i class="fas fa-boxes fa-2x text-success mb-2"></i>
+                        <h4 class="mb-0">@items.Sum(i => i.Quantity)</h4>
+                        <small class="text-muted">Stock Total</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 col-6 mb-3">
+                <div class="card summary-card border-warning">
+                    <div class="card-body text-center">
+                        <i class="fas fa-exclamation-triangle fa-2x text-warning mb-2"></i>
+                        <h4 class="mb-0">@items.Count(i => i.Quantity > 0 && i.Quantity <= i.MinStock)</h4>
+                        <small class="text-muted">Bajo Stock</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 col-6 mb-3">
+                <div class="card summary-card border-danger">
+                    <div class="card-body text-center">
+                        <i class="fas fa-times-circle fa-2x text-danger mb-2"></i>
+                        <h4 class="mb-0">@items.Count(i => i.Quantity == 0)</h4>
+                        <small class="text-muted">Sin Stock</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filter & Table -->
+        <div class="card">
+            <div class="card-header d-flex flex-wrap gap-2 align-items-center">
+                <div class="search-box">
+                    <i class="fas fa-search search-icon"></i>
+                    <input type="text" class="form-control search-input" placeholder="Buscar productos..."
+                           @bind-value="searchTerm" @bind-value:event="oninput" @onkeyup="FilterItems" />
+                </div>
+                <div class="ms-auto">
+                    <select class="form-select form-select-sm" style="min-width: 150px;"
+                            @bind="statusFilter" @bind:after="FilterItems">
+                        <option value="All">Todos</option>
+                        <option value="Normal">Normal</option>
+                        <option value="Bajo Stock">Bajo Stock</option>
+                        <option value="Sin Stock">Sin Stock</option>
+                    </select>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover mobile-cards">
+                        <thead>
+                            <tr>
+                                <th>Código</th>
+                                <th>Producto</th>
+                                <th>Cantidad</th>
+                                <th>Stock Mínimo</th>
+                                <th>Estado</th>
+                                <th>Últ. Actualización</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (filteredItems.Count == 0)
+                            {
+                                <tr>
+                                    <td colspan="7" class="text-center no-card">No se encontraron productos en el inventario</td>
+                                </tr>
+                            }
+                            else
+                            {
+                                @foreach (var item in pagedItems)
+                                {
+                                    <tr>
+                                        <td data-label="Código"><code>@item.Product?.Codigo</code></td>
+                                        <td data-label="Producto">@item.Product?.DescProducto</td>
+                                        <td data-label="Cantidad"><strong>@item.Quantity</strong></td>
+                                        <td data-label="Stock Mín.">@item.MinStock</td>
+                                        <td data-label="Estado">
+                                            <span class="badge @GetStockBadgeClass(item.StockStatus)">
+                                                @item.StockStatus
+                                            </span>
+                                        </td>
+                                        <td data-label="Actualizado">@item.LastUpdated.ToString("dd/MM/yy HH:mm")</td>
+                                        <td data-label="">
+                                            <div class="action-buttons">
+                                                <button class="btn btn-sm btn-outline-success" title="Editar Stock"
+                                                        @onclick="() => OpenStockModal(item)">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-info" title="Transferir"
+                                                        @onclick="() => OpenTransferModal(item)">
+                                                    <i class="fas fa-exchange-alt"></i>
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-secondary" title="Historial"
+                                                        @onclick="() => OpenHistoryModal(item)">
+                                                    <i class="fas fa-history"></i>
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-danger" title="Eliminar"
+                                                        @onclick="() => OpenDeleteModal(item)">
+                                                    <i class="fas fa-trash-alt"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                @if (filteredItems.Count > itemsPerPage)
+                {
+                    <div class="pagination-container">
+                        <div class="pagination-info">
+                            Mostrando @pagedItems.Count de @filteredItems.Count productos
+                        </div>
+                        <div class="pagination">
+                            <button class="btn btn-sm @(currentPage == 1 ? "btn-secondary disabled" : "btn-outline-primary")"
+                                    @onclick="PreviousPage" disabled="@(currentPage == 1)">
+                                <i class="fas fa-chevron-left"></i>
+                            </button>
+                            @for (int i = 1; i <= totalPages; i++)
+                            {
+                                var p = i;
+                                <button class="btn btn-sm @(currentPage == p ? "btn-primary" : "btn-outline-primary")"
+                                        @onclick="() => GoToPage(p)">@p</button>
+                            }
+                            <button class="btn btn-sm @(currentPage == totalPages ? "btn-secondary disabled" : "btn-outline-primary")"
+                                    @onclick="NextPage" disabled="@(currentPage == totalPages)">
+                                <i class="fas fa-chevron-right"></i>
+                            </button>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+<!-- Modal: Agregar Producto -->
+@if (showAddModal)
+{
+    <div class="modal-backdrop show"></div>
+    <div class="modal fade show" style="display: block;" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-plus"></i> Agregar Producto al Inventario</h5>
+                    <button type="button" class="btn-close" @onclick="CloseModals"></button>
+                </div>
+                <div class="modal-body">
+                    @if (!string.IsNullOrEmpty(errorMessage))
+                    {
+                        <div class="alert alert-danger"><i class="fas fa-exclamation-circle"></i> @errorMessage</div>
+                    }
+
+                    <div class="form-group mb-3">
+                        <label>Buscar Producto</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-search"></i></span>
+                            <input type="text" class="form-control" placeholder="Buscar por nombre o código..."
+                                   @bind-value="productSearch" @bind-value:event="oninput" @onkeyup="SearchProducts" />
+                        </div>
+                    </div>
+
+                    @if (searchedProducts != null && searchedProducts.Count > 0)
+                    {
+                        <div class="list-group mb-3" style="max-height: 200px; overflow-y: auto;">
+                            @foreach (var prod in searchedProducts)
+                            {
+                                <button type="button"
+                                        class="list-group-item list-group-item-action @(selectedProductId == prod.IdProducto ? "active" : "")"
+                                        @onclick="() => SelectProduct(prod)">
+                                    <strong>@prod.Codigo</strong> — @prod.DescProducto
+                                </button>
+                            }
+                        </div>
+                    }
+
+                    @if (selectedProductId > 0)
+                    {
+                        <div class="alert alert-info">
+                            <i class="fas fa-check-circle"></i> Producto seleccionado: <strong>@selectedProductName</strong>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label>Cantidad Inicial</label>
+                                <input type="number" class="form-control" @bind="newItemQuantity" min="0" />
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label>Stock Mínimo</label>
+                                <input type="number" class="form-control" @bind="newItemMinStock" min="0" />
+                            </div>
+                        </div>
+                    }
+
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @onclick="CloseModals">Cancelar</button>
+                        <button type="button" class="btn btn-success" @onclick="AddProduct" disabled="@(selectedProductId == 0)">
+                            <i class="fas fa-plus"></i> Agregar Producto
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Modal: Editar Stock -->
+@if (showStockModal && selectedItem != null)
+{
+    <div class="modal-backdrop show"></div>
+    <div class="modal fade show" style="display: block;" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-edit"></i> Editar Stock</h5>
+                    <button type="button" class="btn-close" @onclick="CloseModals"></button>
+                </div>
+                <div class="modal-body">
+                    @if (!string.IsNullOrEmpty(errorMessage))
+                    {
+                        <div class="alert alert-danger"><i class="fas fa-exclamation-circle"></i> @errorMessage</div>
+                    }
+
+                    <div class="alert alert-info mb-3">
+                        <strong>@selectedItem.Product?.DescProducto</strong><br />
+                        Stock actual: <strong>@selectedItem.Quantity</strong>
+                    </div>
+
+                    <div class="form-group mb-3">
+                        <label>Tipo de Movimiento</label>
+                        <select class="form-select" @bind="stockMovementType">
+                            <option value="0">Entrada (+)</option>
+                            <option value="1">Salida (-)</option>
+                            <option value="2">Ajuste (=)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group mb-3">
+                        <label>Cantidad</label>
+                        <input type="number" class="form-control" @bind="stockQuantity" min="0" />
+                        @if (stockMovementType == 0)
+                        {
+                            <small class="text-muted">Nuevo stock: @(selectedItem.Quantity + stockQuantity)</small>
+                        }
+                        else if (stockMovementType == 1)
+                        {
+                            <small class="text-muted">Nuevo stock: @(Math.Max(0, selectedItem.Quantity - stockQuantity))</small>
+                        }
+                        else
+                        {
+                            <small class="text-muted">El stock se ajustará a: @stockQuantity</small>
+                        }
+                    </div>
+
+                    <div class="form-group mb-3">
+                        <label>Descripción / Razón</label>
+                        <input type="text" class="form-control" @bind="stockDescription" placeholder="Razón del movimiento" />
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @onclick="CloseModals">Cancelar</button>
+                        <button type="button" class="btn btn-success" @onclick="UpdateStock">
+                            <i class="fas fa-save"></i> Guardar Movimiento
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Modal: Transferir -->
+@if (showTransferModal && selectedItem != null)
+{
+    <div class="modal-backdrop show"></div>
+    <div class="modal fade show" style="display: block;" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-exchange-alt"></i> Transferir Stock</h5>
+                    <button type="button" class="btn-close" @onclick="CloseModals"></button>
+                </div>
+                <div class="modal-body">
+                    @if (!string.IsNullOrEmpty(errorMessage))
+                    {
+                        <div class="alert alert-danger"><i class="fas fa-exclamation-circle"></i> @errorMessage</div>
+                    }
+
+                    <div class="alert alert-info mb-3">
+                        <strong>@selectedItem.Product?.DescProducto</strong><br />
+                        Stock disponible: <strong>@selectedItem.Quantity</strong>
+                    </div>
+
+                    <div class="form-group mb-3">
+                        <label>Punto de Destino</label>
+                        <select class="form-select" @bind="transferDestinationPointId">
+                            <option value="0">-- Seleccione punto destino --</option>
+                            @if (allPoints != null)
+                            {
+                                @foreach (var point in allPoints.Where(p => p.Id != PointId && p.IsActive))
+                                {
+                                    <option value="@point.Id">@point.City?.Name — @point.Name</option>
+                                }
+                            }
+                        </select>
+                    </div>
+
+                    <div class="form-group mb-3">
+                        <label>Cantidad a Transferir</label>
+                        <input type="number" class="form-control" @bind="transferQuantity" min="1" max="@selectedItem.Quantity" />
+                    </div>
+
+                    <div class="form-group mb-3">
+                        <label>Descripción</label>
+                        <input type="text" class="form-control" @bind="transferDescription" placeholder="Razón de la transferencia" />
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @onclick="CloseModals">Cancelar</button>
+                        <button type="button" class="btn btn-primary" @onclick="TransferStock"
+                                disabled="@(transferDestinationPointId == 0 || transferQuantity <= 0)">
+                            <i class="fas fa-exchange-alt"></i> Transferir
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Modal: Historial -->
+@if (showHistoryModal && selectedItem != null)
+{
+    <div class="modal-backdrop show"></div>
+    <div class="modal fade show" style="display: block;" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-history"></i> Historial de Movimientos</h5>
+                    <button type="button" class="btn-close" @onclick="CloseModals"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-info mb-3">
+                        <strong>@selectedItem.Product?.DescProducto</strong> — Stock actual: <strong>@selectedItem.Quantity</strong>
+                    </div>
+
+                    @if (movements == null || movements.Count == 0)
+                    {
+                        <p class="text-center text-muted">No hay movimientos registrados.</p>
+                    }
+                    else
+                    {
+                        <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                            <table class="table table-sm table-hover mobile-cards">
+                                <thead>
+                                    <tr>
+                                        <th>Fecha</th>
+                                        <th>Tipo</th>
+                                        <th>Cantidad</th>
+                                        <th>Anterior</th>
+                                        <th>Nuevo</th>
+                                        <th>Descripción</th>
+                                        <th>Usuario</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var mov in movements)
+                                    {
+                                        <tr>
+                                            <td data-label="Fecha">@mov.MovementDate.ToString("dd/MM/yy HH:mm")</td>
+                                            <td data-label="Tipo">
+                                                <span class="badge @GetMovementBadgeClass(mov.MovementType)">
+                                                    @GetMovementTypeName(mov.MovementType)
+                                                </span>
+                                            </td>
+                                            <td data-label="Cantidad">@mov.Quantity</td>
+                                            <td data-label="Anterior">@mov.PreviousQuantity</td>
+                                            <td data-label="Nuevo">@mov.NewQuantity</td>
+                                            <td data-label="Descripción">@(mov.Description ?? "—")</td>
+                                            <td data-label="Usuario">@(mov.User?.Name ?? "—")</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseModals">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Modal: Eliminar -->
+@if (showDeleteModal && selectedItem != null)
+{
+    <div class="modal-backdrop show"></div>
+    <div class="modal fade show" style="display: block;" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-exclamation-triangle text-danger"></i> Confirmar Eliminación</h5>
+                    <button type="button" class="btn-close" @onclick="CloseModals"></button>
+                </div>
+                <div class="modal-body">
+                    <p>¿Está seguro que desea eliminar <strong>@selectedItem.Product?.DescProducto</strong> del inventario?</p>
+                    <p class="text-danger"><i class="fas fa-exclamation-circle"></i> Se eliminarán también todos los movimientos asociados.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseModals">Cancelar</button>
+                    <button type="button" class="btn btn-danger" @onclick="DeleteItem">
+                        <i class="fas fa-trash-alt"></i> Eliminar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public int PointId { get; set; }
+
+    private InventoryPoint? currentPoint;
+    private List<InventoryItem> items = new();
+    private List<InventoryItem> filteredItems = new();
+    private List<InventoryItem> pagedItems = new();
+    private List<InventoryPoint>? allPoints;
+    private bool isLoading = true;
+
+    // Search & filter
+    private string searchTerm = "";
+    private string statusFilter = "All";
+
+    // Pagination
+    private int currentPage = 1;
+    private int itemsPerPage = 15;
+    private int totalPages => Math.Max(1, (int)Math.Ceiling(filteredItems.Count / (double)itemsPerPage));
+
+    // Modal states
+    private bool showAddModal = false;
+    private bool showStockModal = false;
+    private bool showTransferModal = false;
+    private bool showHistoryModal = false;
+    private bool showDeleteModal = false;
+    private string errorMessage = "";
+    private InventoryItem? selectedItem;
+
+    // Add product
+    private string productSearch = "";
+    private List<Products>? searchedProducts;
+    private int selectedProductId = 0;
+    private string selectedProductName = "";
+    private int newItemQuantity = 0;
+    private int newItemMinStock = 5;
+
+    // Stock edit
+    private int stockMovementType = 0;
+    private int stockQuantity = 0;
+    private string stockDescription = "";
+
+    // Transfer
+    private int transferDestinationPointId = 0;
+    private int transferQuantity = 0;
+    private string transferDescription = "";
+
+    // History
+    private List<InventoryMovement>? movements;
+
+    // Current user
+    private int? currentUserId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            // Get current user id
+            var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var userEmail = authState.User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value;
+            if (!string.IsNullOrEmpty(userEmail))
+            {
+                var user = await DbContext.Users.FirstOrDefaultAsync(u => u.Email == userEmail);
+                currentUserId = user?.Id;
+            }
+
+            currentPoint = await InventoryService.GetPointByIdAsync(PointId);
+            allPoints = await InventoryService.GetAllPointsAsync();
+            await LoadItems();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task LoadItems()
+    {
+        items = await InventoryService.GetItemsByPointIdAsync(PointId);
+        FilterItems();
+    }
+
+    private void FilterItems()
+    {
+        var result = items.AsEnumerable();
+
+        if (!string.IsNullOrWhiteSpace(searchTerm))
+            result = result.Where(i =>
+                (i.Product?.DescProducto?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (i.Product?.Codigo?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false));
+
+        if (statusFilter != "All")
+            result = result.Where(i => i.StockStatus == statusFilter);
+
+        filteredItems = result.ToList();
+        currentPage = 1;
+        ApplyPagination();
+    }
+
+    private void ApplyPagination()
+    {
+        pagedItems = filteredItems.Skip((currentPage - 1) * itemsPerPage).Take(itemsPerPage).ToList();
+    }
+
+    private void PreviousPage() { if (currentPage > 1) { currentPage--; ApplyPagination(); } }
+    private void NextPage() { if (currentPage < totalPages) { currentPage++; ApplyPagination(); } }
+    private void GoToPage(int page) { currentPage = page; ApplyPagination(); }
+
+    // ── Add Product ──
+
+    private void OpenAddProductModal()
+    {
+        productSearch = "";
+        searchedProducts = null;
+        selectedProductId = 0;
+        selectedProductName = "";
+        newItemQuantity = 0;
+        newItemMinStock = 5;
+        errorMessage = "";
+        showAddModal = true;
+    }
+
+    private async Task SearchProducts()
+    {
+        if (productSearch.Length >= 2)
+            searchedProducts = await InventoryService.SearchProductsAsync(productSearch);
+        else
+            searchedProducts = null;
+    }
+
+    private void SelectProduct(Products product)
+    {
+        selectedProductId = product.IdProducto;
+        selectedProductName = $"{product.Codigo} — {product.DescProducto}";
+    }
+
+    private async Task AddProduct()
+    {
+        errorMessage = "";
+        try
+        {
+            if (await InventoryService.ProductExistsInPointAsync(PointId, selectedProductId))
+            {
+                errorMessage = "Este producto ya existe en este punto de inventario.";
+                return;
+            }
+
+            var newItem = new InventoryItem
+            {
+                InventoryPointId = PointId,
+                ProductId = selectedProductId,
+                Quantity = newItemQuantity,
+                MinStock = newItemMinStock
+            };
+
+            await InventoryService.AddItemAsync(newItem, currentUserId);
+            CloseModals();
+            await LoadItems();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error: {ex.Message}";
+        }
+    }
+
+    // ── Stock Edit ──
+
+    private void OpenStockModal(InventoryItem item)
+    {
+        selectedItem = item;
+        stockMovementType = 0;
+        stockQuantity = 0;
+        stockDescription = "";
+        errorMessage = "";
+        showStockModal = true;
+    }
+
+    private async Task UpdateStock()
+    {
+        errorMessage = "";
+        try
+        {
+            if (stockQuantity <= 0 && stockMovementType != 2)
+            {
+                errorMessage = "La cantidad debe ser mayor a 0.";
+                return;
+            }
+
+            await InventoryService.UpdateStockAsync(selectedItem!.Id, stockMovementType, stockQuantity, stockDescription, currentUserId);
+            CloseModals();
+            await LoadItems();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error: {ex.Message}";
+        }
+    }
+
+    // ── Transfer ──
+
+    private void OpenTransferModal(InventoryItem item)
+    {
+        selectedItem = item;
+        transferDestinationPointId = 0;
+        transferQuantity = 0;
+        transferDescription = "";
+        errorMessage = "";
+        showTransferModal = true;
+    }
+
+    private async Task TransferStock()
+    {
+        errorMessage = "";
+        try
+        {
+            if (transferQuantity <= 0 || transferQuantity > selectedItem!.Quantity)
+            {
+                errorMessage = "La cantidad debe ser mayor a 0 y no exceder el stock disponible.";
+                return;
+            }
+
+            await InventoryService.TransferStockAsync(selectedItem.Id, transferDestinationPointId, transferQuantity, transferDescription, currentUserId);
+            CloseModals();
+            await LoadItems();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error: {ex.Message}";
+        }
+    }
+
+    // ── History ──
+
+    private async Task OpenHistoryModal(InventoryItem item)
+    {
+        selectedItem = item;
+        movements = await InventoryService.GetMovementsByItemIdAsync(item.Id);
+        showHistoryModal = true;
+    }
+
+    // ── Delete ──
+
+    private void OpenDeleteModal(InventoryItem item)
+    {
+        selectedItem = item;
+        showDeleteModal = true;
+    }
+
+    private async Task DeleteItem()
+    {
+        try
+        {
+            await InventoryService.DeleteItemAsync(selectedItem!.Id);
+            CloseModals();
+            await LoadItems();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error eliminando item: {ex.Message}");
+        }
+    }
+
+    // ── Close ──
+
+    private void CloseModals()
+    {
+        showAddModal = false;
+        showStockModal = false;
+        showTransferModal = false;
+        showHistoryModal = false;
+        showDeleteModal = false;
+        selectedItem = null;
+        errorMessage = "";
+    }
+
+    // ── Helpers ──
+
+    private string GetStockBadgeClass(string status) => status switch
+    {
+        "Sin Stock" => "bg-danger",
+        "Bajo Stock" => "bg-warning text-dark",
+        "Normal" => "bg-success",
+        _ => "bg-secondary"
+    };
+
+    private string GetMovementBadgeClass(int type) => type switch
+    {
+        0 => "bg-success",    // Entry
+        1 => "bg-danger",     // Exit
+        2 => "bg-info",       // Adjustment
+        3 => "bg-primary",    // TransferIn
+        4 => "bg-warning text-dark",  // TransferOut
+        _ => "bg-secondary"
+    };
+
+    private string GetMovementTypeName(int type) => type switch
+    {
+        0 => "Entrada",
+        1 => "Salida",
+        2 => "Ajuste",
+        3 => "Transferencia (Entrada)",
+        4 => "Transferencia (Salida)",
+        _ => "Desconocido"
+    };
+
+    private void GoToDashboard() => NavigationManager.NavigateTo("/admin/inventory");
+    private void GoToPoints() => NavigationManager.NavigateTo("/admin/inventorypoints");
+}
+
+<style>
+    .inventory-container { padding: 1rem; max-width: 1400px; margin: 0 auto; }
+
+    .page-header {
+        display: flex; justify-content: space-between; align-items: flex-start;
+        margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid #e9ecef;
+    }
+    .page-header h3 {
+        margin: 0; color: #2c3e50; font-weight: 600;
+        display: flex; align-items: center; gap: 0.5rem; font-size: 1.4rem;
+    }
+    .header-actions { display: flex; gap: 0.5rem; }
+
+    .summary-card { border-left-width: 4px !important; transition: transform 0.2s; }
+    .summary-card:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+
+    .loader-container { display: flex; flex-direction: column; align-items: center; justify-content: center; margin: 3rem 0; }
+    .loader { display: flex; justify-content: center; align-items: center; margin-bottom: 1rem; }
+    .circle {
+        width: 12px; height: 12px; background-color: #3498db;
+        border-radius: 50%; margin: 0 6px;
+        animation: bounce 1.4s infinite ease-in-out both;
+    }
+    .circle:nth-child(1) { animation-delay: -0.32s; }
+    .circle:nth-child(2) { animation-delay: -0.16s; }
+    @@keyframes bounce {
+        0%, 80%, 100% { transform: scale(0); opacity: 0.3; }
+        40% { transform: scale(1); opacity: 1; }
+    }
+
+    .card { box-shadow: 0 4px 6px rgba(0,0,0,0.1); border-radius: 0.5rem; border: none; margin-bottom: 1rem; }
+    .card-header { background-color: #f8f9fa; padding: 1rem; border-bottom: 1px solid #e9ecef; }
+
+    .search-box { position: relative; min-width: 250px; }
+    .search-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #6c757d; }
+    .search-input { padding-left: 35px; border-radius: 20px; }
+
+    .table th { border-top: none; background-color: #f8f9fa; white-space: nowrap; }
+    .table tbody tr:hover { background-color: rgba(0,123,255,0.05); }
+    .action-buttons { display: flex; gap: 0.4rem; justify-content: center; flex-wrap: nowrap; }
+
+    .pagination-container { display: flex; justify-content: space-between; align-items: center; padding: 1rem; border-top: 1px solid #e9ecef; }
+    .pagination { display: flex; gap: 0.25rem; }
+    .pagination-info { color: #6c757d; font-size: 0.875rem; }
+
+    .modal-content { border: none; box-shadow: 0 10px 15px rgba(0,0,0,0.1); border-radius: 0.5rem; }
+    .modal-header { border-bottom: 1px solid #e9ecef; background-color: #f8f9fa; padding: 1rem 1.5rem; }
+    .modal-footer { border-top: 1px solid #e9ecef; padding: 1rem 1.5rem; background-color: #f8f9fa; }
+    .badge { padding: 0.35em 0.65em; font-weight: 500; }
+    .input-group-text { background-color: #f8f9fa; }
+
+    .breadcrumb { background: none; padding: 0; margin-bottom: 0; }
+    .breadcrumb-item a { color: #3498db; text-decoration: none; }
+    .breadcrumb-item a:hover { text-decoration: underline; }
+
+    /* ── Mobile: card view ── */
+    @@media (max-width: 767.98px) {
+        .inventory-container { padding: 0.5rem; }
+
+        .page-header { flex-direction: column; align-items: flex-start; gap: 1rem; }
+        .page-header h3 { font-size: 1.2rem; }
+        .header-actions { width: 100%; flex-direction: column; }
+        .header-actions .btn { width: 100%; }
+
+        .card-header { flex-direction: column !important; gap: 0.75rem !important; }
+        .card-header .ms-auto { margin-left: 0 !important; width: 100%; }
+        .card-header .ms-auto select { width: 100%; }
+        .search-box { max-width: 100%; min-width: unset; width: 100%; }
+
+        .summary-card .card-body { padding: 0.75rem; }
+        .summary-card .card-body h4 { font-size: 1.3rem; }
+        .summary-card .card-body .fa-2x { font-size: 1.4em; }
+
+        .mobile-cards thead { display: none; }
+        .mobile-cards tbody tr {
+            display: block;
+            margin-bottom: 0.75rem;
+            border: 1px solid #dee2e6;
+            border-radius: 0.5rem;
+            padding: 0.75rem;
+            background: #fff;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        }
+        .mobile-cards tbody tr:hover { background: #fff; }
+        .mobile-cards tbody td {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.3rem 0;
+            border: none;
+            font-size: 0.9rem;
+        }
+        .mobile-cards tbody td::before {
+            content: attr(data-label);
+            font-weight: 600;
+            color: #495057;
+            margin-right: 1rem;
+            flex-shrink: 0;
+        }
+        .mobile-cards tbody td:last-child {
+            justify-content: flex-end;
+            padding-top: 0.5rem;
+            border-top: 1px solid #eee;
+            margin-top: 0.25rem;
+        }
+        .mobile-cards tbody td:last-child::before { display: none; }
+        .mobile-cards tbody td.no-card { display: block; text-align: center; }
+        .mobile-cards tbody td.no-card::before { display: none; }
+
+        .action-buttons { flex-wrap: wrap; gap: 0.35rem; }
+
+        .pagination-container { flex-direction: column; gap: 0.75rem; }
+        .pagination { flex-wrap: wrap; justify-content: center; }
+
+        .modal-dialog { margin: 0.5rem; }
+        .modal-lg { max-width: calc(100% - 1rem); }
+    }
+
+    /* ── Tablet ── */
+    @@media (min-width: 768px) and (max-width: 991.98px) {
+        .page-header h3 { font-size: 1.25rem; }
+        .header-actions .btn { font-size: 0.85rem; padding: 0.35rem 0.75rem; }
+        .card-header { flex-direction: column !important; gap: 0.5rem !important; }
+        .card-header .ms-auto { margin-left: 0 !important; }
+    }
+</style>

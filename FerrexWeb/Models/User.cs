@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace FerrexWeb.Models
@@ -11,10 +11,13 @@ namespace FerrexWeb.Models
         public string Email { get; set; }
         public string Password { get; set; }
         [NotMapped]
-        public string NewPassword { get; set; } 
+        public string NewPassword { get; set; }
         public string PhoneNumber { get; set; }
         public DateTime CreateTime { get; set; } = DateTime.Now;
-        public string Role { get; set; } = "User";
+
+        public int RoleId { get; set; }
+        public Role Role { get; set; }
+
         public bool PolicyUser { get; set; }
 
         public bool EmailConfirmed { get; set; } = false;

@@ -4,6 +4,7 @@ using FerrexWeb.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace FerrexWeb.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260313044341_AddInventoryModule")]
+    partial class AddInventoryModule
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -758,46 +761,6 @@ namespace FerrexWeb.Migrations
                     b.ToTable("QuotationNumbers");
                 });
 
-            modelBuilder.Entity("FerrexWeb.Models.Role", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("Roles");
-
-                    b.HasData(
-                        new
-                        {
-                            Id = 1,
-                            Name = "User"
-                        },
-                        new
-                        {
-                            Id = 2,
-                            Name = "Admin"
-                        },
-                        new
-                        {
-                            Id = 3,
-                            Name = "SuperAdmin"
-                        },
-                        new
-                        {
-                            Id = 4,
-                            Name = "Worker"
-                        });
-                });
-
             modelBuilder.Entity("FerrexWeb.Models.SubCategory", b =>
                 {
                     b.Property<int>("id_subcategory")
@@ -887,15 +850,14 @@ namespace FerrexWeb.Migrations
                     b.Property<bool>("PolicyUser")
                         .HasColumnType("bit");
 
-                    b.Property<int>("RoleId")
-                        .HasColumnType("int");
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
 
                     b.HasIndex("Email")
                         .IsUnique();
-
-                    b.HasIndex("RoleId");
 
                     b.ToTable("Users");
                 });
@@ -1149,17 +1111,6 @@ namespace FerrexWeb.Migrations
                     b.Navigation("SubCategory");
                 });
 
-            modelBuilder.Entity("FerrexWeb.Models.User", b =>
-                {
-                    b.HasOne("FerrexWeb.Models.Role", "Role")
-                        .WithMany("Users")
-                        .HasForeignKey("RoleId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Role");
-                });
-
             modelBuilder.Entity("FerrexWeb.Models.Categories", b =>
                 {
                     b.Navigation("SubCategories");
@@ -1193,11 +1144,6 @@ namespace FerrexWeb.Migrations
             modelBuilder.Entity("FerrexWeb.Models.Quotation", b =>
                 {
                     b.Navigation("QuotedItems");
-                });
-
-            modelBuilder.Entity("FerrexWeb.Models.Role", b =>
-                {
-                    b.Navigation("Users");
                 });
 
             modelBuilder.Entity("FerrexWeb.Models.SubCategory", b =>

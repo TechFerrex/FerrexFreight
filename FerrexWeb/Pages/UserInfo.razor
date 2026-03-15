@@ -299,7 +299,7 @@
             return;
         }
 
-        var user = await DbContext.Users.FirstOrDefaultAsync(u => u.Email.ToLower() == loginModel.Email.ToLower());
+        var user = await DbContext.Users.Include(u => u.Role).FirstOrDefaultAsync(u => u.Email.ToLower() == loginModel.Email.ToLower());
         if (user == null || !BCrypt.Net.BCrypt.Verify(loginModel.Password, user.Password))
         {
             // Incrementar intentos fallidos (thread-safe)
@@ -339,7 +339,7 @@
             new Claim(ClaimTypes.Name, user.Name),
             new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
             new Claim(ClaimTypes.Email, user.Email),
-            new Claim(ClaimTypes.Role, user.Role)
+            new Claim(ClaimTypes.Role, user.Role?.Name ?? "User")
         };
         var token = GenerateJwt(claims);
         if (AuthenticationStateProvider is CustomAuthenticationStateProvider cap)
@@ -422,7 +422,7 @@
                 PhoneNumber = registerModel.PhoneNumber,
                 Password = BCrypt.Net.BCrypt.HashPassword(registerModel.Password),
                 CreateTime = DateTime.UtcNow,
-                Role = "User",
+                RoleId = 1, // User
                 PolicyUser = registerModel.PolicyAccepted,
                 EmailConfirmed = false
             };
@@ -480,7 +480,7 @@
     {
         if (!pendingVerificationUserId.HasValue) return;
 
-        var user = await DbContext.Users.FirstOrDefaultAsync(u => u.Id == pendingVerificationUserId.Value);
+        var user = await DbContext.Users.Include(u => u.Role).FirstOrDefaultAsync(u => u.Id == pendingVerificationUserId.Value);
         if (user == null || user.EmailConfirmed) return;
 
         // Eliminar tokens de verificación anteriores

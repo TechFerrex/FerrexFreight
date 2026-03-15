@@ -6,6 +6,7 @@ namespace FerrexWeb.Services
 {
     public class ApplicationDbContext : DbContext
     {
+        public DbSet<Role> Roles { get; set; }
         public DbSet<User> Users { get; set; }
         public DbSet<Quotation> Quotations { get; set; }
         public DbSet<QuotationDetail> QuotationDetails { get; set; }
@@ -25,6 +26,10 @@ namespace FerrexWeb.Services
         public DbSet<FreightConfirmation> FreightConfirmations { get; set; }
         public DbSet<PasswordReset> PasswordResets { get; set; }
         public DbSet<FreightStop> FreightStops { get; set; }
+        public DbSet<City> Cities { get; set; }
+        public DbSet<InventoryPoint> InventoryPoints { get; set; }
+        public DbSet<InventoryItem> InventoryItems { get; set; }
+        public DbSet<InventoryMovement> InventoryMovements { get; set; }
 
 
 
@@ -40,6 +45,21 @@ namespace FerrexWeb.Services
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<Products>().HasKey(p => p.IdProducto);
+
+            // ── Roles seed data ──
+            modelBuilder.Entity<Role>().HasData(
+                new Role { Id = 1, Name = "User" },
+                new Role { Id = 2, Name = "Admin" },
+                new Role { Id = 3, Name = "SuperAdmin" },
+                new Role { Id = 4, Name = "Worker" }
+            );
+
+            // ── User → Role relationship ──
+            modelBuilder.Entity<User>()
+                .HasOne(u => u.Role)
+                .WithMany(r => r.Users)
+                .HasForeignKey(u => u.RoleId);
+
             modelBuilder.Entity<User>();
             modelBuilder.Entity<Products>()
                 .Property(p => p.Precio)
@@ -193,6 +213,60 @@ namespace FerrexWeb.Services
 
             modelBuilder.Entity<Subcategory2>()
                 .HasIndex(s => s.id_subcategory);
+
+            // ── Inventory Module ──
+
+            // City → InventoryPoint
+            modelBuilder.Entity<InventoryPoint>()
+                .HasOne(ip => ip.City)
+                .WithMany(c => c.InventoryPoints)
+                .HasForeignKey(ip => ip.CityId);
+
+            // InventoryPoint → InventoryItem
+            modelBuilder.Entity<InventoryItem>()
+                .HasOne(ii => ii.InventoryPoint)
+                .WithMany(ip => ip.Items)
+                .HasForeignKey(ii => ii.InventoryPointId);
+
+            // InventoryItem → Products
+            modelBuilder.Entity<InventoryItem>()
+                .HasOne(ii => ii.Product)
+                .WithMany()
+                .HasForeignKey(ii => ii.ProductId);
+
+            // InventoryItem → InventoryMovement
+            modelBuilder.Entity<InventoryMovement>()
+                .HasOne(im => im.InventoryItem)
+                .WithMany(ii => ii.Movements)
+                .HasForeignKey(im => im.InventoryItemId);
+
+            // InventoryMovement → User
+            modelBuilder.Entity<InventoryMovement>()
+                .HasOne(im => im.User)
+                .WithMany()
+                .HasForeignKey(im => im.UserId)
+                .IsRequired(false);
+
+            // Unique index: one product per inventory point
+            modelBuilder.Entity<InventoryItem>()
+                .HasIndex(ii => new { ii.InventoryPointId, ii.ProductId })
+                .IsUnique();
+
+            // Performance indexes
+            modelBuilder.Entity<InventoryItem>()
+                .HasIndex(ii => ii.InventoryPointId);
+
+            modelBuilder.Entity<InventoryItem>()
+                .HasIndex(ii => ii.ProductId);
+
+            modelBuilder.Entity<InventoryMovement>()
+                .HasIndex(im => im.InventoryItemId);
+
+            modelBuilder.Entity<InventoryMovement>()
+                .HasIndex(im => im.MovementDate);
+
+            modelBuilder.Entity<InventoryPoint>()
+                .HasIndex(ip => ip.CityId);
         }
     }
 }

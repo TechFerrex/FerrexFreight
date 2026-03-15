@@ -61,6 +61,7 @@ builder.Services.AddScoped<ProductSyncService>();
 builder.Services.AddScoped<QuotationService>();
 builder.Services.AddScoped<FreightConfirmationService>();
 builder.Services.AddScoped<FreightQuotationService>();
+builder.Services.AddScoped<InventoryService>();
 builder.Services.AddTransient<SeekerService>();
 builder.Services.AddTransient<PdfService>();
 builder.Services.AddTransient<IEmailSender, BrevoEmailSender>();

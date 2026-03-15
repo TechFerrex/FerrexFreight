@@ -74,6 +74,16 @@
                         </div>
                     </div>
                 </div>
+                <div class="col-md-4 mb-3">
+                    <div class="card h-100 shadow-sm">
+                        <div class="card-body">
+                            <i class="fas fa-warehouse fa-3x mb-3"></i>
+                            <h5 class="card-title">Inventario</h5>
+                            <p class="card-text">Gestiona el inventario por ciudades y puntos</p>
+                            <button class="btn btn-primary" @onclick="IrAInventario">Ver Inventario</button>
+                        </div>
+                    </div>
+                </div>
 
             </div>
     }
@@ -118,5 +128,9 @@
     private void IrAListaLink()
     {
         NavigationManager.NavigateTo("/admin/FreightList");
+    }
+    private void IrAInventario()
+    {
+        NavigationManager.NavigateTo("/admin/inventory");
     }
 }

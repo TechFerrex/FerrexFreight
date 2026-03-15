@@ -1,0 +1,597 @@
+@page "/admin/inventorypoints"
+@page "/admin/inventorypoints/{CityId:int}"
+@using Microsoft.AspNetCore.Authorization
+@using FerrexWeb.Models
+@using FerrexWeb.Services
+@attribute [Authorize(Roles = "SuperAdmin")]
+@inject InventoryService InventoryService
+@inject NavigationManager NavigationManager
+
+<PageTitle>Puntos de Inventario</PageTitle>
+
+<div class="points-container">
+    <div class="page-header">
+        <h3><i class="fas fa-map-marker-alt"></i> Puntos de Inventario</h3>
+        <div class="header-actions">
+            <button class="btn btn-outline-secondary" @onclick="GoBack">
+                <i class="fas fa-arrow-left"></i> Volver
+            </button>
+            <button class="btn btn-success" @onclick="OpenAddModal">
+                <i class="fas fa-plus"></i> Agregar Punto
+            </button>
+        </div>
+    </div>
+
+    @if (points == null)
+    {
+        <div class="loader-container">
+            <div class="loader">
+                <div class="circle"></div>
+                <div class="circle"></div>
+                <div class="circle"></div>
+            </div>
+            <p>Cargando puntos de inventario...</p>
+        </div>
+    }
+    else
+    {
+        <div class="card">
+            <div class="card-header d-flex flex-wrap gap-2 align-items-center">
+                <div class="search-box">
+                    <i class="fas fa-search search-icon"></i>
+                    <input type="text" class="form-control search-input" placeholder="Buscar puntos..."
+                           @bind-value="searchTerm" @bind-value:event="oninput" @onkeyup="FilterPoints" />
+                    @if (!string.IsNullOrEmpty(searchTerm))
+                    {
+                        <button class="btn btn-sm clear-search" @onclick="ClearSearch">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    }
+                </div>
+                <div class="ms-auto">
+                    <select class="form-select form-select-sm" style="min-width: 200px;"
+                            @bind="selectedCityFilter" @bind:after="FilterPoints">
+                        <option value="0">Todas las Ciudades</option>
+                        @if (allCities != null)
+                        {
+                            @foreach (var city in allCities)
+                            {
+                                <option value="@city.Id">@city.Name</option>
+                            }
+                        }
+                    </select>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover mobile-cards">
+                        <thead>
+                            <tr>
+                                <th @onclick='() => SortPoints("Name")'>
+                                    Nombre <SortIconComponent Field="Name" CurrentSort="@currentSortField" Asc="@isAscending" />
+                                </th>
+                                <th @onclick='() => SortPoints("City")'>
+                                    Ciudad <SortIconComponent Field="City" CurrentSort="@currentSortField" Asc="@isAscending" />
+                                </th>
+                                <th>Dirección</th>
+                                <th>Teléfono</th>
+                                <th>Productos</th>
+                                <th>Bajo Stock</th>
+                                <th>Estado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (pagedPoints.Count == 0)
+                            {
+                                <tr>
+                                    <td colspan="8" class="text-center no-card">No se encontraron puntos de inventario</td>
+                                </tr>
+                            }
+                            else
+                            {
+                                @foreach (var point in pagedPoints)
+                                {
+                                    <tr>
+                                        <td data-label="Nombre">@point.Name</td>
+                                        <td data-label="Ciudad">@point.City?.Name</td>
+                                        <td data-label="Dirección">@(point.Address ?? "—")</td>
+                                        <td data-label="Teléfono">@(point.Phone ?? "—")</td>
+                                        <td data-label="Productos"><span class="badge bg-info">@point.TotalProducts</span></td>
+                                        <td data-label="Bajo Stock">
+                                            @if (point.LowStockCount > 0)
+                                            {
+                                                <span class="badge bg-danger">@point.LowStockCount</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-success">0</span>
+                                            }
+                                        </td>
+                                        <td data-label="Estado">
+                                            <span class="badge @(point.IsActive ? "bg-success" : "bg-secondary")">
+                                                @(point.IsActive ? "Activo" : "Inactivo")
+                                            </span>
+                                        </td>
+                                        <td data-label="">
+                                            <div class="action-buttons">
+                                                <button class="btn btn-sm btn-outline-info" title="Ver Inventario"
+                                                        @onclick="() => GoToInventory(point.Id)">
+                                                    <i class="fas fa-boxes"></i>
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-primary" title="Editar"
+                                                        @onclick="() => OpenEditModal(point)">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-danger" title="Eliminar"
+                                                        @onclick="() => OpenDeleteModal(point)">
+                                                    <i class="fas fa-trash-alt"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="pagination-container">
+                    <div class="pagination-info">
+                        Mostrando @pagedPoints.Count de @filteredPoints.Count puntos
+                    </div>
+                    @if (filteredPoints.Count > itemsPerPage)
+                    {
+                        <div class="pagination">
+                            <button class="btn btn-sm @(currentPage == 1 ? "btn-secondary disabled" : "btn-outline-primary")"
+                                    @onclick="PreviousPage" disabled="@(currentPage == 1)">
+                                <i class="fas fa-chevron-left"></i>
+                            </button>
+                            @for (int i = 1; i <= totalPages; i++)
+                            {
+                                var pageNumber = i;
+                                <button class="btn btn-sm @(currentPage == pageNumber ? "btn-primary" : "btn-outline-primary")"
+                                        @onclick="() => GoToPage(pageNumber)">
+                                    @pageNumber
+                                </button>
+                            }
+                            <button class="btn btn-sm @(currentPage == totalPages ? "btn-secondary disabled" : "btn-outline-primary")"
+                                    @onclick="NextPage" disabled="@(currentPage == totalPages)">
+                                <i class="fas fa-chevron-right"></i>
+                            </button>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+<!-- Modal Agregar/Editar -->
+@if (showModal)
+{
+    <div class="modal-backdrop show"></div>
+    <div class="modal fade show" style="display: block;" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas @(isEditing ? "fa-edit" : "fa-plus")"></i>
+                        @(isEditing ? "Editar Punto" : "Agregar Punto de Inventario")
+                    </h5>
+                    <button type="button" class="btn-close" @onclick="CloseModals"></button>
+                </div>
+                <div class="modal-body">
+                    @if (!string.IsNullOrEmpty(errorMessage))
+                    {
+                        <div class="alert alert-danger">
+                            <i class="fas fa-exclamation-circle"></i> @errorMessage
+                        </div>
+                    }
+                    <EditForm Model="@editPoint" OnValidSubmit="SavePoint">
+                        <DataAnnotationsValidator />
+                        <ValidationSummary />
+
+                        <div class="form-group mb-3">
+                            <label>Nombre del Punto</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-map-marker-alt"></i></span>
+                                <InputText @bind-Value="editPoint.Name" class="form-control" placeholder="Ej: Colonia Moderna" />
+                            </div>
+                            <ValidationMessage For="@(() => editPoint.Name)" />
+                        </div>
+
+                        <div class="form-group mb-3">
+                            <label>Ciudad</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-city"></i></span>
+                                <InputSelect @bind-Value="editPoint.CityId" class="form-select">
+                                    <option value="0">-- Seleccione una ciudad --</option>
+                                    @if (allCities != null)
+                                    {
+                                        @foreach (var city in allCities)
+                                        {
+                                            <option value="@city.Id">@city.Name</option>
+                                        }
+                                    }
+                                </InputSelect>
+                            </div>
+                        </div>
+
+                        <div class="form-group mb-3">
+                            <label>Dirección</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-location-arrow"></i></span>
+                                <InputText @bind-Value="editPoint.Address" class="form-control" placeholder="Dirección (opcional)" />
+                            </div>
+                        </div>
+
+                        <div class="form-group mb-3">
+                            <label>Teléfono</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-phone"></i></span>
+                                <InputText @bind-Value="editPoint.Phone" class="form-control" placeholder="Teléfono (opcional)" />
+                            </div>
+                        </div>
+
+                        <div class="form-check mb-3">
+                            <InputCheckbox @bind-Value="editPoint.IsActive" class="form-check-input" id="pointActive" />
+                            <label class="form-check-label" for="pointActive">Punto Activo</label>
+                        </div>
+
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" @onclick="CloseModals">Cancelar</button>
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-save"></i> @(isEditing ? "Guardar Cambios" : "Agregar Punto")
+                            </button>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Modal Eliminar -->
+@if (showDeleteModal && pointToDelete != null)
+{
+    <div class="modal-backdrop show"></div>
+    <div class="modal fade show" style="display: block;" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-exclamation-triangle text-danger"></i> Confirmar Eliminación</h5>
+                    <button type="button" class="btn-close" @onclick="CloseModals"></button>
+                </div>
+                <div class="modal-body">
+                    @if (!string.IsNullOrEmpty(errorMessage))
+                    {
+                        <div class="alert alert-danger">
+                            <i class="fas fa-exclamation-circle"></i> @errorMessage
+                        </div>
+                    }
+                    <p>¿Está seguro que desea eliminar el punto <strong>@pointToDelete.Name</strong>?</p>
+                    @if (pointToDelete.TotalProducts > 0)
+                    {
+                        <div class="alert alert-warning">
+                            <i class="fas fa-info-circle"></i> Este punto tiene <strong>@pointToDelete.TotalProducts</strong> producto(s) en inventario.
+                            Debe eliminar los productos antes de eliminar el punto.
+                        </div>
+                    }
+                    <p class="text-danger"><i class="fas fa-exclamation-circle"></i> Esta acción no se puede deshacer.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseModals">Cancelar</button>
+                    <button type="button" class="btn btn-danger" @onclick="DeletePoint"
+                            disabled="@(pointToDelete.TotalProducts > 0)">
+                        <i class="fas fa-trash-alt"></i> Eliminar Punto
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public int CityId { get; set; }
+
+    private List<InventoryPoint>? points;
+    private List<InventoryPoint> filteredPoints = new();
+    private List<InventoryPoint> pagedPoints = new();
+    private List<City>? allCities;
+    private InventoryPoint editPoint = new();
+    private InventoryPoint? pointToDelete;
+
+    private bool showModal = false;
+    private bool showDeleteModal = false;
+    private bool isEditing = false;
+    private string searchTerm = "";
+    private string errorMessage = "";
+    private int selectedCityFilter = 0;
+
+    private int currentPage = 1;
+    private int itemsPerPage = 10;
+    private int totalPages => (int)Math.Ceiling(filteredPoints.Count / (double)itemsPerPage);
+
+    private string currentSortField = "Name";
+    private bool isAscending = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        allCities = await InventoryService.GetAllCitiesAsync();
+        if (CityId > 0)
+            selectedCityFilter = CityId;
+        await LoadPoints();
+    }
+
+    private async Task LoadPoints()
+    {
+        points = await InventoryService.GetAllPointsAsync();
+        FilterPoints();
+    }
+
+    private void FilterPoints()
+    {
+        var result = points?.AsEnumerable() ?? Enumerable.Empty<InventoryPoint>();
+
+        if (selectedCityFilter > 0)
+            result = result.Where(p => p.CityId == selectedCityFilter);
+
+        if (!string.IsNullOrWhiteSpace(searchTerm))
+            result = result.Where(p =>
+                (p.Name?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (p.Address?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (p.City?.Name?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false));
+
+        filteredPoints = result.ToList();
+        SortPoints(currentSortField, false);
+        currentPage = 1;
+        ApplyPagination();
+    }
+
+    private void ClearSearch() { searchTerm = ""; FilterPoints(); }
+
+    private void SortPoints(string field, bool updateDirection = true)
+    {
+        if (updateDirection && field == currentSortField)
+            isAscending = !isAscending;
+        currentSortField = field;
+
+        filteredPoints = field switch
+        {
+            "Name" => isAscending ? filteredPoints.OrderBy(p => p.Name).ToList() : filteredPoints.OrderByDescending(p => p.Name).ToList(),
+            "City" => isAscending ? filteredPoints.OrderBy(p => p.City?.Name ?? "").ToList() : filteredPoints.OrderByDescending(p => p.City?.Name ?? "").ToList(),
+            _ => filteredPoints
+        };
+        ApplyPagination();
+    }
+
+    private void ApplyPagination()
+    {
+        pagedPoints = filteredPoints.Skip((currentPage - 1) * itemsPerPage).Take(itemsPerPage).ToList();
+    }
+
+    private void PreviousPage() { if (currentPage > 1) { currentPage--; ApplyPagination(); } }
+    private void NextPage() { if (currentPage < totalPages) { currentPage++; ApplyPagination(); } }
+    private void GoToPage(int page) { currentPage = page; ApplyPagination(); }
+
+    private void OpenAddModal()
+    {
+        editPoint = new InventoryPoint { IsActive = true, CityId = selectedCityFilter > 0 ? selectedCityFilter : 0 };
+        isEditing = false;
+        errorMessage = "";
+        showModal = true;
+    }
+
+    private void OpenEditModal(InventoryPoint point)
+    {
+        editPoint = new InventoryPoint
+        {
+            Id = point.Id,
+            Name = point.Name,
+            Address = point.Address,
+            Phone = point.Phone,
+            CityId = point.CityId,
+            IsActive = point.IsActive
+        };
+        isEditing = true;
+        errorMessage = "";
+        showModal = true;
+    }
+
+    private void OpenDeleteModal(InventoryPoint point)
+    {
+        pointToDelete = point;
+        errorMessage = "";
+        showDeleteModal = true;
+    }
+
+    private void CloseModals()
+    {
+        showModal = false;
+        showDeleteModal = false;
+        pointToDelete = null;
+        errorMessage = "";
+    }
+
+    private async Task SavePoint()
+    {
+        errorMessage = "";
+        if (editPoint.CityId == 0)
+        {
+            errorMessage = "Debe seleccionar una ciudad.";
+            return;
+        }
+        try
+        {
+            if (isEditing)
+                await InventoryService.UpdatePointAsync(editPoint);
+            else
+                await InventoryService.AddPointAsync(editPoint);
+
+            CloseModals();
+            await LoadPoints();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error: {ex.Message}";
+        }
+    }
+
+    private async Task DeletePoint()
+    {
+        errorMessage = "";
+        try
+        {
+            var success = await InventoryService.DeletePointAsync(pointToDelete!.Id);
+            if (!success)
+            {
+                errorMessage = "No se puede eliminar el punto porque tiene productos en inventario.";
+                return;
+            }
+            CloseModals();
+            await LoadPoints();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error: {ex.Message}";
+        }
+    }
+
+    private void GoBack() => NavigationManager.NavigateTo("/admin/inventory");
+    private void GoToInventory(int pointId) => NavigationManager.NavigateTo($"/admin/inventory/{pointId}");
+
+    private class SortIconComponent : ComponentBase
+    {
+        [Parameter] public string Field { get; set; } = "";
+        [Parameter] public string CurrentSort { get; set; } = "";
+        [Parameter] public bool Asc { get; set; }
+
+        protected override void BuildRenderTree(Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder builder)
+        {
+            builder.OpenElement(0, "i");
+            builder.AddAttribute(1, "class",
+                Field == CurrentSort
+                    ? (Asc ? "fas fa-sort-up ms-1" : "fas fa-sort-down ms-1")
+                    : "fas fa-sort ms-1 text-muted");
+            builder.CloseElement();
+        }
+    }
+}
+
+<style>
+    .points-container { padding: 1rem; max-width: 1400px; margin: 0 auto; }
+
+    .page-header {
+        display: flex; justify-content: space-between; align-items: center;
+        margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid #e9ecef;
+    }
+    .page-header h3 {
+        margin: 0; color: #2c3e50; font-weight: 600;
+        display: flex; align-items: center; gap: 0.5rem; font-size: 1.4rem;
+    }
+    .header-actions { display: flex; gap: 0.5rem; }
+
+    .loader-container { display: flex; flex-direction: column; align-items: center; justify-content: center; margin: 3rem 0; }
+    .loader { display: flex; justify-content: center; align-items: center; margin-bottom: 1rem; }
+    .circle {
+        width: 12px; height: 12px; background-color: #3498db;
+        border-radius: 50%; margin: 0 6px;
+        animation: bounce 1.4s infinite ease-in-out both;
+    }
+    .circle:nth-child(1) { animation-delay: -0.32s; }
+    .circle:nth-child(2) { animation-delay: -0.16s; }
+    @@keyframes bounce {
+        0%, 80%, 100% { transform: scale(0); opacity: 0.3; }
+        40% { transform: scale(1); opacity: 1; }
+    }
+
+    .card { box-shadow: 0 4px 6px rgba(0,0,0,0.1); border-radius: 0.5rem; border: none; margin-bottom: 2rem; }
+    .card-header { background-color: #f8f9fa; padding: 1rem; border-bottom: 1px solid #e9ecef; }
+
+    .search-box { position: relative; min-width: 250px; }
+    .search-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #6c757d; }
+    .search-input { padding-left: 35px; padding-right: 35px; border-radius: 20px; }
+    .clear-search { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); border: none; background: none; color: #6c757d; padding: 0; }
+
+    .table th { border-top: none; background-color: #f8f9fa; cursor: pointer; user-select: none; white-space: nowrap; }
+    .table th:hover { background-color: #e9ecef; }
+    .table tbody tr:hover { background-color: rgba(0,123,255,0.05); }
+    .action-buttons { display: flex; gap: 0.5rem; justify-content: center; }
+
+    .pagination-container { display: flex; justify-content: space-between; align-items: center; padding: 1rem; border-top: 1px solid #e9ecef; }
+    .pagination { display: flex; gap: 0.25rem; }
+    .pagination-info { color: #6c757d; font-size: 0.875rem; }
+
+    .modal-content { border: none; box-shadow: 0 10px 15px rgba(0,0,0,0.1); border-radius: 0.5rem; }
+    .modal-header { border-bottom: 1px solid #e9ecef; background-color: #f8f9fa; padding: 1rem 1.5rem; }
+    .modal-footer { border-top: 1px solid #e9ecef; padding: 1rem 1.5rem; background-color: #f8f9fa; }
+    .badge { padding: 0.35em 0.65em; font-weight: 500; }
+    .input-group-text { background-color: #f8f9fa; }
+
+    /* ── Mobile: card view ── */
+    @@media (max-width: 767.98px) {
+        .points-container { padding: 0.5rem; }
+
+        .page-header { flex-direction: column; align-items: flex-start; gap: 1rem; }
+        .page-header h3 { font-size: 1.2rem; }
+        .header-actions { width: 100%; flex-direction: column; }
+        .header-actions .btn { width: 100%; }
+
+        .card-header { flex-direction: column !important; gap: 0.75rem !important; }
+        .card-header .ms-auto { margin-left: 0 !important; width: 100%; }
+        .card-header .ms-auto select { width: 100%; }
+        .search-box { max-width: 100%; min-width: unset; width: 100%; }
+
+        .mobile-cards thead { display: none; }
+        .mobile-cards tbody tr {
+            display: block;
+            margin-bottom: 0.75rem;
+            border: 1px solid #dee2e6;
+            border-radius: 0.5rem;
+            padding: 0.75rem;
+            background: #fff;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        }
+        .mobile-cards tbody tr:hover { background: #fff; }
+        .mobile-cards tbody td {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.3rem 0;
+            border: none;
+            font-size: 0.9rem;
+        }
+        .mobile-cards tbody td::before {
+            content: attr(data-label);
+            font-weight: 600;
+            color: #495057;
+            margin-right: 1rem;
+            flex-shrink: 0;
+        }
+        .mobile-cards tbody td:last-child {
+            justify-content: flex-end;
+            padding-top: 0.5rem;
+            border-top: 1px solid #eee;
+            margin-top: 0.25rem;
+        }
+        .mobile-cards tbody td:last-child::before { display: none; }
+        .mobile-cards tbody td.no-card { display: block; text-align: center; }
+        .mobile-cards tbody td.no-card::before { display: none; }
+
+        .action-buttons { gap: 0.35rem; }
+
+        .pagination-container { flex-direction: column; gap: 0.75rem; }
+        .pagination { flex-wrap: wrap; justify-content: center; }
+
+        .modal-dialog { margin: 0.5rem; }
+    }
+
+    /* ── Tablet ── */
+    @@media (min-width: 768px) and (max-width: 991.98px) {
+        .page-header h3 { font-size: 1.25rem; }
+        .header-actions .btn { font-size: 0.85rem; padding: 0.35rem 0.75rem; }
+        .card-header { flex-direction: column !important; gap: 0.5rem !important; }
+        .card-header .ms-auto { margin-left: 0 !important; }
+    }
+</style>
