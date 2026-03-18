@@ -1,8 +1,12 @@
 ﻿@page "/profile"
 @using System.Security.Claims
+@using System.IdentityModel.Tokens.Jwt
+@using Microsoft.IdentityModel.Tokens
+@using System.Text
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject Blazored.LocalStorage.ILocalStorageService LocalStorageService
 @inject NavigationManager NavigationManager
+@inject IConfiguration _configuration
 @using FerrexWeb.Services
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.EntityFrameworkCore
@@ -128,27 +132,65 @@
 
     private async Task UpdateProfile()
     {
-        var dbUser = await DbContext.Users.AsTracking().FirstOrDefaultAsync(u => u.Id == userId);
+        if (string.IsNullOrWhiteSpace(editName))
+        {
+            profileUpdateError = "El nombre no puede estar vacío.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(editPhone)
+            || !System.Text.RegularExpressions.Regex.IsMatch(editPhone.Trim(), @"^\+?[\d\s\-]{8,15}$"))
+        {
+            profileUpdateError = "Ingresa un número de teléfono válido (8-15 dígitos).";
+            return;
+        }
+
+        var dbUser = await DbContext.Users.AsTracking().Include(u => u.Role).FirstOrDefaultAsync(u => u.Id == userId);
         if (dbUser == null)
         {
             profileUpdateError = "Usuario no encontrado.";
             return;
         }
 
-        dbUser.Name = editName;
-        dbUser.PhoneNumber = editPhone;
+        dbUser.Name = editName.Trim();
+        dbUser.PhoneNumber = editPhone.Trim();
 
         try
         {
             await DbContext.SaveChangesAsync();
             Name = dbUser.Name;
             Phone = dbUser.PhoneNumber;
+
+            // Regenerar JWT con los datos actualizados
+            var claims = new List<Claim> {
+                new Claim(ClaimTypes.Name, dbUser.Name),
+                new Claim(ClaimTypes.NameIdentifier, dbUser.Id.ToString()),
+                new Claim(ClaimTypes.Email, dbUser.Email),
+                new Claim(ClaimTypes.Role, dbUser.Role?.Name ?? "User")
+            };
+            var newToken = GenerateJwt(claims);
+            if (AuthenticationStateProvider is CustomAuthenticationStateProvider cap)
+                await cap.SignIn(newToken);
+
             showEditProfile = false;
         }
         catch (Exception ex)
         {
             profileUpdateError = "Error al actualizar el perfil: " + ex.Message;
         }
+    }
+
+    private string GenerateJwt(List<Claim> claims)
+    {
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["JwtSettings:SecretKey"]));
+        var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+        var jwt = new JwtSecurityToken(
+            issuer: _configuration["JwtSettings:Issuer"],
+            audience: _configuration["JwtSettings:Audience"],
+            claims: claims,
+            expires: DateTime.UtcNow.AddHours(8),
+            signingCredentials: creds);
+        return new JwtSecurityTokenHandler().WriteToken(jwt);
     }
 
     private void ToggleChangePassword()
@@ -240,7 +282,7 @@
         justify-content: center;
         align-items: flex-start;
         min-height: 100vh;
-        padding-top: 50px;
+        padding: 30px 15px;
         box-sizing: border-box;
     }
 
@@ -252,7 +294,7 @@
         overflow: hidden;
         box-shadow: 0 2px 12px rgba(0,0,0,0.1);
         width: 600px;
-        max-width: 90%;
+        max-width: 100%;
         position: relative;
         padding: 20px;
         box-sizing: border-box;
@@ -269,6 +311,7 @@
         box-sizing: border-box;
         color: #fff;
         border-radius: 10px;
+        flex-shrink: 0;
     }
 
         .profile-left img {
@@ -284,6 +327,7 @@
             font-size: 20px;
             font-weight: bold;
             text-align: center;
+            word-break: break-word;
         }
 
     .profile-right {
@@ -293,6 +337,7 @@
         padding: 20px;
         box-sizing: border-box;
         justify-content: flex-start;
+        min-width: 0;
     }
 
     .profile-info {
@@ -304,6 +349,7 @@
             font-size: 16px;
             color: #333;
             text-align: left;
+            word-break: break-word;
         }
 
             .profile-info p span {
@@ -377,6 +423,8 @@
             padding: 8px;
             border: 1px solid #ccc;
             border-radius: 5px;
+            width: 100%;
+            box-sizing: border-box;
         }
 
         .edit-section .buttons, .change-pass-section .buttons {
@@ -404,6 +452,89 @@
     .error-message {
         color: red;
         font-size: 0.9em;
+    }
+
+    /* Tablet */
+    @@media (max-width: 768px) {
+        .profile-card {
+            flex-direction: column;
+            width: 450px;
+        }
+
+        .profile-left {
+            width: 100%;
+            padding: 25px 20px;
+            border-radius: 10px 10px 0 0;
+            flex-direction: row;
+            gap: 15px;
+        }
+
+            .profile-left img {
+                width: 80px;
+                height: 80px;
+            }
+
+            .profile-left h2 {
+                margin: 0;
+                font-size: 18px;
+            }
+
+        .profile-right {
+            width: 100%;
+            padding: 15px;
+        }
+    }
+
+    /* Movil */
+    @@media (max-width: 480px) {
+        .profile-container {
+            padding: 15px 10px;
+        }
+
+        .profile-card {
+            padding: 10px;
+            border-radius: 10px;
+        }
+
+        .profile-left {
+            flex-direction: column;
+            padding: 20px 15px;
+        }
+
+            .profile-left img {
+                width: 70px;
+                height: 70px;
+            }
+
+            .profile-left h2 {
+                font-size: 16px;
+            }
+
+        .profile-right {
+            padding: 10px 5px;
+        }
+
+        .profile-info p {
+            font-size: 14px;
+        }
+
+        .profile-actions button {
+            font-size: 13px;
+            padding: 8px;
+        }
+
+        .edit-section, .change-pass-section {
+            padding: 10px;
+        }
+
+        .edit-section .buttons, .change-pass-section .buttons {
+            flex-direction: column;
+        }
+
+            .edit-section .buttons button, .change-pass-section .buttons button {
+                width: 100%;
+                text-align: center;
+            }
     }
 
 </style>

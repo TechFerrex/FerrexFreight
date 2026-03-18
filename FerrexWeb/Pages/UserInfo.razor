@@ -58,7 +58,7 @@
                     <!-- Solo lectura y precargado desde loginModel.Email -->
                     <InputText class="user-input"
                                @bind-Value="forgotModel.Email"
-                               readonly />
+                               placeholder="Tu correo electrónico" />
 
                     @if (!string.IsNullOrEmpty(forgotErrorMsg))
                     {
@@ -161,6 +161,11 @@
             disabled="@isLoggingIn">
                 @(isLoggingIn ? "Iniciando..." : "Iniciar sesión")
             </button>
+            <div style="text-align:center; margin-top:10px;">
+                <button type="button" class="forgot-link" @onclick="OpenForgotPasswordModal">
+                    ¿Olvidaste tu contraseña?
+                </button>
+            </div>
         </form>
     </div>
 </div>
@@ -187,6 +192,10 @@
 
     private static System.Collections.Concurrent.ConcurrentDictionary<string, int> loginAttempts = new();
     private static System.Collections.Concurrent.ConcurrentDictionary<string, DateTime> lockouts = new();
+    private static System.Collections.Concurrent.ConcurrentDictionary<string, DateTime> lastRegistration = new();
+    private static System.Collections.Concurrent.ConcurrentDictionary<string, DateTime> lastForgot = new();
+    private static System.Collections.Concurrent.ConcurrentDictionary<string, DateTime> lastResend = new();
+    private const int RateLimitSeconds = 60;
 
     private bool showResendVerification = false;
     private int? pendingVerificationUserId = null;
@@ -205,10 +214,10 @@
     private void OpenForgotPasswordModal()
     {
         showForgotPasswordModal = true;
-        showErrorModal = false;    // cierra el error de login
+        showErrorModal = false;
         forgotErrorMsg = null;
         forgotSuccessMsg = null;
-        forgotModel.Email = loginModel.Email;
+        forgotModel.Email = loginModel.Email ?? "";
     }
     private bool isForgotSubmitting = false;
 
@@ -221,25 +230,29 @@
 
         try
         {
-            // 1) Que no haya modificado el email
-            if (!string.Equals(forgotModel.Email, loginModel.Email,
-                    StringComparison.OrdinalIgnoreCase))
+            if (string.IsNullOrWhiteSpace(forgotModel.Email))
             {
-                forgotErrorMsg = "El correo debe coincidir con el que ingresaste al iniciar sesión.";
+                forgotErrorMsg = "Ingresa tu correo electrónico.";
                 return;
             }
 
-            // 2) Recuperar usuario UNA sola vez (case-insensitive)
+            var forgotKey = forgotModel.Email.ToLower();
+            if (lastForgot.TryGetValue(forgotKey, out var lastForgotTime)
+                && (DateTime.UtcNow - lastForgotTime).TotalSeconds < RateLimitSeconds)
+            {
+                forgotErrorMsg = "Espera un momento antes de intentar de nuevo.";
+                return;
+            }
+
             var user = await DbContext.Users
-                .FirstOrDefaultAsync(u => u.Email.ToLower() == forgotModel.Email.ToLower());
+                .FirstOrDefaultAsync(u => u.Email.ToLower() == forgotKey);
             if (user == null)
             {
-                // Mensaje genérico para evitar enumeración de usuarios
+                lastForgot[forgotKey] = DateTime.UtcNow;
                 forgotSuccessMsg = "Si existe una cuenta con ese correo, recibirás un enlace para restablecer tu contraseña.";
                 return;
             }
 
-            // 3) Invalidar tokens anteriores y generar uno nuevo
             var oldResets = await DbContext.PasswordResets
                 .Where(x => x.UserId == user.Id)
                 .ToListAsync();
@@ -256,7 +269,6 @@
             DbContext.PasswordResets.Add(pr);
             await DbContext.SaveChangesAsync();
 
-            // 4) Enviar enlace
             var link = $"{NavigationManager.BaseUri.TrimEnd('/')}/resetpassword?token={token}";
             var html = $@"
             <p>¡Hola {user.Name}!</p>
@@ -266,6 +278,7 @@
                 "Recupera tu contraseña en Ferrexpress",
                 html);
 
+            lastForgot[forgotKey] = DateTime.UtcNow;
             forgotSuccessMsg = "Listo, revisa tu correo para restablecer tu contraseña.";
         }
         catch
@@ -295,6 +308,13 @@
         {
             var remaining = (int)(lockoutEnd - DateTime.UtcNow).TotalMinutes + 1;
             ShowError($"Demasiados intentos fallidos. Intenta de nuevo en {remaining} minutos.");
+            isLoggingIn = false;
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(loginModel.Email) || string.IsNullOrWhiteSpace(loginModel.Password))
+        {
+            ShowError("Correo y contraseña son obligatorios.");
             isLoggingIn = false;
             return;
         }
@@ -388,70 +408,107 @@
         isRegistering = true;
         registerMessage = null;
 
-        // 1) Validar campos...
-        if (string.IsNullOrWhiteSpace(registerModel.Name)
-            || string.IsNullOrWhiteSpace(registerModel.Email)
-            || string.IsNullOrWhiteSpace(registerModel.Password))
+        try
         {
-            registerMessage = "Todos los campos son obligatorios.";
-            isRegistering = false;
-            return;
-        }
-
-        // 2) Validar complejidad de contraseña server-side
-        if (!IsPasswordValid(registerModel.Password))
-        {
-            registerMessage = "La contraseña debe tener al menos 8 caracteres, una mayúscula, un número y un carácter especial.";
-            isRegistering = false;
-            return;
-        }
-
-        // 3) Comprobar duplicado (case-insensitive)
-        if (await DbContext.Users.AnyAsync(u => u.Email.ToLower() == registerModel.Email.ToLower()))
-        {
-            registerMessage = "Este correo ya está registrado.";
-            isRegistering = false;
-            return;
-        }
-
-        // 3) Crear usuario "pendiente"
-        var user = new User
+            // 1) Validar campos obligatorios
+            if (string.IsNullOrWhiteSpace(registerModel.Name)
+                || string.IsNullOrWhiteSpace(registerModel.Email)
+                || string.IsNullOrWhiteSpace(registerModel.Password))
             {
-                Name = registerModel.Name,
-                Email = registerModel.Email,
-                PhoneNumber = registerModel.PhoneNumber,
-                Password = BCrypt.Net.BCrypt.HashPassword(registerModel.Password),
-                CreateTime = DateTime.UtcNow,
-                RoleId = 1, // User
-                PolicyUser = registerModel.PolicyAccepted,
-                EmailConfirmed = false
-            };
-        DbContext.Users.Add(user);
-        await DbContext.SaveChangesAsync();
+                registerMessage = "Todos los campos son obligatorios.";
+                return;
+            }
 
-        // 4) Generar token y guardarlo en tabla EmailVerifications
-        var token = Guid.NewGuid().ToString("N");
-        var ev = new EmailVerification
+            // 2) Validar formato de teléfono
+            if (string.IsNullOrWhiteSpace(registerModel.PhoneNumber)
+                || !System.Text.RegularExpressions.Regex.IsMatch(registerModel.PhoneNumber.Trim(), @"^\+?[\d\s\-]{8,15}$"))
             {
-                UserId = user.Id,
-                Token = token,
-                ExpiresAt = DateTime.UtcNow.AddMinutes(30),
-                CreatedAt = DateTime.UtcNow
-            };
-        DbContext.EmailVerifications.Add(ev);
-        await DbContext.SaveChangesAsync();
+                registerMessage = "Ingresa un número de teléfono válido (8-15 dígitos).";
+                return;
+            }
 
-        // 5) Enviar correo con Brevo
-        var link = $"{NavigationManager.BaseUri.TrimEnd('/')}/verify?token={token}";
-        var html = $@"
-            <p>¡Hola {user.Name}!</p>
-            <p>Haz clic <a href=""{link}"">aquí</a> para verificar tu correo.</p>
-            <p>Expira: {ev.ExpiresAt:yyyy-MM-dd HH:mm} UTC</p>";
-        await EmailSender.SendEmailAsync(user.Email, "Verifica tu correo", html);
+            // 3) Validar complejidad de contraseña server-side
+            if (!IsPasswordValid(registerModel.Password))
+            {
+                registerMessage = "La contraseña debe tener al menos 8 caracteres, una mayúscula, un número y un carácter especial.";
+                return;
+            }
 
-        verifyModalMessage = "Listo: revisa tu bandeja para confirmar tu cuenta.";
-        showVerifyModal = true;
-        isRegistering = false;
+            // 4) Rate limiting por email
+            var emailKey = registerModel.Email.ToLower();
+            if (lastRegistration.TryGetValue(emailKey, out var lastTime)
+                && (DateTime.UtcNow - lastTime).TotalSeconds < RateLimitSeconds)
+            {
+                registerMessage = "Espera un momento antes de intentar registrarte de nuevo.";
+                return;
+            }
+
+            // 5) Comprobar duplicado (case-insensitive)
+            if (await DbContext.Users.AnyAsync(u => u.Email.ToLower() == emailKey))
+            {
+                registerMessage = "Este correo ya está registrado.";
+                return;
+            }
+
+            // 6) Crear usuario "pendiente"
+            var user = new User
+                {
+                    Name = registerModel.Name.Trim(),
+                    Email = registerModel.Email.Trim(),
+                    PhoneNumber = registerModel.PhoneNumber.Trim(),
+                    Password = BCrypt.Net.BCrypt.HashPassword(registerModel.Password),
+                    CreateTime = DateTime.UtcNow,
+                    RoleId = 1,
+                    PolicyUser = registerModel.PolicyAccepted,
+                    EmailConfirmed = false
+                };
+            DbContext.Users.Add(user);
+            await DbContext.SaveChangesAsync();
+
+            // 7) Generar token de verificación
+            var token = Guid.NewGuid().ToString("N");
+            var ev = new EmailVerification
+                {
+                    UserId = user.Id,
+                    Token = token,
+                    ExpiresAt = DateTime.UtcNow.AddMinutes(30),
+                    CreatedAt = DateTime.UtcNow
+                };
+            DbContext.EmailVerifications.Add(ev);
+            await DbContext.SaveChangesAsync();
+
+            // 8) Enviar correo de verificación
+            try
+            {
+                var link = $"{NavigationManager.BaseUri.TrimEnd('/')}/verify?token={token}";
+                var html = $@"
+                    <p>¡Hola {user.Name}!</p>
+                    <p>Haz clic <a href=""{link}"">aquí</a> para verificar tu correo.</p>
+                    <p>Expira: {ev.ExpiresAt:yyyy-MM-dd HH:mm} UTC</p>";
+                await EmailSender.SendEmailAsync(user.Email, "Verifica tu correo", html);
+            }
+            catch
+            {
+                lastRegistration[emailKey] = DateTime.UtcNow;
+                registerModel = new RegisterModel();
+                verifyModalMessage = "Tu cuenta fue creada, pero hubo un error al enviar el correo de verificación. Intenta iniciar sesión y usa la opción de reenviar verificación.";
+                showVerifyModal = true;
+                return;
+            }
+
+            lastRegistration[emailKey] = DateTime.UtcNow;
+            registerModel = new RegisterModel();
+            verifyModalMessage = "Listo: revisa tu bandeja para confirmar tu cuenta.";
+            showVerifyModal = true;
+        }
+        catch (Exception)
+        {
+            registerMessage = "Ocurrió un error durante el registro. Inténtalo de nuevo.";
+        }
+        finally
+        {
+            isRegistering = false;
+        }
     }
 
     private void CloseVerifyModal()
@@ -479,6 +536,14 @@
     private async Task ResendVerificationEmail()
     {
         if (!pendingVerificationUserId.HasValue) return;
+
+        var resendKey = pendingVerificationUserId.Value.ToString();
+        if (lastResend.TryGetValue(resendKey, out var lastResendTime)
+            && (DateTime.UtcNow - lastResendTime).TotalSeconds < RateLimitSeconds)
+        {
+            ShowError("Espera un momento antes de reenviar el correo.");
+            return;
+        }
 
         var user = await DbContext.Users.Include(u => u.Role).FirstOrDefaultAsync(u => u.Id == pendingVerificationUserId.Value);
         if (user == null || user.EmailConfirmed) return;
@@ -510,6 +575,7 @@
         try
         {
             await EmailSender.SendEmailAsync(user.Email, "Verifica tu correo", html);
+            lastResend[resendKey] = DateTime.UtcNow;
             showResendVerification = false;
             showErrorModal = false;
             verifyModalMessage = "Se ha reenviado el correo de verificación. Revisa tu bandeja.";
@@ -552,16 +618,17 @@
         margin: 0;
     }
 
-
     .main {
         padding: 0;
         width: 650px;
+        max-width: 95%;
         height: 600px;
         margin: 0 auto;
         border-radius: 15px;
         justify-content: center;
         align-items: center;
         overflow: hidden;
+        overflow-y: auto;
         font-family: 'Jost', sans-serif;
         background: linear-gradient(to bottom, #e6b23b, #F5C144, #e6b23b);
     }
@@ -593,11 +660,13 @@
         left: 0;
         width: 100%;
         height: 100%;
-        background-color: rgba(0,0,0,0.5); /* semitransparente */
+        background-color: rgba(0,0,0,0.5);
         display: flex;
         justify-content: center;
         align-items: center;
-        z-index: 9999; /* para que quede por encima de todo */
+        z-index: 9999;
+        padding: 15px;
+        box-sizing: border-box;
     }
 
     .modal-box {
@@ -605,12 +674,21 @@
         padding: 20px;
         border-radius: 8px;
         width: 500px;
-        max-width: 90%; /* Para que en pantallas pequeñas se ajuste */
+        max-width: 100%;
+        max-height: 90vh;
+        overflow-y: auto;
     }
 
+        .modal-box .user-button {
+            width: auto;
+            min-width: 120px;
+            padding: 0 15px;
+            display: inline-block;
+        }
 
     .user-input {
-        width: 300px;
+        width: 80%;
+        max-width: 300px;
         height: 50px;
         background: #ffffff;
         justify-content: center;
@@ -620,6 +698,7 @@
         border: none;
         outline: none;
         border-radius: 5px;
+        box-sizing: border-box;
     }
 
     .user-button {
@@ -644,6 +723,29 @@
             background: #ffffff;
             color: #000000;
         }
+
+    .forgot-link {
+        background: none;
+        border: none;
+        color: #555;
+        text-decoration: underline;
+        cursor: pointer;
+        font-size: 0.9em;
+        padding: 0;
+    }
+
+        .forgot-link:hover {
+            color: #e6b23b;
+        }
+
+    .alert-info {
+        width: 80%;
+        max-width: 300px;
+        margin: 10px auto;
+        font-size: 0.85em;
+        text-align: center;
+        word-wrap: break-word;
+    }
 
     .login {
         height: 560px;
@@ -670,32 +772,59 @@
         transform: scale(.6);
     }
 
+    /* Tablet */
+    @@media (max-width: 768px) {
+        .main {
+            width: 90%;
+            height: 580px;
+        }
+
+        label {
+            font-size: 2em;
+            margin: 45px;
+        }
+
+        .user-input {
+            width: 85%;
+        }
+    }
+
+    /* Móvil */
     @@media (max-width: 600px) {
         .main {
             width: 95%;
-            height: 550px;
-            margin: 10px;
+            height: auto;
+            min-height: 550px;
+            margin: 10px auto;
         }
 
         .signup, .login {
-            height: 600px;
-            padding: 20px;
+            height: auto;
+            min-height: 500px;
+            padding: 15px;
         }
 
         label {
             font-size: 1.8em;
-            margin: 30px;
+            margin: 25px;
         }
 
-        .user-input, button {
+        .user-input {
             width: 95%;
+            max-width: none;
             font-size: 0.9em;
             height: 45px;
         }
 
         .user-button {
+            width: 80%;
             height: 45px;
             font-size: 1em;
+        }
+
+        .alert-info {
+            width: 95%;
+            max-width: none;
         }
 
         .login {
@@ -706,6 +835,44 @@
 
         #chk:checked ~ .login {
             transform: translateY(-500px);
+        }
+
+        .modal-box {
+            padding: 15px;
+        }
+
+            .modal-box .user-button {
+                min-width: 90px;
+                font-size: 0.85em;
+                padding: 0 10px;
+            }
+
+        .modal-box div[style*="display:flex"] {
+            flex-wrap: wrap;
+        }
+    }
+
+    /* Pantallas muy pequeñas */
+    @@media (max-width: 380px) {
+        .main {
+            width: 100%;
+            margin: 5px auto;
+            border-radius: 10px;
+        }
+
+        label {
+            font-size: 1.5em;
+            margin: 20px;
+        }
+
+        .user-input {
+            height: 42px;
+            font-size: 0.85em;
+        }
+
+        .user-button {
+            width: 90%;
+            font-size: 0.9em;
         }
     }
 

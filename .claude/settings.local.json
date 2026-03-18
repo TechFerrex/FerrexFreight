@@ -10,7 +10,10 @@
       "Bash(wc -l /c/Users/ThinkPad/Desktop/TESTFERREX/TestFreight/FerrexWeb/Pages/*.razor | tail -1)",
       "Bash(grep -r \"class.*Service\" /c/Users/ThinkPad/Desktop/TESTFERREX/TestFreight/FerrexWeb/Services/*.cs | cut -d: -f2 | sort -u)",
       "Bash(find /c/Users/ThinkPad/Desktop/TESTFERREX/TestFreight/FerrexWeb -name \"*.css\" 2>/dev/null | head -20)",
-      "Bash(pip install:*)"
+      "Bash(pip install:*)",
+      "Bash(find /c/Users/ThinkPad/Desktop/TESTFERREX/TestFreight -name *Account* -o -name *Identity* -o -name *Profile*)",
+      "Bash(grep -r \"SignIn\\\\|SignOut\\\\|Register\\\\|Login\" /c/Users/ThinkPad/Desktop/TESTFERREX/TestFreight/FerrexWeb/Pages --include=*.razor)",
+      "Bash(grep -r \"Authorize\\\\|AuthenticationState\\\\|Claims\" /c/Users/ThinkPad/Desktop/TESTFERREX/TestFreight/FerrexWeb --include=*.razor --include=*.cs)"
     ]
   }
 }
