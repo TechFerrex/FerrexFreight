@@ -43,15 +43,15 @@
                     @foreach (var fq in freightQuotations)
                     {
                         <tr>
-                            <td>@fq.QuotationNumber</td>
-                            <td>@fq.Origin</td>
-                            <td>@fq.Destination</td>
-                            <td>@fq.FreightDate.ToString("dd/MM/yyyy")</td>
-                            <td>@fq.TotalCost.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</td>
-                            <td>
+                            <td data-label="N° Cotización">@fq.QuotationNumber</td>
+                            <td data-label="Origen">@fq.Origin</td>
+                            <td data-label="Destino">@fq.Destination</td>
+                            <td data-label="Fecha">@fq.FreightDate.ToString("dd/MM/yyyy")</td>
+                            <td data-label="Total">@fq.TotalCost.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</td>
+                            <td data-label="Estado">
                                 <span class="@GetStatusBadgeClass(fq.Status)">@GetStatusText(fq.Status)</span>
                             </td>
-                            <td>
+                            <td data-label="Acciones">
                                 <button class="btn btn-info btn-sm" @onclick="() => ViewQuotation(fq)">
                                     <i class="fas fa-eye"></i> Ver
                                 </button>
@@ -200,6 +200,63 @@
     .col-6 {
         flex: 0 0 50%;
         max-width: 50%;
+    }
+
+    /* Tabla responsive tipo tarjeta en móvil */
+    @@media (max-width: 767.98px) {
+        .table thead {
+            display: none;
+        }
+
+        .table tbody tr {
+            display: block;
+            margin-bottom: 1rem;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+        }
+
+        .table tbody td {
+            display: block;
+            width: 100%;
+            text-align: right;
+            position: relative;
+            padding-left: 50%;
+            padding-top: 8px;
+            padding-bottom: 8px;
+            border-top: none;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .table tbody td::before {
+            content: attr(data-label);
+            position: absolute;
+            left: 0;
+            width: 45%;
+            padding-left: 15px;
+            font-weight: bold;
+            text-align: left;
+        }
+
+        .table tbody td:last-child {
+            border-bottom: 0;
+        }
+
+        .modal-content {
+            margin: 5% auto;
+            width: 95%;
+            max-width: 95%;
+            padding: 15px;
+        }
+
+        .col-6 {
+            flex: 0 0 100%;
+            max-width: 100%;
+        }
+
+        #modalMapContainer {
+            height: 250px !important;
+        }
     }
 </style>
 

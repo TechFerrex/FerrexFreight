@@ -7,29 +7,30 @@ using Microsoft.EntityFrameworkCore;
 
 public class CircuitSessionHandler : CircuitHandler
 {
-    // Tu diccionario concurrente (como lo tenías)
     public static ConcurrentDictionary<string, string> CircuitSessions = new ConcurrentDictionary<string, string>();
 
     private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly CircuitAccessor _circuitAccessor;
     private readonly IDbContextFactory<ApplicationDbContext> _dbContextFactory;
+    private readonly ILogger<CircuitSessionHandler> _logger;
 
-    // Inyectamos el dbContextFactory para crear el contexto cuando sea necesario
     public CircuitSessionHandler(
         IHttpContextAccessor httpContextAccessor,
         CircuitAccessor circuitAccessor,
-        IDbContextFactory<ApplicationDbContext> dbContextFactory)
+        IDbContextFactory<ApplicationDbContext> dbContextFactory,
+        ILogger<CircuitSessionHandler> logger)
     {
         _httpContextAccessor = httpContextAccessor;
         _circuitAccessor = circuitAccessor;
         _dbContextFactory = dbContextFactory;
+        _logger = logger;
     }
 
     public override async Task OnCircuitOpenedAsync(Circuit circuit, CancellationToken cancellationToken)
     {
         if (_httpContextAccessor.HttpContext == null)
         {
-            Console.WriteLine("HttpContext is null. Skipping session initialization.");
+            _logger.LogDebug("HttpContext is null. Skipping session initialization.");
             await base.OnCircuitOpenedAsync(circuit, cancellationToken);
             return;
         }
@@ -66,8 +67,7 @@ public class CircuitSessionHandler : CircuitHandler
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error guardando el registro de visitante: {ex.Message}");
-            // Manejo de error o logging
+            _logger.LogError(ex, "Error guardando el registro de visitante");
         }
 
         // Llamar al método base para continuar

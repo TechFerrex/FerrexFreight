@@ -628,7 +628,6 @@
         justify-content: center;
         align-items: center;
         overflow: hidden;
-        overflow-y: auto;
         font-family: 'Jost', sans-serif;
         background: linear-gradient(to bottom, #e6b23b, #F5C144, #e6b23b);
     }
@@ -793,14 +792,12 @@
     @@media (max-width: 600px) {
         .main {
             width: 95%;
-            height: auto;
-            min-height: 550px;
+            height: 550px;
             margin: 10px auto;
         }
 
         .signup, .login {
-            height: auto;
-            min-height: 500px;
+            height: 600px;
             padding: 15px;
         }
 
@@ -856,6 +853,7 @@
     @@media (max-width: 380px) {
         .main {
             width: 100%;
+            height: 520px;
             margin: 5px auto;
             border-radius: 10px;
         }

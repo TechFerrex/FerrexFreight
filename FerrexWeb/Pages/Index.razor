@@ -647,4 +647,68 @@
         opacity: 1;
         transform: translateY(0);
     }
+
+    /* === Móvil === */
+    @@media (max-width: 768px) {
+        .jumbotron {
+            padding: 1.5rem 0.8rem;
+        }
+
+        .jumbotron h1 {
+            font-size: 1.4rem;
+        }
+
+        .jumbotron .lead {
+            font-size: 1rem;
+        }
+
+        .mt-5 {
+            margin-top: 1.5rem;
+        }
+
+        .mb-5 {
+            margin-bottom: 1.5rem;
+        }
+
+        .custom-card {
+            padding-top: 40px;
+        }
+
+        .icon-wrapper {
+            width: 60px;
+            height: 60px;
+            top: -30px;
+        }
+
+        .custom-icon {
+            font-size: 1.5rem;
+        }
+
+        .info-banner {
+            padding: 1rem;
+        }
+
+        .custom-btn, .custom-btn-secondary {
+            font-size: 14px;
+            padding: 10px 15px;
+        }
+    }
+
+    @@media (max-width: 480px) {
+        .jumbotron h1 {
+            font-size: 1.2rem;
+        }
+
+        .jumbotron .lead {
+            font-size: 0.9rem;
+        }
+
+        .mt-5 {
+            margin-top: 1rem;
+        }
+
+        .custom-card {
+            margin-bottom: 2rem;
+        }
+    }
 </style>

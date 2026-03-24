@@ -6,7 +6,7 @@ html, body {
     margin: 0;
 }
 
-/* 2. Ajusta la barra de navegación */
+/* 2. Ajusta la barra de navegaciï¿½n */
 .sticky-nav {
     position: fixed;
     top: 0;
@@ -14,7 +14,7 @@ html, body {
     z-index: 1000;
 }
 
-/* 3. Separación para que el contenido no quede oculto tras la nav */
+/* 3. Separaciï¿½n para que el contenido no quede oculto tras la nav */
 main {
     margin-top: 80px; /* o la altura exacta de tu NavMenu */
 }
@@ -94,9 +94,65 @@ main {
     margin-top: 13px;
 }
 
-@@media (max-width: 768px) {
+@@media (max-width: 991.98px) {
     .whatsapp {
-        bottom: 200px; /* Ajusta este valor según convenga */
+        width: 50px;
+        height: 50px;
+        font-size: 24px;
+        bottom: 75px;
+        right: 15px;
+    }
+}
+
+/* ===== Optimizaciones Globales para MÃ³vil ===== */
+@@media (max-width: 768px) {
+    main {
+        margin-top: 60px;
+    }
+
+    h1 {
+        font-size: 1.5rem;
+    }
+
+    h2 {
+        font-size: 1.3rem;
+    }
+
+    .container {
+        padding-left: 10px;
+        padding-right: 10px;
+    }
+
+    .display-4 {
+        font-size: 1.6rem;
+    }
+}
+
+@@media (max-width: 480px) {
+    main {
+        margin-top: 50px;
+    }
+
+    h1 {
+        font-size: 1.3rem;
+    }
+
+    .container.my-5 {
+        margin-top: 1.5rem !important;
+        margin-bottom: 1.5rem !important;
+    }
+}
+
+/* Banner responsive */
+@@media (max-width: 768px) {
+    .banner-container {
+        height: 250px;
+    }
+}
+
+@@media (max-width: 480px) {
+    .banner-container {
+        height: 180px;
     }
 }
 
@@ -133,7 +189,7 @@ main {
     .blazor-error-boundary::after {
         content: "An error has occurred."
     }
-/* Estilos para la barra de navegación personalizada */
+/* Estilos para la barra de navegaciï¿½n personalizada */
 .navbar-custom {
     background-color: #000000;
     color: #F5C144;
@@ -155,12 +211,12 @@ main {
             color: #ffffff !important;
         }
 
-    /* Estilos para el botón de expansión del menú (navbar-toggler) */
+    /* Estilos para el botï¿½n de expansiï¿½n del menï¿½ (navbar-toggler) */
     .navbar-custom .navbar-toggler {
-        border-color: #F5C144; /* Borde del botón */
+        border-color: #F5C144; /* Borde del botï¿½n */
         padding: 0.25rem 0.75rem;
         font-size: 1.25rem;
-        background-color: #000000; /* Fondo del botón */
+        background-color: #000000; /* Fondo del botï¿½n */
     }
 
     .navbar-custom .navbar-toggler-icon {
@@ -185,7 +241,7 @@ main {
 }
 
 
-/* Asegurar visibilidad del botón en pantallas pequeñas */
+/* Asegurar visibilidad del botï¿½n en pantallas pequeï¿½as */
 @media (max-width: 767.98px) {
     .navbar-custom .navbar-toggler {
         display: block;
@@ -209,7 +265,7 @@ main {
 .banner-image {
     width: 100%; /* Ancho completo */
     height: 100%; /* Altura completa del contenedor */
-    object-fit: cover; /* Asegura que la imagen se ajuste sin distorsión */
+    object-fit: cover; /* Asegura que la imagen se ajuste sin distorsiï¿½n */
     transition: opacity 0.5s ease-in-out;
 }
 
@@ -221,6 +277,6 @@ main {
 }
 
     .expandable-content.show {
-        max-height: 300px; /* Ajusta este valor según el contenido */
+        max-height: 300px; /* Ajusta este valor segï¿½n el contenido */
         padding: 10px 0;
     }

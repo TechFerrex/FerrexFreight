@@ -34,7 +34,7 @@ function calculateLeafletDistance() {
                 latitude: userLatLng.lat,
                 longitude: userLatLng.lng
             };
-            console.log('calculateLeafletDistance result:', result); // Agrega este log
+            // resultado calculado
             resolve(result);
         } else {
             alert('Por favor, selecciona una ubicación en el mapa.');

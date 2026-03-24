@@ -6,13 +6,22 @@ using FerrexWeb.Services;
 using FerrexWeb.Pages;
 using Blazored.LocalStorage;
 using Microsoft.AspNetCore.Components.Server.Circuits;
+using Microsoft.Data.SqlClient;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Logging detallado para producción
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole();
+builder.Logging.SetMinimumLevel(LogLevel.Information);
 
 
 builder.Services.AddHttpClient();
 builder.Services.AddRazorPages();
-builder.Services.AddServerSideBlazor();
+builder.Services.AddServerSideBlazor().AddCircuitOptions(options =>
+{
+    options.DetailedErrors = !builder.Environment.IsProduction();
+});
 builder.Services.AddBlazorBootstrap();
 builder.Services.AddOptions();
 builder.Services.AddBlazoredLocalStorage();
@@ -38,11 +47,16 @@ builder.Services.AddDbContextFactory<ApplicationDbContext>(options =>
                 maxRetryCount: 5,
                 maxRetryDelay: TimeSpan.FromSeconds(30),
                 errorNumbersToAdd: null);
-            sqlOptions.CommandTimeout(30);
+            sqlOptions.CommandTimeout(60);
         });
 
-    // Deshabilitar tracking para operaciones de solo lectura
     options.UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking);
+
+    if (!builder.Environment.IsProduction())
+    {
+        options.EnableDetailedErrors();
+        options.EnableSensitiveDataLogging();
+    }
 });
 builder.Services.AddSingleton<ProductoService>();
 builder.Services.AddSingleton<ProductStateService>();
@@ -125,6 +139,54 @@ app.Use(async (context, next) =>
 
     await next();
 });
+
+// Endpoint de diagnóstico - visita /api/health para ver el estado de la BD
+app.MapGet("/api/health", async (IDbContextFactory<ApplicationDbContext> factory, ILogger<Program> logger) =>
+{
+    var result = new Dictionary<string, string>();
+    result["timestamp"] = DateTime.UtcNow.ToString("o");
+    result["environment"] = app.Environment.EnvironmentName;
+    result["dotnet_version"] = System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription;
+
+    try
+    {
+        using var db = await factory.CreateDbContextAsync();
+        var canConnect = await db.Database.CanConnectAsync();
+        result["database_connection"] = canConnect ? "OK" : "FAILED";
+
+        if (canConnect)
+        {
+            var userCount = await db.Users.CountAsync();
+            result["users_count"] = userCount.ToString();
+            var catCount = await db.Categories.CountAsync();
+            result["categories_count"] = catCount.ToString();
+            var rolesCount = await db.Roles.CountAsync();
+            result["roles_count"] = rolesCount.ToString();
+        }
+    }
+    catch (Exception ex)
+    {
+        result["database_connection"] = "ERROR";
+        logger.LogError(ex, "Health check - DB connection failed");
+    }
+
+    return Results.Json(result);
+});
+
+// Test de conexión a BD al iniciar
+var startupLogger = app.Services.GetRequiredService<ILogger<Program>>();
+try
+{
+    using var scope = app.Services.CreateScope();
+    var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<ApplicationDbContext>>();
+    using var db = await factory.CreateDbContextAsync();
+    var canConnect = await db.Database.CanConnectAsync();
+    startupLogger.LogInformation("=== DB Connection Test: {Status} ===", canConnect ? "SUCCESS" : "FAILED");
+}
+catch (Exception ex)
+{
+    startupLogger.LogError(ex, "=== DB Connection Test FAILED at startup ===");
+}
 
 app.MapBlazorHub();
 app.MapFallbackToPage("/_Host");

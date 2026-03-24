@@ -11,7 +11,7 @@ window.loadGoogleMapsForQuotations = function (apiKey) {
     }
 
     if (!apiKey) {
-        console.error("API key de Google Maps no proporcionada");
+        // API key no proporcionada
         return;
     }
 
@@ -21,9 +21,8 @@ window.loadGoogleMapsForQuotations = function (apiKey) {
     script.defer = true;
     script.onload = () => {
         _googleMapsLoaded = true;
-        console.log("Google Maps cargado para cotizaciones");
     };
-    script.onerror = () => console.error("Error al cargar Google Maps");
+    script.onerror = () => { };
     document.head.appendChild(script);
 };
 
@@ -33,7 +32,7 @@ window.loadGoogleMapsForQuotations = function (apiKey) {
 function geocodeAddress(address) {
     return new Promise((resolve, reject) => {
         if (typeof google === 'undefined' || !google.maps) {
-            reject("Google Maps no está cargado");
+            reject("Mapa no disponible");
             return;
         }
         new google.maps.Geocoder().geocode({ address }, (results, status) => {
@@ -83,7 +82,6 @@ window.showToastSimple = function (type, message) {
 window.showQuotationModal = async function (origin, destination, stopsJson) {
     // Verificar que Google Maps esté cargado
     if (typeof google === 'undefined' || !google.maps) {
-        console.error("Google Maps no está cargado aún");
         showToastSimple("error", "El mapa aún está cargando, intenta de nuevo en unos segundos");
         return;
     }
@@ -115,10 +113,7 @@ window.showQuotationModal = async function (origin, destination, stopsJson) {
 
     // 4) Inicializar mapa
     const mapContainer = document.getElementById("modalMapContainer");
-    if (!mapContainer) {
-        console.error("Contenedor del mapa no encontrado");
-        return;
-    }
+    if (!mapContainer) return;
 
     const map = new google.maps.Map(mapContainer, {
         center: { lat: 14.0723, lng: -87.1921 },
@@ -151,7 +146,6 @@ window.showQuotationModal = async function (origin, destination, stopsJson) {
         travelMode: google.maps.TravelMode.DRIVING
     }, (resp, status) => {
         if (status !== "OK") {
-            console.error("Error al calcular ruta:", status);
             showToastSimple("error", "No se pudo calcular la ruta");
             return;
         }

@@ -256,7 +256,7 @@ else
             producto = await ProductService.GetProductByIdAsync(productId);
             if (producto == null)
             {
-                Console.WriteLine($"Producto con ID {productId} no encontrado.");
+                // Producto no encontrado
                 return;
             }
 
@@ -312,7 +312,7 @@ else
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error al cargar el producto: {ex.Message}");
+            // Error al cargar producto - se muestra mensaje genérico al usuario
             producto = null;
         }
     }

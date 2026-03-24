@@ -32,7 +32,6 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 
 // --- stubs para mapsInterop (por si el mapa se inicializa antes) ---
-window.
-    MapsScript = window.loadGoogleMapsScript || function () { console.warn('stub loadGoogleMapsScript'); };
-window.showMapErrorModal = window.showMapErrorModal || function (show, msg) { console.warn('stub showMapErrorModal', show, msg); };
-window.initMap = window.initMap || function () { console.warn('stub initMap'); };
+window.MapsScript = window.loadGoogleMapsScript || function () { };
+window.showMapErrorModal = window.showMapErrorModal || function () { };
+window.initMap = window.initMap || function () { };

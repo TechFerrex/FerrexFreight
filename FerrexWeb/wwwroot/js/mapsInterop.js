@@ -143,7 +143,7 @@
 
         // Validar que se proporcione la API key
         if (!apiKey) {
-            showMapErrorModal(true, 'Error: API key de Google Maps no configurada.');
+            showMapErrorModal(true, 'No se pudo cargar el mapa. Contacte al administrador.');
             return;
         }
 
@@ -154,13 +154,10 @@
         script.async = true;
         script.defer = true;
 
-        script.onload = function () {
-            console.log("Google Maps cargado correctamente");
-        };
+        script.onload = function () { };
 
         script.onerror = function () {
-            console.error("Error al cargar Google Maps");
-            showMapErrorModal(true, 'Error al cargar Google Maps. Verifique su conexión a internet.');
+            showMapErrorModal(true, 'No se pudo cargar el mapa. Verifique su conexión a internet.');
         };
 
         document.head.appendChild(script);
@@ -169,7 +166,6 @@
     function initializeAutocomplete(inputId) {
         const input = document.getElementById(inputId);
         if (!input || !google || !google.maps || !google.maps.places) {
-            console.warn('No se pudo inicializar autocompletado para ${ inputId }');
             return;
         }
 
@@ -181,7 +177,6 @@
         autocomplete.addListener("place_changed", function () {
             const place = autocomplete.getPlace();
             if (!place.geometry) {
-                console.warn("No se encontró geometría para el lugar seleccionado");
                 return;
             }
 
@@ -361,7 +356,7 @@
                 return await geocodeAddress(addr);
             }));
         } catch (err) {
-            showAlert("Error geocodificando alguna parada: " + err);
+            showAlert("No se pudo encontrar la ubicación de una parada. Verifica la dirección.");
             return;
         }
 
@@ -396,7 +391,7 @@
                     travelMode: google.maps.TravelMode.DRIVING
                 }, (response, status) => {
                     if (status !== 'OK') {
-                        showAlert('Error al calcular la ruta: ' + status);
+                        showAlert('No se pudo calcular la ruta. Verifica las ubicaciones.');
                         return;
                     }
 
@@ -503,9 +498,8 @@
                 alert(res || "Cotización guardada correctamente");
                 closeModal();
             }
-        }).catch(error => {
-            console.error("Error al guardar cotización:", error);
-            showAlert("Error al guardar la cotización");
+        }).catch(() => {
+            showAlert("Error al guardar la cotización. Intenta de nuevo.");
         });
     }
 
@@ -540,9 +534,8 @@
                     closeModal();
                 }
             })
-            .catch(error => {
-                console.error("Error al ordenar el flete:", error);
-                showAlert("Error al ordenar el flete");
+            .catch(() => {
+                showAlert("Error al ordenar el flete. Intenta de nuevo.");
             });
     }
 
@@ -564,9 +557,7 @@
         updateSelectionTip("");
         hideAlert();
     }
-    function updateTruckCosts(truckType) {
-        console.log('Tipo de camión actualizado a: ${ truckType }');
-    }
+    function updateTruckCosts(truckType) { }
     // –– Efectos UI para selección de camión ––
     function applyTruckSelectionEffect(type) {
         // Remover clase active de todas las tarjetas

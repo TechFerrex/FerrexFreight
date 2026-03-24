@@ -22,7 +22,7 @@ async function showRouteModal(origin, destination, distance, truckType, stopsJso
         stops = JSON.parse(stopsJson);
         if (!Array.isArray(stops)) stops = [];
     } catch (e) {
-        console.warn("showRouteModal: stopsJson inválido", e);
+        // stopsJson inválido
         stops = [];
     }
 
@@ -36,7 +36,7 @@ async function showRouteModal(origin, destination, distance, truckType, stopsJso
         try {
             return await geocodeAddress(s.Address);
         } catch {
-            console.warn("No se pudo geocodificar:", s.Address);
+            // No se pudo geocodificar parada
             return null;
         }
     }));
@@ -75,7 +75,7 @@ async function showRouteModal(origin, destination, distance, truckType, stopsJso
         travelMode: google.maps.TravelMode.DRIVING
     }, (response, status) => {
         if (status !== "OK") {
-            console.error("showRouteModal: Error al calcular ruta:", status);
+            // Error al calcular ruta
             return;
         }
         dr.setDirections(response);
@@ -405,6 +405,6 @@ function printQuotationDetails() {
         // Invoca el método de instancia del componente Blazor
         window._quotRef.invokeMethodAsync('buildAndPrintQuotation');
     } else {
-        console.error('dotNetRef no inicializado');
+        // dotNetRef no disponible
     }
 }

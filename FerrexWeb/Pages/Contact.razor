@@ -56,7 +56,7 @@
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error al enviar correo: {ex.Message}");
+            // Error al enviar correo - se loguea en Azure
             throw;
         }
     }
@@ -213,5 +213,25 @@
     .form-control:focus {
         border-color: #F5C144;
         box-shadow: none;
+    }
+
+    @@media (max-width: 768px) {
+        .blury-content {
+            padding: 15px;
+            margin-top: 1.5rem !important;
+            margin-bottom: 1.5rem !important;
+        }
+
+        .display-4 {
+            font-size: 1.5rem;
+        }
+
+        .contact-info li {
+            font-size: 15px;
+        }
+
+        h2 {
+            font-size: 1.3rem;
+        }
     }
 </style>

@@ -3,7 +3,7 @@
 
 
 
-<ErrorBoundary>
+<ErrorBoundary @ref="errorBoundary">
     <ChildContent>
 <CascadingAuthenticationState>
     <Router AppAssembly="@typeof(App).Assembly">
@@ -13,7 +13,7 @@
                     <NoAuthorized />
                 </NotAuthorized>
                 <Authorizing>
-                    <div style="display:none;"></div> 
+                    <div style="display:none;"></div>
                 </Authorizing>
             </AuthorizeRouteView>
             <FocusOnNavigate RouteData="@routeData" Selector="h1" />
@@ -24,11 +24,26 @@
     </Router>
 </CascadingAuthenticationState>
     </ChildContent>
-    <ErrorContent>
-        <!-- Aquí pones el fallback que aparecerá si un componente explota por excepción -->
+    <ErrorContent Context="ex">
         <div class="alert alert-danger m-4">
-            <h4>¡Ups! Algo salió mal.</h4>
-            <p>Por favor, intente recargar la página o regresar al inicio.</p>
+            <h4>Error en la aplicacion</h4>
+            <p><strong>Tipo:</strong> @ex.GetType().Name</p>
+            <p><strong>Mensaje:</strong> @ex.Message</p>
+            @if (ex.InnerException != null)
+            {
+                <p><strong>Detalle:</strong> @ex.InnerException.Message</p>
+            }
+            <hr />
+            <a href="/" class="btn btn-primary" @onclick="RecoverError">Volver al inicio</a>
         </div>
     </ErrorContent>
 </ErrorBoundary>
+
+@code {
+    private ErrorBoundary? errorBoundary;
+
+    private void RecoverError()
+    {
+        errorBoundary?.Recover();
+    }
+}

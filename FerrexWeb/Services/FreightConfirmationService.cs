@@ -1,6 +1,7 @@
 ﻿using FerrexWeb.Models;
 using Microsoft.AspNetCore.Components;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace FerrexWeb.Services
 {
@@ -8,12 +9,15 @@ namespace FerrexWeb.Services
     {
         private readonly IDbContextFactory<ApplicationDbContext> _ctxFactory;
         private readonly NavigationManager _nav;
+        private readonly ILogger<FreightConfirmationService> _logger;
 
         public FreightConfirmationService(IDbContextFactory<ApplicationDbContext> ctxFactory,
-                                          NavigationManager nav)
+                                          NavigationManager nav,
+                                          ILogger<FreightConfirmationService> logger)
         {
             _ctxFactory = ctxFactory;
             _nav = nav;
+            _logger = logger;
         }
 
         /// Devuelve el link si ya existe un token activo, o null.
@@ -97,7 +101,7 @@ namespace FerrexWeb.Services
 
             // 3) Guarda TODO en un solo SaveChanges
             var rows = await ctx.SaveChangesAsync();
-            Console.WriteLine($"Rows afectadas: {rows}");  // para depurar
+            _logger.LogInformation("FreightConfirmation token={Token} confirmado, rows={Rows}", token, rows);
 
             return rows > 0;
         }

@@ -18,7 +18,7 @@
         </div>
         <div class="card-body">
             <div id="alertMessage" class="alert alert-warning" style="display: none; margin-bottom: 15px;" role="alert"></div>
-            <div class="row">
+            <div class="row flex-column-reverse flex-md-row">
                 <div class="col-md-4">
                                      <!-- Sección de Ruta Mejorada -->
                     <div class="route-container mb-4">
@@ -849,16 +849,42 @@
 
     @@media (max-width: 767px) {
         #map {
-            height: 300px;
+            height: 250px;
+            margin-bottom: 15px;
+        }
+
+        .card-body {
+            padding: 10px;
+        }
+
+        .route-container {
+            padding: 12px;
         }
 
         .route-item {
             padding: 8px;
+            flex-wrap: wrap;
+        }
+
+        .route-content {
+            min-width: 0;
+            flex: 1 1 60%;
+            margin-right: 8px;
+        }
+
+        .route-input {
+            font-size: 0.85rem;
         }
 
         .route-controls {
-            flex-direction: column;
-            gap: 2px;
+            flex-direction: row;
+            gap: 4px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+
+        .btn-group-vertical {
+            flex-direction: row !important;
         }
 
         .truck-selection {
@@ -868,7 +894,7 @@
         .truck-card {
             width: calc(50% - 10px);
             padding: 12px 8px;
-            min-width: 120px;
+            min-width: 110px;
         }
 
             .truck-card i {
@@ -879,12 +905,30 @@
             .truck-card .truck-name {
                 font-size: 0.8rem;
             }
+
+        .header-card h3 {
+            font-size: 1.1rem;
+        }
+
+        .modal-content {
+            margin: 5% auto;
+            width: 95%;
+            padding: 15px;
+        }
     }
 
     @@media (max-width: 480px) {
+        #map {
+            height: 200px;
+        }
+
         .truck-card {
             width: 100%;
-            max-width: 200px;
+            max-width: 180px;
+        }
+
+        .route-item:not(:last-child)::after {
+            display: none;
         }
     }
 

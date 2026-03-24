@@ -46,8 +46,22 @@
     .footer {
         background-color: #000000;
         color: #ffffff;
-        padding: 150px 0;
-        /* Eliminar margin-top grande; ahora no lo necesitamos */
+        padding: 40px 0;
+    }
+
+    @@media (max-width: 768px) {
+        .footer {
+            padding: 30px 0 80px; /* 80px bottom para no tapar el navbar inferior */
+        }
+
+        .footer h5 {
+            font-size: 1.2rem;
+            margin-bottom: 15px;
+        }
+
+        .footer .social-media li a {
+            font-size: 20px;
+        }
     }
 
         .footer h5 {

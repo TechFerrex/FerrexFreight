@@ -13,7 +13,14 @@
       "Bash(pip install:*)",
       "Bash(find /c/Users/ThinkPad/Desktop/TESTFERREX/TestFreight -name *Account* -o -name *Identity* -o -name *Profile*)",
       "Bash(grep -r \"SignIn\\\\|SignOut\\\\|Register\\\\|Login\" /c/Users/ThinkPad/Desktop/TESTFERREX/TestFreight/FerrexWeb/Pages --include=*.razor)",
-      "Bash(grep -r \"Authorize\\\\|AuthenticationState\\\\|Claims\" /c/Users/ThinkPad/Desktop/TESTFERREX/TestFreight/FerrexWeb --include=*.razor --include=*.cs)"
+      "Bash(grep -r \"Authorize\\\\|AuthenticationState\\\\|Claims\" /c/Users/ThinkPad/Desktop/TESTFERREX/TestFreight/FerrexWeb --include=*.razor --include=*.cs)",
+      "Bash(xargs grep:*)",
+      "Bash(grep -E \"\\\\.\\(cs\\)$\")",
+      "Bash(dotnet tool:*)",
+      "Bash(taskkill //F //PID 14120)",
+      "Bash(taskkill //F //IM FerrexWeb.exe)",
+      "Bash(find C:UsersThinkPadDesktopTESTFERREXTestFreight -type f -name App.razor -o -name index.html -o -name *.csproj)",
+      "Bash(grep -E \"\\\\.razor$\")"
     ]
   }
 }

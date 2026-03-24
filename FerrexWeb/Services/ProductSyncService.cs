@@ -1,6 +1,7 @@
 ﻿using FerrexWeb.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 
 namespace FerrexWeb.Services
 {
@@ -9,12 +10,14 @@ namespace FerrexWeb.Services
         private readonly ApplicationDbContext _context;
         private readonly HttpClient _httpClient;
         private readonly IConfiguration _configuration;
+        private readonly ILogger<ProductSyncService> _logger;
 
-        public ProductSyncService(ApplicationDbContext context, HttpClient httpClient, IConfiguration configuration)
+        public ProductSyncService(ApplicationDbContext context, HttpClient httpClient, IConfiguration configuration, ILogger<ProductSyncService> logger)
         {
             _context = context;
             _httpClient = httpClient;
             _configuration = configuration;
+            _logger = logger;
         }
 
 
@@ -43,7 +46,7 @@ namespace FerrexWeb.Services
             var response = await _httpClient.PostAsJsonAsync(baseUrl, requestBody);
             if (!response.IsSuccessStatusCode)
             {
-                Console.WriteLine("Error al obtener productos de la API: " + response.StatusCode);
+                _logger.LogError("Error al obtener productos de la API. StatusCode={StatusCode}", response.StatusCode);
                 return;
             }
 
@@ -97,7 +100,7 @@ namespace FerrexWeb.Services
                 }
             }
 
-            Console.WriteLine($"Actualización de precios finalizada. {totalUpdated} productos actualizados.");
+            _logger.LogInformation("Actualización de precios finalizada. {TotalUpdated} productos actualizados.", totalUpdated);
         }
     }
 }
