@@ -40,14 +40,14 @@
                     @foreach (var order in orders)
                     {
                                 <tr>
-                                    <td>@order.OrderNumber</td>
-                                    <td>@order.User.Name</td>
-                                    <td>@order.OrderDate.ToString("dd/MM/yyyy")</td>
-                                    <td>@order.Total.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</td>
-                                    <td>
+                                    <td data-label="N° Orden">@order.OrderNumber</td>
+                                    <td data-label="Cliente">@order.User.Name</td>
+                                    <td data-label="Fecha">@order.OrderDate.ToString("dd/MM/yyyy")</td>
+                                    <td data-label="Total">@order.Total.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</td>
+                                    <td data-label="Estado">
                                         <span class="badge @(GetStatusBadgeClass(order.Status))">@order.Status</span>
                                     </td>
-                                    <td>
+                                    <td data-label="Acciones">
                                         <a href="/orderdetails/@order.Id" class="btn btn-primary btn-sm">
                                             <i class="fas fa-eye"></i> Ver Detalles
                                         </a>
@@ -69,7 +69,7 @@
 @if (isChangeStatusModalOpen)
 {
         <div class="modal show d-block" tabindex="-1">
-            <div class="modal-dialog">
+            <div class="modal-dialog orders-modal-dialog">
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title">Cambiar Estado de la Orden</h5>
@@ -178,3 +178,89 @@
         }
     }
 }
+
+<style>
+    @@media (max-width: 768px) {
+        /* Hide table header on mobile */
+        .table thead {
+            display: none;
+        }
+
+        .table tbody tr {
+            display: block;
+            margin-bottom: 1rem;
+            border: 1px solid #dee2e6;
+            border-radius: 0.5rem;
+            padding: 0.5rem;
+            background-color: #fff;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .table tbody tr td {
+            display: block;
+            text-align: right;
+            padding: 0.5rem 0.75rem;
+            border: none;
+            border-bottom: 1px solid #f0f0f0;
+            position: relative;
+            padding-left: 50%;
+        }
+
+        .table tbody tr td:last-child {
+            border-bottom: none;
+        }
+
+        .table tbody tr td::before {
+            content: attr(data-label);
+            position: absolute;
+            left: 0.75rem;
+            top: 0.5rem;
+            font-weight: 700;
+            text-align: left;
+            color: #333;
+        }
+
+        /* Full-width buttons on mobile */
+        .table tbody tr td[data-label="Acciones"] {
+            text-align: center;
+            padding-left: 0.75rem;
+        }
+
+        .table tbody tr td[data-label="Acciones"]::before {
+            position: static;
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+
+        .table tbody tr td[data-label="Acciones"] .btn {
+            display: block;
+            width: 100%;
+            margin-bottom: 0.5rem;
+        }
+
+        .table tbody tr td[data-label="Acciones"] .btn:last-child {
+            margin-bottom: 0;
+        }
+
+        /* Responsive modal */
+        .orders-modal-dialog {
+            max-width: 95% !important;
+            margin: 1rem auto;
+        }
+
+        .orders-modal-dialog .modal-content {
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .orders-modal-dialog .modal-footer .btn {
+            display: block;
+            width: 100%;
+            margin-bottom: 0.5rem;
+        }
+
+        .orders-modal-dialog .modal-footer .btn:last-child {
+            margin-bottom: 0;
+        }
+    }
+</style>

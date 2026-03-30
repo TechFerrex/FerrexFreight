@@ -162,6 +162,39 @@
     }
 }
 
+<style>
+    @@media (max-width: 767.98px) {
+        .card-header h3 {
+            font-size: 1rem;
+        }
+
+        .table-responsive {
+            font-size: 0.8rem;
+        }
+
+        .table td, .table th {
+            padding: 0.5rem;
+        }
+
+        .btn-group {
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .btn-group .btn {
+            width: 100%;
+        }
+
+        .input-group {
+            flex-wrap: wrap;
+        }
+
+        .form-control {
+            font-size: 16px;
+        }
+    }
+</style>
+
 <!-- Agregar al final del archivo _Host.cshtml o similar -->
 <script>
     function showCopyToast(message) {

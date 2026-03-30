@@ -1,0 +1,371 @@
+/* =============================================================
+   FERREXPRESS - Global Responsive Stylesheet
+   Breakpoints: Mobile (320-480), Tablet (481-768), Desktop (769+)
+   ============================================================= */
+
+/* ── Base / Overflow Prevention ── */
+html {
+    overflow-x: hidden;
+    -webkit-text-size-adjust: 100%;
+}
+
+body {
+    overflow-x: hidden;
+    min-width: 320px;
+}
+
+*, *::before, *::after {
+    box-sizing: border-box;
+}
+
+/* ── Fluid Images & Media ── */
+img {
+    max-width: 100%;
+    height: auto;
+}
+
+video, iframe, embed, object {
+    max-width: 100%;
+    height: auto;
+}
+
+/* Responsive iframes (16:9) */
+.responsive-iframe-wrapper {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    overflow: hidden;
+}
+
+.responsive-iframe-wrapper iframe {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
+}
+
+/* ── Typography Scaling with clamp() ── */
+h1, .display-4 {
+    font-size: clamp(1.4rem, 4vw, 2.5rem);
+}
+
+h2 {
+    font-size: clamp(1.2rem, 3.5vw, 2rem);
+}
+
+h3 {
+    font-size: clamp(1.1rem, 3vw, 1.75rem);
+}
+
+h4 {
+    font-size: clamp(1rem, 2.5vw, 1.5rem);
+}
+
+h5 {
+    font-size: clamp(0.95rem, 2vw, 1.25rem);
+}
+
+body, p, li, td, th, label, input, select, textarea, button {
+    font-size: clamp(0.875rem, 1.5vw, 1rem);
+}
+
+/* Ensure minimum body text size on mobile */
+@media (max-width: 480px) {
+    body {
+        font-size: 16px;
+        -webkit-text-size-adjust: 100%;
+    }
+}
+
+/* ── Container Adjustments ── */
+@media (max-width: 768px) {
+    .container, .container-fluid {
+        padding-left: 12px;
+        padding-right: 12px;
+    }
+}
+
+@media (max-width: 480px) {
+    .container, .container-fluid {
+        padding-left: 10px;
+        padding-right: 10px;
+    }
+}
+
+/* ── Table Responsive (card layout on mobile) ── */
+@media (max-width: 767.98px) {
+    .table-responsive-cards thead {
+        display: none;
+    }
+
+    .table-responsive-cards tbody tr {
+        display: block;
+        margin-bottom: 1rem;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+        overflow: hidden;
+    }
+
+    .table-responsive-cards tbody td {
+        display: block;
+        width: 100%;
+        text-align: right;
+        position: relative;
+        padding: 10px 12px 10px 50%;
+        border-top: none;
+        border-bottom: 1px solid #f0f0f0;
+    }
+
+    .table-responsive-cards tbody td::before {
+        content: attr(data-label);
+        position: absolute;
+        left: 12px;
+        width: 45%;
+        font-weight: 600;
+        text-align: left;
+        color: #495057;
+    }
+
+    .table-responsive-cards tbody td:last-child {
+        border-bottom: 0;
+    }
+}
+
+/* ── Buttons: Full width on mobile ── */
+@media (max-width: 480px) {
+    .btn-mobile-full {
+        width: 100% !important;
+        display: block;
+    }
+
+    /* Make primary action buttons full-width on mobile */
+    .card-body .btn,
+    .d-grid .btn,
+    .form-group .btn,
+    form .btn[type="submit"] {
+        width: 100%;
+    }
+}
+
+/* ── Touch-friendly targets (min 44x44px) ── */
+@media (max-width: 768px) {
+    .nav-link,
+    .btn,
+    .btn-sm,
+    a.btn {
+        min-height: 44px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .list-unstyled li a,
+    .footer a {
+        display: inline-block;
+        padding: 6px 0;
+        min-height: 44px;
+        line-height: 32px;
+    }
+}
+
+/* ── Forms: Full width inputs on mobile ── */
+@media (max-width: 768px) {
+    .form-control,
+    .form-select,
+    input[type="text"],
+    input[type="email"],
+    input[type="password"],
+    input[type="number"],
+    input[type="tel"],
+    input[type="date"],
+    textarea,
+    select {
+        width: 100%;
+        font-size: 16px; /* Prevents iOS zoom */
+    }
+}
+
+/* ── Modals: Near full-screen on mobile ── */
+@media (max-width: 768px) {
+    .modal-content,
+    .modal-dialog {
+        width: 95vw !important;
+        max-width: 95vw !important;
+        margin: 2.5vh auto !important;
+    }
+
+    .modal-content {
+        max-height: 90vh;
+        overflow-y: auto;
+        padding: 15px;
+    }
+
+    .modal .btn-close,
+    .modal .close {
+        width: 44px;
+        height: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+}
+
+/* ── Grid: Responsive column adjustments ── */
+@media (max-width: 480px) {
+    /* Force single column on very small screens */
+    .row > [class*="col-sm-6"],
+    .row > [class*="col-md-"] {
+        flex: 0 0 100%;
+        max-width: 100%;
+    }
+}
+
+@media (min-width: 481px) and (max-width: 768px) {
+    /* 2 columns on tablet for card grids */
+    .row > .col-md-4 {
+        flex: 0 0 50%;
+        max-width: 50%;
+    }
+}
+
+/* ── Spacing adjustments for mobile ── */
+@media (max-width: 768px) {
+    .my-5 {
+        margin-top: 1.5rem !important;
+        margin-bottom: 1.5rem !important;
+    }
+
+    .py-5 {
+        padding-top: 1.5rem !important;
+        padding-bottom: 1.5rem !important;
+    }
+
+    .mb-5 {
+        margin-bottom: 1.5rem !important;
+    }
+
+    .mt-5 {
+        margin-top: 1.5rem !important;
+    }
+
+    .display-4 {
+        font-size: 1.5rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .my-5 {
+        margin-top: 1rem !important;
+        margin-bottom: 1rem !important;
+    }
+
+    .py-5 {
+        padding-top: 1rem !important;
+        padding-bottom: 1rem !important;
+    }
+
+    .mb-4 {
+        margin-bottom: 0.75rem !important;
+    }
+}
+
+/* ── Horizontal scroll prevention on common elements ── */
+.table-responsive {
+    -webkit-overflow-scrolling: touch;
+}
+
+pre, code {
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+/* Prevent any child from overflowing */
+.container, .container-fluid, main, article {
+    max-width: 100%;
+    overflow-wrap: break-word;
+    word-wrap: break-word;
+}
+
+/* ── Card improvements for mobile ── */
+@media (max-width: 768px) {
+    .card {
+        margin-bottom: 1rem;
+    }
+
+    .card-body {
+        padding: 1rem;
+    }
+
+    .card-header {
+        padding: 0.75rem 1rem;
+    }
+
+    .card-img-top {
+        object-fit: cover;
+    }
+}
+
+/* ── Badge spacing fix ── */
+@media (max-width: 480px) {
+    .badge {
+        font-size: 0.75rem;
+        padding: 0.35em 0.5em;
+    }
+}
+
+/* ── Alert adjustments ── */
+@media (max-width: 480px) {
+    .alert {
+        padding: 0.75rem;
+        font-size: 0.9rem;
+    }
+}
+
+/* ── Safe area for bottom navbar ── */
+@media (max-width: 991.98px) {
+    body {
+        padding-bottom: env(safe-area-inset-bottom, 65px);
+    }
+
+    /* Ensure footer doesn't get hidden behind bottom nav */
+    .footer {
+        padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+    }
+}
+
+/* ── Map containers responsive ── */
+@media (max-width: 768px) {
+    #map, [id*="map"] {
+        min-height: 200px;
+    }
+}
+
+/* ── Row gap utility for mobile ── */
+@media (max-width: 768px) {
+    .row {
+        --bs-gutter-x: 0.75rem;
+    }
+}
+
+/* ── Fix for Bootstrap row negative margins causing horizontal scroll ── */
+.row {
+    margin-left: 0;
+    margin-right: 0;
+}
+
+.row > [class*="col-"] {
+    padding-left: 12px;
+    padding-right: 12px;
+}
+
+/* ── Print-friendly basic ── */
+@media print {
+    .bottom-navbar,
+    .whatsapp,
+    .sticky-nav {
+        display: none !important;
+    }
+}

@@ -8,7 +8,7 @@
 <PageTitle>Panel de Administración</PageTitle>
 
 <div class="container my-5">
-    <h1 class="text-center mb-4">Panel de Administración</h1>
+    <h1 class="text-center mb-4 admin-title">Panel de Administración</h1>
     <p class="text-center">Aquí puedes gestionar todas las cotizaciones, órdenes y usuarios.</p>
 
     @if (mostrarBotonAdmin)
@@ -34,13 +34,13 @@
                         </div>
                     </div>
                 </div> *@
-                <div class="col-md-4 mb-3">
-                    <div class="card h-100 shadow-sm">
+                <div class="col-sm-6 col-md-4 mb-3">
+                    <div class="card h-100 shadow-sm admin-card">
                         <div class="card-body">
-                            <i class="fas fa-users fa-3x mb-3"></i>
+                            <i class="fas fa-users fa-3x mb-3 admin-icon"></i>
                             <h5 class="card-title">Usuarios</h5>
                             <p class="card-text">Administra los usuarios del sistema.</p>
-                            <button class="btn btn-primary" @onclick="IrAUsuarios">Gestionar Usuarios</button>
+                            <button class="btn btn-primary admin-btn" @onclick="IrAUsuarios">Gestionar Usuarios</button>
                         </div>
                     </div>
                 </div>
@@ -54,33 +54,33 @@
                         </div>
                     </div>
                 </div> *@
-                <div class="col-md-4 mb-3">
-                    <div class="card h-100 shadow-sm">
+                <div class="col-sm-6 col-md-4 mb-3">
+                    <div class="card h-100 shadow-sm admin-card">
                         <div class="card-body">
-                            <i class="fas fa-truck fa-3x mb-3"></i>
+                            <i class="fas fa-truck fa-3x mb-3 admin-icon"></i>
                             <h5 class="card-title">Fletes</h5>
                             <p class="card-text">Ver todos los fletes y los ordenados</p>
-                            <button class="btn btn-primary" @onclick="IrAFreights">Ver Fletes</button>
+                            <button class="btn btn-primary admin-btn" @onclick="IrAFreights">Ver Fletes</button>
                         </div>
                     </div>
                 </div>
-                <div class="col-md-4 mb-3">
-                    <div class="card h-100 shadow-sm">
+                <div class="col-sm-6 col-md-4 mb-3">
+                    <div class="card h-100 shadow-sm admin-card">
                         <div class="card-body">
-                            <i class="fas fa-link fa-3x mb-3"></i>
+                            <i class="fas fa-link fa-3x mb-3 admin-icon"></i>
                             <h5 class="card-title">Creacion de Links</h5>
                             <p class="card-text">Aqui puedes crear links para confirmacion de contra</p>
-                        <button class="btn btn-primary" @onclick="IrAListaLink">Crear Link</button>
+                        <button class="btn btn-primary admin-btn" @onclick="IrAListaLink">Crear Link</button>
                         </div>
                     </div>
                 </div>
-                <div class="col-md-4 mb-3">
-                    <div class="card h-100 shadow-sm">
+                <div class="col-sm-6 col-md-4 mb-3">
+                    <div class="card h-100 shadow-sm admin-card">
                         <div class="card-body">
-                            <i class="fas fa-warehouse fa-3x mb-3"></i>
+                            <i class="fas fa-warehouse fa-3x mb-3 admin-icon"></i>
                             <h5 class="card-title">Inventario</h5>
                             <p class="card-text">Gestiona el inventario por ciudades y puntos</p>
-                            <button class="btn btn-primary" @onclick="IrAInventario">Ver Inventario</button>
+                            <button class="btn btn-primary admin-btn" @onclick="IrAInventario">Ver Inventario</button>
                         </div>
                     </div>
                 </div>
@@ -88,6 +88,64 @@
             </div>
     }
 </div>
+
+<style>
+    /* Responsive title using clamp() */
+    .admin-title {
+        font-size: clamp(1.4rem, 4vw, 2.5rem);
+    }
+
+    /* Tablet: 481px - 768px — 2 columns, reduced spacing */
+    @@media (min-width: 481px) and (max-width: 768px) {
+        .container.my-5 {
+            margin-top: 2rem !important;
+            margin-bottom: 2rem !important;
+            padding-left: 1rem;
+            padding-right: 1rem;
+        }
+
+        .admin-card .card-body {
+            padding: 1rem;
+        }
+
+        .admin-icon {
+            font-size: 1.8em;
+        }
+    }
+
+    /* Mobile: 320px - 480px — 1 column, icons smaller, buttons full-width */
+    @@media (max-width: 480px) {
+        .container.my-5 {
+            margin-top: 1rem !important;
+            margin-bottom: 1rem !important;
+            padding-left: 0.75rem;
+            padding-right: 0.75rem;
+        }
+
+        .row.text-center > [class*="col-"] {
+            flex: 0 0 100%;
+            max-width: 100%;
+        }
+
+        .admin-card .card-body {
+            padding: 0.85rem;
+        }
+
+        .admin-icon {
+            font-size: 1.5em;
+            margin-bottom: 0.5rem !important;
+        }
+
+        .admin-btn {
+            width: 100%;
+            display: block;
+        }
+
+        .col-sm-6.col-md-4.mb-3 {
+            margin-bottom: 0.75rem !important;
+        }
+    }
+</style>
 
 @code {
     private bool mostrarBotonAdmin = false;

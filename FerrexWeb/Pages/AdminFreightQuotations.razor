@@ -796,3 +796,90 @@
         };
     }
 }
+
+<style>
+    @@media (max-width: 767.98px) {
+        .card-header {
+            flex-direction: column;
+            gap: 10px;
+            align-items: stretch !important;
+        }
+
+        .card-header h3 {
+            font-size: 1rem;
+        }
+
+        .card-header .btn {
+            width: 100%;
+        }
+
+        .row.mb-3 > [class*="col-md"] {
+            flex: 0 0 100%;
+            max-width: 100%;
+            margin-bottom: 8px;
+        }
+
+        .row.mb-3 .text-right {
+            text-align: left !important;
+        }
+
+        .row.mb-3 .text-right .btn {
+            width: 100%;
+            margin-bottom: 5px;
+        }
+
+        .col-md-3 {
+            flex: 0 0 50%;
+            max-width: 50%;
+        }
+
+        .col-md-3 .h5 {
+            font-size: 1rem;
+        }
+
+        .col-md-3 .text-xs {
+            font-size: 0.65rem;
+        }
+
+        .table-responsive {
+            font-size: 0.8rem;
+        }
+
+        .btn-group .btn {
+            padding: 4px 6px;
+        }
+
+        .modal-dialog.modal-lg {
+            max-width: 95vw;
+            margin: 1rem auto;
+        }
+
+        #modalMapContainer {
+            height: 250px !important;
+        }
+
+        .pagination {
+            flex-wrap: wrap;
+        }
+
+        .d-flex.justify-content-between {
+            flex-direction: column;
+            gap: 10px;
+        }
+    }
+
+    @@media (max-width: 480px) {
+        .col-md-3 {
+            flex: 0 0 100%;
+            max-width: 100%;
+        }
+
+        .card-header h3 {
+            font-size: 0.9rem;
+        }
+
+        .form-control {
+            font-size: 16px;
+        }
+    }
+</style>

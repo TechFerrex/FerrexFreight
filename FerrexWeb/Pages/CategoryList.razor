@@ -160,30 +160,64 @@ else
             border-color: #A7A9AC;
         }
 
-    /* Responsivo en pantallas muy pequeñas */
-    @@media (max-width: 576px) {
-        .card-title
+    /* Tablet */
+    @@media (max-width: 768px) {
+        .col-sm-6.col-md-4 {
+            flex: 0 0 50%;
+            max-width: 50%;
+        }
 
-    {
-        font-size: 0.8rem;
+        .card-carousel {
+            height: 160px;
+        }
+
+        .card-title {
+            font-size: 0.95rem;
+        }
+
+        .card-text {
+            font-size: 0.85rem;
+        }
+
+        .btn.custom-btn {
+            min-height: 44px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
     }
 
-    .card-text {
-        font-size: 0.7rem;
-    }
+    /* Movil */
+    @@media (max-width: 480px) {
+        .col-12.col-sm-6.col-md-4 {
+            flex: 0 0 100%;
+            max-width: 100%;
+        }
 
-    .card-carousel {
-        height: 100px;
-    }
+        .card-title {
+            font-size: 0.9rem;
+        }
 
-    .card-body {
-        padding: 0.5rem;
-    }
+        .card-text {
+            font-size: 0.8rem;
+        }
 
-    .btn.custom-btn {
-        padding: 5px 10px;
-        font-size: 0.8rem;
-    }
+        .card-carousel {
+            height: 140px;
+        }
 
+        .card-body {
+            padding: 0.75rem;
+        }
+
+        .btn.custom-btn {
+            width: 100%;
+            padding: 10px;
+            font-size: 0.85rem;
+        }
+
+        .category-card:hover {
+            transform: none;
+        }
     }
 </style>
