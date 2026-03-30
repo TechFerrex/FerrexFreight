@@ -156,8 +156,8 @@ else
 @code {
     [Parameter]
     public int productId { get; set; }
-   // private const decimal VigaWeightPerFoot = 2.50m; // Ajusta el valor según corresponda
 
+    private int currentProductId;
     private List<Products> productsInSameSubcat = new();
     private string descOriginal = "";
 
@@ -251,6 +251,10 @@ else
 
     protected override async Task OnParametersSetAsync()
     {
+        // Si el productId de la ruta no cambió, no recargar
+        if (productId == currentProductId && producto != null) return;
+        currentProductId = productId;
+
         try
         {
             producto = await ProductService.GetProductByIdAsync(productId);
@@ -260,12 +264,23 @@ else
                 return;
             }
 
-            // Cargar productos de la misma subcategoría
+            // Cargar productos de la misma subcategoría, sub-subcategoría y tipo
             productsInSameSubcat = await ProductService.GetProductsBySubCategoryAsync(producto.id_subcategory);
-            if (producto.id_subcategory2.HasValue)
+            productsInSameSubcat = productsInSameSubcat
+                .Where(p => p.id_subcategory2 == producto.id_subcategory2)
+                .ToList();
+
+            // Filtrar solo productos del mismo tipo (evita mezclar Abrazaderas con Cables, Conectores, etc.)
+            if (!IsSinTipo(producto.Types))
             {
                 productsInSameSubcat = productsInSameSubcat
-                    .Where(p => p.id_subcategory2 == producto.id_subcategory2)
+                    .Where(p => p.Types != null && p.Types.Trim().Equals(producto.Types.Trim(), StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+            }
+            else
+            {
+                productsInSameSubcat = productsInSameSubcat
+                    .Where(p => IsSinTipo(p.Types))
                     .ToList();
             }
 
@@ -292,6 +307,10 @@ else
             }
 
             selectedType = !IsSinTipo(producto.Types) ? producto.Types.Trim() : "Sin tipo";
+
+            // Filtrar tamaños disponibles según el tipo seleccionado
+            ActualizarSizesParaTipo();
+
             selectedSize = (!string.IsNullOrEmpty(producto.Size) && !producto.Size.Trim().Equals("N/A", StringComparison.OrdinalIgnoreCase))
                                ? producto.Size.Trim()
                                : (AvailableSizes.Any() ? AvailableSizes.First() : null);
@@ -339,6 +358,7 @@ else
     private void OnTypeChanged(ChangeEventArgs e)
     {
         selectedType = e.Value?.ToString();
+        ActualizarSizesParaTipo();
         ActualizarProductoVariant();
     }
 
@@ -346,6 +366,36 @@ else
     {
         selectedSize = e.Value?.ToString();
         ActualizarProductoVariant();
+    }
+
+    private void ActualizarSizesParaTipo()
+    {
+        // Filtrar tamaños disponibles según el tipo seleccionado
+        IEnumerable<Products> filtrados = productsInSameSubcat;
+
+        if (!string.IsNullOrEmpty(selectedType))
+        {
+            if (selectedType == "Sin tipo")
+            {
+                filtrados = filtrados.Where(p => IsSinTipo(p.Types));
+            }
+            else
+            {
+                filtrados = filtrados.Where(p => p.Types != null && p.Types.Trim() == selectedType.Trim());
+            }
+        }
+
+        AvailableSizes = filtrados
+            .Where(p => !string.IsNullOrWhiteSpace(p.Size) && !p.Size.Trim().Equals("N/A", StringComparison.OrdinalIgnoreCase))
+            .Select(p => p.Size.Trim())
+            .Distinct()
+            .ToList();
+
+        // Si el tamaño actual no existe para este tipo, seleccionar el primero disponible
+        if (!AvailableSizes.Contains(selectedSize))
+        {
+            selectedSize = AvailableSizes.FirstOrDefault();
+        }
     }
 
 
@@ -392,7 +442,7 @@ else
             }
             else
             {
-                consulta = consulta.Where(p => p.Types == selectedType);
+                consulta = consulta.Where(p => p.Types != null && p.Types.Trim() == selectedType.Trim());
             }
         }
 
@@ -407,7 +457,6 @@ else
         if (variante != null)
         {
             producto = variante;
-            productId = producto.IdProducto;
         }
         else
         {

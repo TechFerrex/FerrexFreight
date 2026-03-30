@@ -69,7 +69,10 @@ namespace FerrexWeb.Services
         }
         public async Task UpdateQuotationAsync(Quotation quotation)
         {
-            _dbContext.Quotations.Update(quotation);
+            if (_dbContext.Entry(quotation).State == EntityState.Detached)
+            {
+                _dbContext.Quotations.Update(quotation);
+            }
             await _dbContext.SaveChangesAsync();
         }
         public async Task DeleteQuotationAsync(int quotationId)

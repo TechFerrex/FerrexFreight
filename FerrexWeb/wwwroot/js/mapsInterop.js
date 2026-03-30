@@ -16,6 +16,9 @@
 
     // –– Inicialización del mapa y autocomplete ––
     function initMap() {
+        // Solo inicializar el mapa de freight aquí, /cart usa su propio mapa (initCartMap)
+        if (!isFreightPage()) return;
+
         const hondurasCenter = { lat: 14.0723, lng: -87.1921 };
 
         map = new google.maps.Map(document.getElementById("map"), {
@@ -260,11 +263,14 @@
         // limpiar marcadores previos
         if (originMarker) originMarker.setMap(null);
         if (destinationMarker) destinationMarker.setMap(null);
+        originMarker = null;
+        destinationMarker = null;
         stopMarkers.forEach(m => m.setMap(null));
         stopMarkers = [];
         document.getElementById("origin-input").value = "";
         document.getElementById("destination-input").value = "";
-        document.getElementById("stops-list").innerHTML = "";
+        var stopsList = document.getElementById("stops-list");
+        if (stopsList) stopsList.innerHTML = "";
         updateSelectionTip("Selecciona el origen en el mapa");
         hideAlert();
     }
@@ -331,6 +337,30 @@
             showAlert("Por favor, selecciona la fecha de programación.");
             return;
         }
+
+        // Si no hay marcadores, intentar geocodificar las direcciones escritas
+        const originInput = document.getElementById("origin-input");
+        const destInput = document.getElementById("destination-input");
+
+        if (!originMarker && originInput && originInput.value.trim()) {
+            try {
+                const loc = await geocodeAddress(originInput.value.trim());
+                originMarker = new google.maps.Marker({ position: loc, map, title: "Origen" });
+            } catch (e) {
+                showAlert("No se pudo encontrar la dirección de origen. Verifica la dirección.");
+                return;
+            }
+        }
+        if (!destinationMarker && destInput && destInput.value.trim()) {
+            try {
+                const loc = await geocodeAddress(destInput.value.trim());
+                destinationMarker = new google.maps.Marker({ position: loc, map, title: "Destino" });
+            } catch (e) {
+                showAlert("No se pudo encontrar la dirección de destino. Verifica la dirección.");
+                return;
+            }
+        }
+
         if (!originMarker || !destinationMarker) {
             showAlert("Selecciona origen y destino primero.");
             return;
@@ -548,11 +578,14 @@
     function clearData() {
         if (originMarker) originMarker.setMap(null);
         if (destinationMarker) destinationMarker.setMap(null);
+        originMarker = null;
+        destinationMarker = null;
         stopMarkers.forEach(m => m.setMap(null));
         stopMarkers = [];
         document.getElementById("origin-input").value = "";
         document.getElementById("destination-input").value = "";
-        document.getElementById("stops-list").innerHTML = "";
+        var stopsList = document.getElementById("stops-list");
+        if (stopsList) stopsList.innerHTML = "";
         if (directionsRenderer) directionsRenderer.set('directions', null);
         updateSelectionTip("");
         hideAlert();

@@ -58,12 +58,12 @@
                         <i class="fas fa-clipboard-list" title="Cotizaciones Productos"></i>
                     </NavLink>
                 </li>
-                <!-- Contáctanos -->
+@*                 <!-- Contáctanos -->
                 <li class="nav-item mx-2">
                     <NavLink class="nav-link" href="contact">
                         <i class="fas fa-address-book" title="Contacto"></i>
                     </NavLink>
-                </li>
+                </li> *@
                 <AuthorizeView Roles="SuperAdmin">
                     <li class="nav-item mx-2">
                         <NavLink class="nav-link highlighted-icon" href="/admin" Match="NavLinkMatch.All">
@@ -165,10 +165,10 @@
                 <i class="fas fa-clipboard-list"></i>
                 <span>Cotizaciones de Productos</span>
             </NavLink>
-            <NavLink class="more-menu-item" href="contact" @onclick="ToggleMoreMenu">
+@*             <NavLink class="more-menu-item" href="contact" @onclick="ToggleMoreMenu">
                 <i class="fas fa-address-book"></i>
                 <span>Contacto</span>
-            </NavLink>
+            </NavLink> *@
             <AuthorizeView>
                 <Authorized>
                     <NavLink class="more-menu-item" href="profile" @onclick="ToggleMoreMenu">
@@ -350,6 +350,7 @@ filter: brightness(0) saturate(100%) invert(6%) sepia(1%) saturate(4221%) hue-ro
     .search-container {
         flex: 1;
         max-width: 300px;
+        margin-right: 2rem;
     }
 
     @@media (max-width: 991.98px) {

@@ -98,16 +98,16 @@
                                                 {
                                                 <!-- Ejemplo: Mostrar "Precio/ft:  L. @item.PricePerPie"
                                                      o si lo guardaste en item.Product.Precio, mostrarlo directo. -->
-                                                    @item.Product.Precio.ToString("C")
+                                                    @item.Product.Precio.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))
                                                 }
                                                 else
                                                 {
-                                                    @item.Product.Precio.ToString("C")
+                                                    @item.Product.Precio.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))
                                                 }
                                         </td>
-                                        <td>@subtotalProducto.ToString("C")</td>
-                                        <td>@isvProducto.ToString("C")</td>
-                                        <td>@totalProducto.ToString("C")</td>
+                                        <td>@subtotalProducto.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</td>
+                                        <td>@isvProducto.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</td>
+                                        <td>@totalProducto.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</td>
                                         <td>
                                             <button class="btn btn-danger" @onclick="() => RemoveFromCart(item)">
                                                 <i class="fas fa-trash-alt"></i>

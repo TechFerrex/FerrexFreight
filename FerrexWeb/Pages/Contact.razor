@@ -8,57 +8,63 @@
 @code {
     private ContactFormModel formModel = new();
     private bool isSubmitted = false;
+    private string errorMessage = null;
 
     private async Task HandleValidSubmit()
     {
-        await SendEmail();
-        isSubmitted = true;
+        errorMessage = null;
+        try
+        {
+            await SendEmail();
+            isSubmitted = true;
+        }
+        catch (SmtpException)
+        {
+            errorMessage = "No se pudo enviar el mensaje en este momento. Por favor, intenta de nuevo más tarde o contáctanos directamente por WhatsApp o teléfono.";
+        }
+        catch (Exception)
+        {
+            errorMessage = "Ocurrió un error inesperado. Por favor, intenta de nuevo más tarde.";
+        }
     }
 
     private async Task SendEmail()
     {
-        try
-        {
-            var brevoConfig = Configuration.GetSection("BrevoSmtp");
-            var fromEmail = brevoConfig["FromEmail"] ?? "techferrexpress@outlook.com";
-            var fromName = "Ferrexpress Contact Form";
-            var toEmail = "ferrexpresshn@gmail.com";
-            var toName = "Ferrexpress";
+        var brevoConfig = Configuration.GetSection("BrevoSmtp");
+        var fromEmail = brevoConfig["FromEmail"] ?? "techferrexpress@outlook.com";
+        var fromName = "Ferrexpress Contact Form";
+        var toEmail = "ferrexpresshn@gmail.com";
+        var toName = "Ferrexpress";
 
-            var subject = $"[Contacto] {System.Net.WebUtility.HtmlEncode(formModel.Subject)}";
+        var subject = $"[Contacto] {System.Net.WebUtility.HtmlEncode(formModel.Subject)}";
 
-            var safeName = System.Net.WebUtility.HtmlEncode(formModel.Name);
-            var safeEmail = System.Net.WebUtility.HtmlEncode(formModel.Email);
-            var safeMessage = System.Net.WebUtility.HtmlEncode(formModel.Message);
+        var safeName = System.Net.WebUtility.HtmlEncode(formModel.Name);
+        var safeEmail = System.Net.WebUtility.HtmlEncode(formModel.Email);
+        var safeMessage = System.Net.WebUtility.HtmlEncode(formModel.Message);
 
-            var htmlContent = $"<p><strong>Nombre:</strong> {safeName}</p>" +
-                              $"<p><strong>Email:</strong> {safeEmail}</p>" +
-                              $"<p><strong>Mensaje:</strong></p><p>{safeMessage}</p>";
+        var htmlContent = $"<p><strong>Nombre:</strong> {safeName}</p>" +
+                          $"<p><strong>Email:</strong> {safeEmail}</p>" +
+                          $"<p><strong>Mensaje:</strong></p><p>{safeMessage}</p>";
 
-            using var mailMessage = new MailMessage()
-                {
-                    From = new MailAddress(fromEmail, fromName),
-                    Subject = subject,
-                    Body = htmlContent,
-                    IsBodyHtml = true
-                };
-            mailMessage.To.Add(new MailAddress(toEmail, toName));
+        using var mailMessage = new MailMessage()
+            {
+                From = new MailAddress(fromEmail, fromName),
+                Subject = subject,
+                Body = htmlContent,
+                IsBodyHtml = true
+            };
+        mailMessage.ReplyTo = new MailAddress(formModel.Email, formModel.Name);
+        mailMessage.To.Add(new MailAddress(toEmail, toName));
 
-            var smtpHost = brevoConfig["Host"] ?? "smtp-relay.brevo.com";
-            var smtpPort = int.TryParse(brevoConfig["Port"], out var p) ? p : 587;
+        var smtpHost = brevoConfig["Host"] ?? "smtp-relay.brevo.com";
+        var smtpPort = int.TryParse(brevoConfig["Port"], out var p) ? p : 587;
 
-            using var smtpClient = new SmtpClient(smtpHost, smtpPort)
-                {
-                    Credentials = new NetworkCredential(brevoConfig["User"], brevoConfig["Pass"]),
-                    EnableSsl = true
-                };
-            await smtpClient.SendMailAsync(mailMessage);
-        }
-        catch (Exception ex)
-        {
-            // Error al enviar correo - se loguea en Azure
-            throw;
-        }
+        using var smtpClient = new SmtpClient(smtpHost, smtpPort)
+            {
+                Credentials = new NetworkCredential(brevoConfig["User"], brevoConfig["Pass"]),
+                EnableSsl = true
+            };
+        await smtpClient.SendMailAsync(mailMessage);
     }
 
     public class ContactFormModel
@@ -125,6 +131,12 @@
             }
             else
             {
+                @if (!string.IsNullOrEmpty(errorMessage))
+                {
+                    <div class="alert alert-danger" role="alert">
+                        @errorMessage
+                    </div>
+                }
                 <EditForm Model="@formModel" OnValidSubmit="@HandleValidSubmit">
                     <DataAnnotationsValidator />
                     <ValidationSummary />

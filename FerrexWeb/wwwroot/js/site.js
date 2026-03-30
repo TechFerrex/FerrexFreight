@@ -1,41 +1,87 @@
-﻿let map;
-let userMarker;
+﻿let cartMap = null;
+let cartMarker = null;
 
-function initLeafletMap() {
-    map = L.map('map').setView([15.512164, -88.038020], 13);
-
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-    }).addTo(map);
-
-    L.marker([15.512164, -88.038020]).addTo(map)
-        .bindPopup('Ubicación fija')
-        .openPopup();
-
-    map.on('click', function (e) {
-        if (userMarker) {
-            map.removeLayer(userMarker);
+// Espera a que Google Maps esté cargado
+function waitForGoogleMaps() {
+    return new Promise(function (resolve) {
+        if (typeof google !== 'undefined' && google.maps) {
+            resolve();
+            return;
         }
-        userMarker = L.marker(e.latlng).addTo(map)
-            .bindPopup('Tu ubicación')
-            .openPopup();
+        var interval = setInterval(function () {
+            if (typeof google !== 'undefined' && google.maps) {
+                clearInterval(interval);
+                resolve();
+            }
+        }, 100);
+    });
+}
+
+async function initLeafletMap() {
+    await waitForGoogleMaps();
+
+    var mapDiv = document.getElementById('map');
+    if (!mapDiv) return;
+
+    // Limpiar mapa anterior si existe
+    if (cartMap) {
+        cartMap = null;
+        cartMarker = null;
+    }
+    mapDiv.innerHTML = '';
+
+    var fixedPoint = { lat: 15.512164, lng: -88.038020 };
+
+    cartMap = new google.maps.Map(mapDiv, {
+        center: fixedPoint,
+        zoom: 13,
+        mapTypeControl: false,
+        streetViewControl: false,
+        fullscreenControl: false
+    });
+
+    // Marcador fijo (bodega/tienda)
+    new google.maps.Marker({
+        position: fixedPoint,
+        map: cartMap,
+        title: 'Ubicación fija'
+    });
+
+    // Click para colocar marcador del usuario
+    cartMap.addListener('click', function (e) {
+        if (cartMarker) {
+            cartMarker.setMap(null);
+        }
+        cartMarker = new google.maps.Marker({
+            position: e.latLng,
+            map: cartMap,
+            title: 'Tu ubicación'
+        });
     });
 }
 
 function calculateLeafletDistance() {
-    return new Promise((resolve, reject) => {
-        if (userMarker) {
-            const userLatLng = userMarker.getLatLng();
-            const fixedLatLng = L.latLng(15.512164, -88.038020);
-            const distance = userLatLng.distanceTo(fixedLatLng);
-            const result = {
-                distanceKm: distance / 1000, // Retorna la distancia en kilómetros
-                latitude: userLatLng.lat,
-                longitude: userLatLng.lng
-            };
-            // resultado calculado
-            resolve(result);
+    return new Promise(function (resolve, reject) {
+        if (cartMarker) {
+            var userPos = cartMarker.getPosition();
+            var fixedLat = 15.512164;
+            var fixedLng = -88.038020;
+
+            // Haversine para calcular distancia en km
+            var R = 6371;
+            var dLat = (userPos.lat() - fixedLat) * Math.PI / 180;
+            var dLng = (userPos.lng() - fixedLng) * Math.PI / 180;
+            var a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.cos(fixedLat * Math.PI / 180) * Math.cos(userPos.lat() * Math.PI / 180) *
+                Math.sin(dLng / 2) * Math.sin(dLng / 2);
+            var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            var distance = R * c;
+
+            resolve({
+                distanceKm: distance,
+                latitude: userPos.lat(),
+                longitude: userPos.lng()
+            });
         } else {
             alert('Por favor, selecciona una ubicación en el mapa.');
             reject('No se ha seleccionado ubicación');
