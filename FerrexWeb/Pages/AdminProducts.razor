@@ -1,0 +1,809 @@
+@page "/admin/products"
+@using Microsoft.AspNetCore.Authorization
+@using FerrexWeb.Models
+@using FerrexWeb.Services
+@using Microsoft.AspNetCore.Components.Forms
+@attribute [Authorize(Roles = "SuperAdmin")]
+@inject ProductService ProductService
+@inject CategoryService CategoryService
+@inject SubCategoryService SubCategoryService
+@inject SubCategory2Service SubCategory2Service
+@inject IWebHostEnvironment Env
+@inject IJSRuntime JS
+
+<PageTitle>Gestionar Productos</PageTitle>
+
+<div class="container my-4">
+    <div class="d-flex justify-content-between align-items-center mb-3 page-header">
+        <h1 class="admin-title m-0">Productos</h1>
+        <button class="btn btn-create" @onclick="OpenCreate">
+            <i class="fas fa-plus"></i> Nuevo Producto
+        </button>
+    </div>
+
+    <!-- Buscador -->
+    <div class="search-bar mb-3">
+        <input @bind="searchTerm" @bind:event="oninput" @onkeydown="HandleSearchKey"
+               placeholder="Buscar por nombre o código..." class="form-control" />
+        <button class="btn btn-search" @onclick="DoSearch">
+            <i class="fas fa-search"></i>
+        </button>
+    </div>
+
+    <!-- Tabla -->
+    @if (products == null)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border" role="status" style="color: #F5C144;">
+                <span class="visually-hidden">Cargando...</span>
+            </div>
+        </div>
+    }
+    else if (!products.Any())
+    {
+        <div class="text-center py-5">
+            <i class="fas fa-box-open" style="font-size: 3rem; color: #ddd;"></i>
+            <p class="mt-3 text-muted">No se encontraron productos.</p>
+        </div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead>
+                    <tr>
+                        <th>Imagen</th>
+                        <th>Código</th>
+                        <th>Nombre</th>
+                        <th>Precio</th>
+                        <th>Unidad</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var p in products)
+                    {
+                        <tr>
+                            <td data-label="Imagen">
+                                <img src="@p.ImageUrl" alt="" class="product-thumb" />
+                            </td>
+                            <td data-label="Código">@p.Codigo</td>
+                            <td data-label="Nombre">@p.DescProducto</td>
+                            <td data-label="Precio">@p.Precio.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</td>
+                            <td data-label="Unidad">@p.Unit</td>
+                            <td data-label="Acciones">
+                                <button class="btn btn-sm btn-outline-warning me-1" title="Editar" @onclick="() => OpenEdit(p)">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger" title="Eliminar" @onclick="() => ConfirmDelete(p)">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Paginación -->
+        @if (totalPages > 1)
+        {
+            <nav class="d-flex justify-content-center mt-3">
+                <ul class="pagination">
+                    <li class="page-item @(currentPage <= 1 ? "disabled" : "")">
+                        <button class="page-link" @onclick="() => GoToPage(currentPage - 1)">&laquo;</button>
+                    </li>
+                    @for (int i = PageRangeStart; i <= PageRangeEnd; i++)
+                    {
+                        var pg = i;
+                        <li class="page-item @(pg == currentPage ? "active" : "")">
+                            <button class="page-link" @onclick="() => GoToPage(pg)">@pg</button>
+                        </li>
+                    }
+                    <li class="page-item @(currentPage >= totalPages ? "disabled" : "")">
+                        <button class="page-link" @onclick="() => GoToPage(currentPage + 1)">&raquo;</button>
+                    </li>
+                </ul>
+            </nav>
+        }
+    }
+</div>
+
+<!-- ============= MODAL CREAR / EDITAR ============= -->
+@if (showModal)
+{
+    <div class="modal-overlay" @onclick="CloseModal"></div>
+    <div class="modal-panel">
+        <div class="modal-panel-header">
+            <h4>@(isEditing ? "Editar Producto" : "Nuevo Producto")</h4>
+            <button class="modal-close" @onclick="CloseModal"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-panel-body">
+            <EditForm Model="form" OnValidSubmit="SaveProduct">
+                <DataAnnotationsValidator />
+
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Código *</label>
+                        <InputText @bind-Value="form.Codigo" class="form-control" placeholder="Ej: PRD-001" />
+                        <ValidationMessage For="() => form.Codigo" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Precio (L) *</label>
+                        <InputNumber @bind-Value="form.Precio" class="form-control" />
+                        <ValidationMessage For="() => form.Precio" />
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Nombre del Producto *</label>
+                        <InputText @bind-Value="form.DescProducto" class="form-control" placeholder="Descripción del producto" />
+                        <ValidationMessage For="() => form.DescProducto" />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Unidad</label>
+                        <InputText @bind-Value="form.Unit" class="form-control" placeholder="Ej: Unidad, Metro" />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Tipo</label>
+                        <InputText @bind-Value="form.Types" class="form-control" placeholder="Ej: Galvanizado" />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Tamaño</label>
+                        <InputText @bind-Value="form.Size" class="form-control" placeholder="Ej: 1/2 pulg" />
+                    </div>
+
+                    <!-- Categoría -->
+                    <div class="col-md-4">
+                        <label class="form-label">Categoría *</label>
+                        <InputSelect @bind-Value="form.CategoriaID" class="form-select"
+                                     @bind-Value:after="OnCategoryChanged">
+                            <option value="0">-- Seleccionar --</option>
+                            @if (categories != null)
+                            {
+                                @foreach (var c in categories)
+                                {
+                                    <option value="@c.Id">@c.Name</option>
+                                }
+                            }
+                        </InputSelect>
+                    </div>
+                    <!-- SubCategoría -->
+                    <div class="col-md-4">
+                        <label class="form-label">Subcategoría</label>
+                        <InputSelect @bind-Value="form.id_subcategory" class="form-select"
+                                     @bind-Value:after="OnSubCategoryChanged">
+                            <option value="0">-- Seleccionar --</option>
+                            @if (subcategories != null)
+                            {
+                                @foreach (var s in subcategories)
+                                {
+                                    <option value="@s.id_subcategory">@s.subcategory</option>
+                                }
+                            }
+                        </InputSelect>
+                    </div>
+                    <!-- SubCategoría 2 -->
+                    <div class="col-md-4">
+                        <label class="form-label">Subcategoría 2</label>
+                        <InputSelect @bind-Value="form.id_subcategory2" class="form-select">
+                            <option value="">-- Ninguna --</option>
+                            @if (subcategories2 != null)
+                            {
+                                @foreach (var s2 in subcategories2)
+                                {
+                                    <option value="@s2.id_subcategory2">@s2.name</option>
+                                }
+                            }
+                        </InputSelect>
+                    </div>
+
+                    <!-- Imagen -->
+                    <div class="col-12">
+                        <label class="form-label">Imagen del Producto</label>
+                        <InputFile OnChange="OnImageSelected" class="form-control" accept="image/*" />
+                        @if (!string.IsNullOrEmpty(imagePreview))
+                        {
+                            <div class="mt-2">
+                                <img src="@imagePreview" alt="Preview" class="img-preview" />
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                @if (!string.IsNullOrEmpty(formError))
+                {
+                    <div class="alert alert-danger mt-3 mb-0">@formError</div>
+                }
+
+                <div class="mt-4 d-flex justify-content-end gap-2">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseModal">Cancelar</button>
+                    <button type="submit" class="btn btn-save" disabled="@isSaving">
+                        @if (isSaving)
+                        {
+                            <span class="spinner-border spinner-border-sm me-1"></span>
+                        }
+                        @(isEditing ? "Guardar Cambios" : "Crear Producto")
+                    </button>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+}
+
+<!-- ============= MODAL CONFIRMAR ELIMINAR ============= -->
+@if (showDeleteModal)
+{
+    <div class="modal-overlay" @onclick="() => showDeleteModal = false"></div>
+    <div class="modal-panel modal-panel-sm">
+        <div class="modal-panel-header delete-header">
+            <h4><i class="fas fa-exclamation-triangle me-2"></i>Eliminar Producto</h4>
+            <button class="modal-close" @onclick="() => showDeleteModal = false"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-panel-body text-center">
+            <p>¿Estás seguro de que deseas eliminar <strong>@productToDelete?.DescProducto</strong>?</p>
+            <p class="text-muted small">Esta acción no se puede deshacer.</p>
+            <div class="d-flex justify-content-center gap-2 mt-3">
+                <button class="btn btn-secondary" @onclick="() => showDeleteModal = false">Cancelar</button>
+                <button class="btn btn-danger" @onclick="DeleteProduct" disabled="@isDeleting">
+                    @if (isDeleting)
+                    {
+                        <span class="spinner-border spinner-border-sm me-1"></span>
+                    }
+                    Eliminar
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    // Listado
+    private List<Products> products;
+    private string searchTerm = "";
+    private string activeSearch = "";
+    private int currentPage = 1;
+    private int totalPages = 1;
+    private int totalCount = 0;
+    private const int PageSize = 15;
+
+    // Modal crear/editar
+    private bool showModal = false;
+    private bool isEditing = false;
+    private bool isSaving = false;
+    private string formError;
+    private ProductForm form = new();
+    private IBrowserFile selectedImage;
+    private string imagePreview;
+
+    // Dropdowns
+    private List<Categories> categories;
+    private List<FerrexWeb.Models.SubCategory> subcategories;
+    private List<FerrexWeb.Models.Subcategory2> subcategories2;
+
+    // Modal eliminar
+    private bool showDeleteModal = false;
+    private bool isDeleting = false;
+    private Products productToDelete;
+
+    // Paginación helpers
+    private int PageRangeStart => Math.Max(1, currentPage - 2);
+    private int PageRangeEnd => Math.Min(totalPages, PageRangeStart + 4);
+
+    protected override async Task OnInitializedAsync()
+    {
+        categories = await CategoryService.GetAllCategoriesAsync();
+        await LoadProducts();
+    }
+
+    private async Task LoadProducts()
+    {
+        totalCount = await ProductService.CountProductsAdminAsync(activeSearch);
+        totalPages = Math.Max(1, (int)Math.Ceiling(totalCount / (double)PageSize));
+        if (currentPage > totalPages) currentPage = totalPages;
+        products = await ProductService.SearchProductsAdminAsync(activeSearch, currentPage, PageSize);
+    }
+
+    private void HandleSearchKey(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") _ = DoSearch();
+    }
+
+    private async Task DoSearch()
+    {
+        activeSearch = searchTerm;
+        currentPage = 1;
+        await LoadProducts();
+    }
+
+    private async Task GoToPage(int page)
+    {
+        if (page < 1 || page > totalPages) return;
+        currentPage = page;
+        await LoadProducts();
+    }
+
+    // ── Crear ──
+    private void OpenCreate()
+    {
+        isEditing = false;
+        form = new ProductForm();
+        subcategories = null;
+        subcategories2 = null;
+        selectedImage = null;
+        imagePreview = null;
+        formError = null;
+        showModal = true;
+    }
+
+    // ── Editar ──
+    private async Task OpenEdit(Products p)
+    {
+        isEditing = true;
+        form = new ProductForm
+        {
+            Id = p.IdProducto,
+            Codigo = p.Codigo,
+            DescProducto = p.DescProducto,
+            Precio = p.Precio,
+            Unit = p.Unit,
+            Types = p.Types,
+            Size = p.Size,
+            CategoriaID = p.CategoriaID,
+            id_subcategory = p.id_subcategory,
+            id_subcategory2 = p.id_subcategory2,
+            id_image = p.id_image
+        };
+        selectedImage = null;
+        imagePreview = p.ImageUrl;
+        formError = null;
+
+        // Cargar dropdowns en cascada
+        if (form.CategoriaID > 0)
+            subcategories = await SubCategoryService.GetSubCategoriesByCategoryIdAsync(form.CategoriaID);
+        if (form.id_subcategory > 0)
+            subcategories2 = await SubCategory2Service.GetSubCategory2BySubCategoryIdAsync(form.id_subcategory);
+
+        showModal = true;
+    }
+
+    // ── Guardar ──
+    private async Task SaveProduct()
+    {
+        formError = null;
+        if (string.IsNullOrWhiteSpace(form.Codigo) || string.IsNullOrWhiteSpace(form.DescProducto) || form.CategoriaID == 0)
+        {
+            formError = "Código, nombre y categoría son obligatorios.";
+            return;
+        }
+
+        isSaving = true;
+        StateHasChanged();
+
+        try
+        {
+            int? imageId = form.id_image;
+
+            // Subir imagen si se seleccionó una nueva
+            if (selectedImage != null)
+            {
+                var uploadedId = await UploadImage();
+                if (uploadedId != null)
+                    imageId = uploadedId;
+            }
+
+            if (isEditing)
+            {
+                var product = new Products
+                {
+                    IdProducto = form.Id,
+                    Codigo = form.Codigo,
+                    DescProducto = form.DescProducto,
+                    Precio = form.Precio,
+                    Unit = form.Unit ?? "",
+                    Types = form.Types,
+                    Size = form.Size,
+                    CategoriaID = form.CategoriaID,
+                    id_subcategory = form.id_subcategory,
+                    id_subcategory2 = form.id_subcategory2,
+                    id_image = imageId
+                };
+                await ProductService.UpdateProductAsync(product);
+            }
+            else
+            {
+                var product = new Products
+                {
+                    Codigo = form.Codigo,
+                    DescProducto = form.DescProducto,
+                    Precio = form.Precio,
+                    Unit = form.Unit ?? "",
+                    Types = form.Types,
+                    Size = form.Size,
+                    CategoriaID = form.CategoriaID,
+                    id_subcategory = form.id_subcategory,
+                    id_subcategory2 = form.id_subcategory2,
+                    id_image = imageId
+                };
+                await ProductService.CreateProductAsync(product);
+            }
+
+            showModal = false;
+            await LoadProducts();
+        }
+        catch (Exception ex)
+        {
+            formError = "Error al guardar: " + ex.Message;
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private async Task<int?> UploadImage()
+    {
+        if (selectedImage == null) return null;
+
+        var extension = Path.GetExtension(selectedImage.Name).ToLower();
+        if (string.IsNullOrEmpty(extension)) extension = ".png";
+
+        // Crear registro en la tabla Image con URL temporal
+        var img = await ProductService.CreateImageAsync("temp", selectedImage.Name);
+
+        // Guardar el archivo con el id como nombre
+        var fileName = $"{img.id_image}{extension}";
+        var folder = Path.Combine(Env.WebRootPath, "images", "product");
+        Directory.CreateDirectory(folder);
+        var filePath = Path.Combine(folder, fileName);
+
+        using var stream = selectedImage.OpenReadStream(5 * 1024 * 1024); // 5 MB max
+        using var fs = new FileStream(filePath, FileMode.Create);
+        await stream.CopyToAsync(fs);
+
+        // Actualizar la URL real en el registro
+        await ProductService.UpdateImageUrlAsync(img.id_image, $"images/product/{fileName}");
+
+        return img.id_image;
+    }
+
+    // ── Imagen seleccionada ──
+    private async Task OnImageSelected(InputFileChangeEventArgs e)
+    {
+        selectedImage = e.File;
+        // Generar preview
+        var format = selectedImage.ContentType;
+        var resized = await selectedImage.RequestImageFileAsync(format, 300, 300);
+        using var ms = new MemoryStream();
+        await resized.OpenReadStream(5 * 1024 * 1024).CopyToAsync(ms);
+        imagePreview = $"data:{format};base64,{Convert.ToBase64String(ms.ToArray())}";
+    }
+
+    // ── Cascada de dropdowns ──
+    private async Task OnCategoryChanged()
+    {
+        subcategories = form.CategoriaID > 0
+            ? await SubCategoryService.GetSubCategoriesByCategoryIdAsync(form.CategoriaID)
+            : null;
+        form.id_subcategory = 0;
+        subcategories2 = null;
+        form.id_subcategory2 = null;
+    }
+
+    private async Task OnSubCategoryChanged()
+    {
+        subcategories2 = form.id_subcategory > 0
+            ? await SubCategory2Service.GetSubCategory2BySubCategoryIdAsync(form.id_subcategory)
+            : null;
+        form.id_subcategory2 = null;
+    }
+
+    // ── Eliminar ──
+    private void ConfirmDelete(Products p)
+    {
+        productToDelete = p;
+        showDeleteModal = true;
+    }
+
+    private async Task DeleteProduct()
+    {
+        if (productToDelete == null) return;
+        isDeleting = true;
+        StateHasChanged();
+
+        try
+        {
+            await ProductService.DeleteProductAsync(productToDelete.IdProducto);
+            showDeleteModal = false;
+            await LoadProducts();
+        }
+        catch (Exception ex)
+        {
+            formError = ex.Message;
+        }
+        finally
+        {
+            isDeleting = false;
+        }
+    }
+
+    private void CloseModal()
+    {
+        showModal = false;
+    }
+
+    // ── Form model ──
+    public class ProductForm
+    {
+        public int Id { get; set; }
+
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "El código es requerido")]
+        public string Codigo { get; set; } = "";
+
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "El nombre es requerido")]
+        public string DescProducto { get; set; } = "";
+
+        public decimal Precio { get; set; }
+        public string Unit { get; set; } = "";
+        public string Types { get; set; }
+        public string Size { get; set; }
+
+        [System.ComponentModel.DataAnnotations.Range(1, int.MaxValue, ErrorMessage = "Selecciona una categoría")]
+        public int CategoriaID { get; set; }
+
+        public int id_subcategory { get; set; }
+        public int? id_subcategory2 { get; set; }
+        public int? id_image { get; set; }
+    }
+}
+
+<style>
+    .admin-title {
+        font-size: clamp(1.3rem, 4vw, 2rem);
+        font-weight: 800;
+        color: #1a1a2e;
+    }
+
+    .btn-create {
+        background: #F5C144;
+        color: #000;
+        font-weight: 700;
+        border: none;
+        border-radius: 8px;
+        padding: 10px 20px;
+        transition: all 0.3s;
+    }
+
+    .btn-create:hover {
+        background: #e0ac35;
+        color: #000;
+    }
+
+    .btn-save {
+        background: #F5C144;
+        color: #000;
+        font-weight: 600;
+        border: none;
+    }
+
+    .btn-save:hover {
+        background: #e0ac35;
+    }
+
+    /* Search */
+    .search-bar {
+        display: flex;
+        gap: 8px;
+    }
+
+    .search-bar .form-control {
+        border-radius: 8px;
+        border: 1px solid #ddd;
+    }
+
+    .search-bar .form-control:focus {
+        border-color: #F5C144;
+        box-shadow: 0 0 0 2px rgba(245, 193, 68, 0.2);
+    }
+
+    .btn-search {
+        background: #F5C144;
+        color: #000;
+        border-radius: 8px;
+        padding: 0 18px;
+    }
+
+    .btn-search:hover {
+        background: #e0ac35;
+    }
+
+    /* Table */
+    .table thead {
+        background: #1a1a2e;
+        color: #fff;
+    }
+
+    .table thead th {
+        font-weight: 600;
+        font-size: 0.85rem;
+        padding: 12px 15px;
+        border: none;
+    }
+
+    .table tbody td {
+        padding: 10px 15px;
+        font-size: 0.9rem;
+        vertical-align: middle;
+    }
+
+    .product-thumb {
+        width: 45px;
+        height: 45px;
+        object-fit: cover;
+        border-radius: 6px;
+        border: 1px solid #eee;
+    }
+
+    /* Pagination */
+    .pagination .page-link {
+        color: #1a1a2e;
+        border-color: #dee2e6;
+    }
+
+    .pagination .page-item.active .page-link {
+        background: #F5C144;
+        border-color: #F5C144;
+        color: #000;
+    }
+
+    /* Modal */
+    .modal-overlay {
+        position: fixed;
+        top: 0; left: 0;
+        width: 100%; height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 1050;
+    }
+
+    .modal-panel {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: #fff;
+        border-radius: 14px;
+        width: 95%;
+        max-width: 700px;
+        max-height: 90vh;
+        overflow-y: auto;
+        z-index: 1060;
+        box-shadow: 0 15px 40px rgba(0, 0, 0, 0.2);
+    }
+
+    .modal-panel-sm {
+        max-width: 440px;
+    }
+
+    .modal-panel-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 18px 24px;
+        border-bottom: 1px solid #eee;
+    }
+
+    .modal-panel-header h4 {
+        margin: 0;
+        font-weight: 700;
+        font-size: 1.15rem;
+        color: #1a1a2e;
+    }
+
+    .delete-header {
+        border-bottom-color: #f8d7da;
+    }
+
+    .delete-header h4 {
+        color: #dc3545;
+    }
+
+    .modal-close {
+        background: #f0f0f0;
+        border: none;
+        border-radius: 50%;
+        width: 34px;
+        height: 34px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        color: #666;
+        transition: background 0.2s;
+    }
+
+    .modal-close:hover {
+        background: #ddd;
+    }
+
+    .modal-panel-body {
+        padding: 24px;
+    }
+
+    .form-label {
+        font-weight: 600;
+        font-size: 0.85rem;
+        color: #333;
+        margin-bottom: 4px;
+    }
+
+    .form-control:focus,
+    .form-select:focus {
+        border-color: #F5C144;
+        box-shadow: 0 0 0 2px rgba(245, 193, 68, 0.2);
+    }
+
+    .img-preview {
+        max-width: 120px;
+        max-height: 120px;
+        object-fit: cover;
+        border-radius: 8px;
+        border: 1px solid #eee;
+    }
+
+    /* Responsive table */
+    @@media (max-width: 767.98px) {
+        .page-header {
+            flex-direction: column;
+            gap: 12px;
+            text-align: center;
+        }
+
+        .btn-create {
+            width: 100%;
+        }
+
+        .table thead {
+            display: none;
+        }
+
+        .table tbody tr {
+            display: block;
+            margin-bottom: 1rem;
+            border: 1px solid #dee2e6;
+            border-radius: 10px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+        }
+
+        .table tbody td {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 15px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .table tbody td::before {
+            content: attr(data-label);
+            font-weight: 600;
+            font-size: 0.8rem;
+            color: #888;
+        }
+
+        .table tbody td:last-child {
+            border-bottom: 0;
+            justify-content: flex-end;
+        }
+
+        .modal-panel-body {
+            padding: 16px;
+        }
+
+        .modal-panel-header {
+            padding: 14px 16px;
+        }
+    }
+
+    @@media (max-width: 480px) {
+        .search-bar .form-control {
+            font-size: 16px;
+        }
+    }
+</style>

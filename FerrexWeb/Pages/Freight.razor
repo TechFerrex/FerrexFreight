@@ -42,7 +42,7 @@
                                            @bind="OriginAddress" />
                                 </div>
                                 <div class="route-controls">
-                                    <button class="btn btn-sm btn-outline-primary" @onclick='() => SelectLocationOnMap("origin")' title="Seleccionar en mapa">
+                                    <button class="btn btn-outline-primary btn-map-select" @onclick='() => SelectLocationOnMap("origin")' title="Seleccionar en mapa">
                                         <i class="fas fa-map-marker-alt"></i>
                                     </button>
                                 </div>
@@ -67,7 +67,7 @@
                                                               id="stop-input-@index" />
                                                    </div>
                                                    <div class="route-controls">
-                                                       <button class="btn btn-sm btn-outline-primary me-1"
+                                                       <button class="btn btn-outline-primary btn-map-select me-1"
                                                                @onclick='() => SelectLocationOnMap($"stop-{i}")'
                                                                title="Seleccionar en mapa">
                                                            <i class="fas fa-map-marker-alt"></i>
@@ -109,7 +109,7 @@
                                            @bind="DestinationAddress" />
                                 </div>
                                 <div class="route-controls">
-                                    <button class="btn btn-sm btn-outline-primary" @onclick='() => SelectLocationOnMap("destination")' title="Seleccionar en mapa">
+                                    <button class="btn btn-outline-primary btn-map-select" @onclick='() => SelectLocationOnMap("destination")' title="Seleccionar en mapa">
                                         <i class="fas fa-map-marker-alt"></i>
                                     </button>
                                 </div>
@@ -167,8 +167,14 @@
                 <div class="col-md-8">
                     <div id="map-container" style="position: relative;">
                         <div id="map" style="height: 500px; width: 100%;"></div>
-                        <div id="selectionTip" style="position: absolute; top: 10px; left: 50%; transform: translateX(-50%); background: rgba(0, 123, 255, 0.9); color: #fff; padding: 8px 12px; border-radius: 4px; display: none; z-index: 1001;">
-                            Selecciona el origen en el mapa
+                        <div id="selectionOverlay">
+                            <div id="selectionTip">
+                                <i class="fas fa-map-pin tip-icon"></i>
+                                <span id="selectionTipText">Toca el mapa para seleccionar ubicación</span>
+                                <button id="cancelSelectionBtn" type="button" onclick="window.cancelMapSelection()">
+                                    <i class="fas fa-times"></i> Cancelar
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -790,12 +796,13 @@
     }
 
     .pac-container {
+        position: fixed !important;
         border-radius: 8px !important;
         box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1) !important;
         border: 1px solid #dee2e6 !important;
         font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
         font-size: 1rem;
-        z-index: 1051;
+        z-index: 1051 !important;
     }
 
     .pac-item {
@@ -936,6 +943,149 @@
         background-color: #e9ecef;
         color: #6c757d;
         font-style: italic;
+    }
+
+    /* ── Modo de selección en mapa ── */
+    #map-container.selection-active #map {
+        cursor: crosshair;
+    }
+
+    #map-container.selection-active {
+        border: 3px solid #007bff;
+        border-radius: 12px;
+        box-shadow: 0 0 0 4px rgba(0, 123, 255, 0.25);
+        animation: mapPulse 1.8s ease-in-out infinite;
+    }
+
+    @@keyframes mapPulse {
+        0%, 100% { box-shadow: 0 0 0 4px rgba(0, 123, 255, 0.25); }
+        50% { box-shadow: 0 0 0 8px rgba(0, 123, 255, 0.12); }
+    }
+
+    /* Overlay de selección */
+    #selectionOverlay {
+        display: none;
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 1001;
+        padding: 12px;
+        pointer-events: none;
+    }
+
+    #map-container.selection-active #selectionOverlay {
+        display: flex;
+        justify-content: center;
+    }
+
+    #selectionTip {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        background: rgba(0, 123, 255, 0.92);
+        color: #fff;
+        padding: 10px 18px;
+        border-radius: 50px;
+        font-size: 0.95rem;
+        font-weight: 500;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        pointer-events: auto;
+        animation: tipSlideIn 0.3s ease-out;
+    }
+
+    @@keyframes tipSlideIn {
+        from { opacity: 0; transform: translateY(-10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .tip-icon {
+        font-size: 1.1rem;
+        animation: tipBounce 1.2s ease-in-out infinite;
+    }
+
+    @@keyframes tipBounce {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-3px); }
+    }
+
+    #cancelSelectionBtn {
+        background: rgba(255, 255, 255, 0.2);
+        border: 1px solid rgba(255, 255, 255, 0.4);
+        color: #fff;
+        padding: 5px 14px;
+        border-radius: 20px;
+        cursor: pointer;
+        font-size: 0.85rem;
+        font-weight: 500;
+        transition: background 0.2s;
+        min-height: 34px;
+        min-width: 44px;
+    }
+
+    #cancelSelectionBtn:hover,
+    #cancelSelectionBtn:active {
+        background: rgba(255, 255, 255, 0.35);
+    }
+
+    /* Confirmación al colocar marcador */
+    .map-placed-confirm {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(40, 167, 69, 0.9);
+        color: #fff;
+        padding: 12px 24px;
+        border-radius: 50px;
+        font-size: 1rem;
+        font-weight: 600;
+        z-index: 1002;
+        pointer-events: none;
+        animation: confirmPop 0.5s ease-out forwards, confirmFade 0.5s ease-in 1s forwards;
+    }
+
+    @@keyframes confirmPop {
+        from { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+        to { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+    }
+
+    @@keyframes confirmFade {
+        to { opacity: 0; }
+    }
+
+    /* Botones de selección en mapa más grandes y accesibles */
+    .route-controls .btn-map-select {
+        min-width: 44px;
+        min-height: 44px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1rem;
+        padding: 0;
+        transition: all 0.2s ease;
+    }
+
+    .route-controls .btn-map-select:hover,
+    .route-controls .btn-map-select:active {
+        background-color: #007bff;
+        color: #fff;
+        transform: scale(1.1);
+    }
+
+    @@media (max-width: 767px) {
+        #selectionTip {
+            padding: 8px 14px;
+            font-size: 0.85rem;
+            gap: 8px;
+            border-radius: 12px;
+        }
+
+        #cancelSelectionBtn {
+            padding: 4px 10px;
+            font-size: 0.8rem;
+        }
     }
 
 </style>

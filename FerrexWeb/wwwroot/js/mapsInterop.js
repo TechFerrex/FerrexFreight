@@ -88,22 +88,27 @@
             const pos = e.latLng;
 
             if (currentSelection === "origin") {
-                // limpias y creas originMarker...
                 originMarker && originMarker.setMap(null);
                 originMarker = new google.maps.Marker({ position: pos, map, title: "Origen" });
                 document.getElementById("origin-input").value = `${pos.lat().toFixed(5)}, ${pos.lng().toFixed(5)}`;
+                showPlacedConfirmation("Origen seleccionado");
+                isMapSelectionMode = false;
+                currentSelection = "";
+                updateSelectionTip("");
             }
             else if (currentSelection === "destination") {
                 destinationMarker && destinationMarker.setMap(null);
                 destinationMarker = new google.maps.Marker({ position: pos, map, title: "Destino" });
                 document.getElementById("destination-input").value = `${pos.lat().toFixed(5)}, ${pos.lng().toFixed(5)}`;
+                showPlacedConfirmation("Destino seleccionado");
+                isMapSelectionMode = false;
+                currentSelection = "";
+                updateSelectionTip("");
             }
             else if (currentSelection === "stop") {
-                // Remover marcador anterior si existía
                 if (stopMarkers[selectedStopIndex]) {
                     stopMarkers[selectedStopIndex].setMap(null);
                 }
-                // Crear nuevo marcador
                 const mk = new google.maps.Marker({
                     position: pos,
                     map,
@@ -111,26 +116,66 @@
                 });
                 stopMarkers[selectedStopIndex] = mk;
 
-                // Deshabilitar el input y mostrar mensaje
                 const input = document.getElementById(`stop-input-${selectedStopIndex}`);
-                // Limpia su valor real (no lo usaremos para geocodificar)
                 input.value = '';
-                // Ponemos placeholder para que el usuario vea el mensaje
                 input.setAttribute('placeholder', 'Seleccionado en el mapa');
-                // Deshabilitamos la casilla para que no se pueda editar
                 input.disabled = true;
-                // (Opcional) Añadir una clase CSS que cambie estilo visual
                 input.classList.add('map-selected');
 
-                // Desactivamos modo mapa
+                showPlacedConfirmation("Parada " + (selectedStopIndex + 1) + " seleccionada");
                 isMapSelectionMode = false;
                 currentSelection = "";
                 selectedStopIndex = null;
                 updateSelectionTip("");
             }
-
-
         });
+
+        // Corregir posición del dropdown de autocompletado (.pac-container)
+        fixPacContainerPosition();
+    }
+
+    // –– Reposiciona el dropdown de Google Places para que aparezca justo debajo del input ––
+    function fixPacContainerPosition() {
+        let activeInput = null;
+        let rafId = null;
+
+        // Rastrear cuál input de ruta tiene el foco
+        document.addEventListener('focusin', function (e) {
+            if (e.target.id === 'origin-input' || e.target.id === 'destination-input' ||
+                (e.target.classList && e.target.classList.contains('stop-input'))) {
+                activeInput = e.target;
+                startRepositioning();
+            }
+        });
+
+        document.addEventListener('focusout', function (e) {
+            if (e.target === activeInput) {
+                // Pequeño delay para permitir la selección del item
+                setTimeout(function () {
+                    activeInput = null;
+                    if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+                }, 300);
+            }
+        });
+
+        function startRepositioning() {
+            if (rafId) cancelAnimationFrame(rafId);
+
+            function reposition() {
+                const pac = document.querySelector('.pac-container');
+                if (pac && activeInput && pac.style.display !== 'none') {
+                    const rect = activeInput.getBoundingClientRect();
+                    pac.style.setProperty('top', rect.bottom + 'px', 'important');
+                    pac.style.setProperty('left', rect.left + 'px', 'important');
+                    pac.style.setProperty('width', rect.width + 'px', 'important');
+                }
+                if (activeInput) {
+                    rafId = requestAnimationFrame(reposition);
+                }
+            }
+
+            rafId = requestAnimationFrame(reposition);
+        }
     }
 
     // –– Carga dinámica del script de Google Maps ––
@@ -234,9 +279,14 @@
     }
 
     function updateSelectionTip(msg) {
-        const tip = document.getElementById("selectionTip");
-        tip.style.display = msg ? "block" : "none";
-        tip.innerText = msg;
+        const container = document.getElementById("map-container");
+        const tipText = document.getElementById("selectionTipText");
+        if (msg) {
+            tipText.textContent = msg;
+            container.classList.add("selection-active");
+        } else {
+            container.classList.remove("selection-active");
+        }
     }
 
     function openModal() {
@@ -271,13 +321,15 @@
         document.getElementById("destination-input").value = "";
         var stopsList = document.getElementById("stops-list");
         if (stopsList) stopsList.innerHTML = "";
-        updateSelectionTip("Selecciona el origen en el mapa");
+        updateSelectionTip("Toca el mapa para seleccionar el origen");
+        scrollToMap();
         hideAlert();
     }
     function activateStopSelection() {
         isMapSelectionMode = true;
         currentSelection = "stop";
-        updateSelectionTip("Selecciona la parada en el mapa");
+        updateSelectionTip("Toca el mapa para seleccionar la parada");
+        scrollToMap();
     }
 
     // –– Agrega la parada a la lista visual ––
@@ -587,6 +639,9 @@
         var stopsList = document.getElementById("stops-list");
         if (stopsList) stopsList.innerHTML = "";
         if (directionsRenderer) directionsRenderer.set('directions', null);
+        isMapSelectionMode = false;
+        currentSelection = "";
+        selectedStopIndex = null;
         updateSelectionTip("");
         hideAlert();
     }
@@ -675,20 +730,49 @@
         setTimeout(initTruckSelectionEffects, 500);
     });
 
-    // –– Exponer APIs a Blazor ––Z
+    // –– Cancelar selección en mapa ––
+    function cancelMapSelection() {
+        isMapSelectionMode = false;
+        currentSelection = "";
+        selectedStopIndex = null;
+        updateSelectionTip("");
+    }
+
+    // –– Confirmación visual al colocar marcador ––
+    function showPlacedConfirmation(label) {
+        const container = document.getElementById("map-container");
+        const confirm = document.createElement("div");
+        confirm.className = "map-placed-confirm";
+        confirm.innerHTML = '<i class="fas fa-check-circle"></i> ' + label;
+        container.appendChild(confirm);
+        setTimeout(function () { confirm.remove(); }, 1600);
+    }
+
+    // –– Scroll al mapa en pantallas pequeñas ––
+    function scrollToMap() {
+        if (window.innerWidth < 768) {
+            var mapEl = document.getElementById("map-container");
+            if (mapEl) {
+                mapEl.scrollIntoView({ behavior: "smooth", block: "center" });
+            }
+        }
+    }
+
+    // –– Exponer APIs a Blazor ––
     window.selectLocationOnMap = function (mode) {
         isMapSelectionMode = true;
         currentSelection = mode.startsWith("stop") ? "stop" : mode;
-        // para "stop-0", "stop-1", etc. guardamos índice:
         selectedStopIndex = mode.startsWith("stop")
             ? parseInt(mode.split("-")[1], 10)
             : null;
         updateSelectionTip(
-            mode === "origin" ? "Selecciona origen en mapa" :
-                mode === "destination" ? "Selecciona destino en mapa" :
-                    `Selecciona ubicación para parada #${selectedStopIndex + 1}`
+            mode === "origin" ? "Toca el mapa para seleccionar el origen" :
+                mode === "destination" ? "Toca el mapa para seleccionar el destino" :
+                    "Toca el mapa para seleccionar la parada #" + (selectedStopIndex + 1)
         );
+        scrollToMap();
     };
+    window.cancelMapSelection = cancelMapSelection;
     window.loadGoogleMapsScript = loadGoogleMapsScript;
     window.initMap = initMap;
     window.showMapErrorModal = showMapErrorModal;

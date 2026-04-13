@@ -34,28 +34,22 @@
 
 
 
-@*                 <!-- Servicios -->
+                <!-- Servicios -->
                 <li class="nav-item mx-2">
-                    <NavLink class="nav-link nav-service-link" href="service">
-                        <img class="service-icon" src="iconos/iconoservicio.svg" alt="Servicio" title="Servicio" style="width: 26px; height: 26px;">
+                    <NavLink class="nav-link" href="service">
+                        <i class="fas fa-tools" title="Servicios"></i>
                     </NavLink>
-                </li> *@
-                <!-- Mis Cotizaciones -->
+                </li>
+                <!-- Mis Cotizaciones (Fletes + Productos + Órdenes) -->
                 <li class="nav-item mx-2">
-                    <NavLink class="nav-link" href="freightquotations">
-                        <i class="fas fa-file-invoice-dollar" title="Tus Cotizaciones"></i>
+                    <NavLink class="nav-link" href="quotations">
+                        <i class="fas fa-file-invoice-dollar" title="Mis Cotizaciones"></i>
                     </NavLink>
                 </li>
                 <!-- Categoría -->
                 <li class="nav-item mx-2">
                     <NavLink class="nav-link" href="categories">
                         <i class="fas fa-th-list" title="Categorías"></i>
-                    </NavLink>
-                </li>
-                <!-- Cotizaciones de Productos -->
-                <li class="nav-item mx-2">
-                    <NavLink class="nav-link" href="quotations">
-                        <i class="fas fa-clipboard-list" title="Cotizaciones Productos"></i>
                     </NavLink>
                 </li>
 @*                 <!-- Contáctanos -->
@@ -157,13 +151,13 @@
                     <i class="fas fa-times"></i>
                 </button>
             </div>
-            <NavLink class="more-menu-item" href="freightquotations" @onclick="ToggleMoreMenu">
-                <i class="fas fa-file-invoice-dollar"></i>
-                <span>Mis Cotizaciones de Fletes</span>
-            </NavLink>
             <NavLink class="more-menu-item" href="quotations" @onclick="ToggleMoreMenu">
-                <i class="fas fa-clipboard-list"></i>
-                <span>Cotizaciones de Productos</span>
+                <i class="fas fa-file-invoice-dollar"></i>
+                <span>Mis Cotizaciones</span>
+            </NavLink>
+            <NavLink class="more-menu-item" href="service" @onclick="ToggleMoreMenu">
+                <i class="fas fa-tools"></i>
+                <span>Servicios</span>
             </NavLink>
 @*             <NavLink class="more-menu-item" href="contact" @onclick="ToggleMoreMenu">
                 <i class="fas fa-address-book"></i>

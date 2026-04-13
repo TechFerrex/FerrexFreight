@@ -341,14 +341,15 @@
             return;
         }
 
-        if (!user.EmailConfirmed)
-        {
-            pendingVerificationUserId = user.Id;
-            showResendVerification = true;
-            ShowError("Verifica tu correo antes de iniciar sesión.");
-            isLoggingIn = false;
-            return;
-        }
+        // Verificación de correo desactivada temporalmente
+        // if (!user.EmailConfirmed)
+        // {
+        //     pendingVerificationUserId = user.Id;
+        //     showResendVerification = true;
+        //     ShowError("Verifica tu correo antes de iniciar sesión.");
+        //     isLoggingIn = false;
+        //     return;
+        // }
 
         // Login exitoso - limpiar intentos
         loginAttempts.TryRemove(emailKey, out _);
@@ -450,7 +451,7 @@
                 return;
             }
 
-            // 6) Crear usuario "pendiente"
+            // 6) Crear usuario (verificación de correo desactivada — se crea ya confirmado)
             var user = new User
                 {
                     Name = registerModel.Name.Trim(),
@@ -460,45 +461,16 @@
                     CreateTime = DateTime.UtcNow,
                     RoleId = 1,
                     PolicyUser = registerModel.PolicyAccepted,
-                    EmailConfirmed = false
+                    EmailConfirmed = true
                 };
             DbContext.Users.Add(user);
             await DbContext.SaveChangesAsync();
 
-            // 7) Generar token de verificación
-            var token = Guid.NewGuid().ToString("N");
-            var ev = new EmailVerification
-                {
-                    UserId = user.Id,
-                    Token = token,
-                    ExpiresAt = DateTime.UtcNow.AddMinutes(30),
-                    CreatedAt = DateTime.UtcNow
-                };
-            DbContext.EmailVerifications.Add(ev);
-            await DbContext.SaveChangesAsync();
-
-            // 8) Enviar correo de verificación
-            try
-            {
-                var link = $"{NavigationManager.BaseUri.TrimEnd('/')}/verify?token={token}";
-                var html = $@"
-                    <p>¡Hola {user.Name}!</p>
-                    <p>Haz clic <a href=""{link}"">aquí</a> para verificar tu correo.</p>
-                    <p>Expira: {ev.ExpiresAt:yyyy-MM-dd HH:mm} UTC</p>";
-                await EmailSender.SendEmailAsync(user.Email, "Verifica tu correo", html);
-            }
-            catch
-            {
-                lastRegistration[emailKey] = DateTime.UtcNow;
-                registerModel = new RegisterModel();
-                verifyModalMessage = "Tu cuenta fue creada, pero hubo un error al enviar el correo de verificación. Intenta iniciar sesión y usa la opción de reenviar verificación.";
-                showVerifyModal = true;
-                return;
-            }
+            // 7) y 8) Generación de token y envío de correo de verificación desactivados temporalmente.
 
             lastRegistration[emailKey] = DateTime.UtcNow;
             registerModel = new RegisterModel();
-            verifyModalMessage = "Listo: revisa tu bandeja para confirmar tu cuenta.";
+            verifyModalMessage = "¡Cuenta creada exitosamente! Ya puedes iniciar sesión.";
             showVerifyModal = true;
         }
         catch (Exception)

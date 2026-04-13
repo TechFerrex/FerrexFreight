@@ -228,5 +228,97 @@ namespace FerrexWeb.Services
                 .ToDictionaryAsync(p => p.id_subcategory2.Value);
         }
 
+        // ── CRUD ──
+
+        public async Task<List<Products>> SearchProductsAdminAsync(string search, int page, int pageSize)
+        {
+            var query = _dbContext.Products
+                .AsNoTracking()
+                .Include(p => p.Image)
+                .AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                var term = search.Trim().ToLower();
+                query = query.Where(p =>
+                    p.DescProducto.ToLower().Contains(term) ||
+                    p.Codigo.ToLower().Contains(term));
+            }
+
+            return await query
+                .OrderByDescending(p => p.IdProducto)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+        }
+
+        public async Task<int> CountProductsAdminAsync(string search)
+        {
+            var query = _dbContext.Products.AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                var term = search.Trim().ToLower();
+                query = query.Where(p =>
+                    p.DescProducto.ToLower().Contains(term) ||
+                    p.Codigo.ToLower().Contains(term));
+            }
+
+            return await query.CountAsync();
+        }
+
+        public async Task<Products> CreateProductAsync(Products product)
+        {
+            _dbContext.Products.Add(product);
+            await _dbContext.SaveChangesAsync();
+            return product;
+        }
+
+        public async Task UpdateProductAsync(Products product)
+        {
+            var existing = await _dbContext.Products.FindAsync(product.IdProducto);
+            if (existing == null) return;
+
+            existing.Codigo = product.Codigo;
+            existing.DescProducto = product.DescProducto;
+            existing.Precio = product.Precio;
+            existing.Unit = product.Unit;
+            existing.Types = product.Types;
+            existing.Size = product.Size;
+            existing.CategoriaID = product.CategoriaID;
+            existing.id_subcategory = product.id_subcategory;
+            existing.id_subcategory2 = product.id_subcategory2;
+            existing.id_image = product.id_image;
+
+            await _dbContext.SaveChangesAsync();
+        }
+
+        public async Task<bool> DeleteProductAsync(int productId)
+        {
+            var product = await _dbContext.Products.FindAsync(productId);
+            if (product == null) return false;
+
+            _dbContext.Products.Remove(product);
+            await _dbContext.SaveChangesAsync();
+            return true;
+        }
+
+        public async Task<Image> CreateImageAsync(string url, string title)
+        {
+            var image = new Image { url = url, title = title };
+            _dbContext.Set<Image>().Add(image);
+            await _dbContext.SaveChangesAsync();
+            return image;
+        }
+
+        public async Task UpdateImageUrlAsync(int imageId, string url)
+        {
+            var image = await _dbContext.Set<Image>().FindAsync(imageId);
+            if (image != null)
+            {
+                image.url = url;
+                await _dbContext.SaveChangesAsync();
+            }
+        }
     }
 }

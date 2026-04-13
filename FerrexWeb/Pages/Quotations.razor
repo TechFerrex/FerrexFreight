@@ -1,114 +1,270 @@
-﻿@page "/quotations"
+@page "/quotations"
+@page "/freightquotations"
 @using FerrexWeb.Services
 @using FerrexWeb.Models
 @using System.Security.Claims
+@using System.Text.Json
 @using Microsoft.AspNetCore.Components.Authorization
 @inject QuotationService QuotationService
 @inject OrderService OrderService
+@inject FreightQuotationService FreightQuotationService
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject NavigationManager NavigationManager
+@inject IJSRuntime JS
+@implements IDisposable
 
 <div class="container my-5">
-    <h1 class="text-center mb-4">Cotizaciones</h1>
+    <h1 class="text-center mb-4">Mis Cotizaciones</h1>
 
-    @if (quotations == null)
+    <!-- Tabs -->
+    <ul class="nav nav-tabs cotizacion-tabs mb-4" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link @(activeTab == "fletes" ? "active" : "")"
+                    @onclick='() => activeTab = "fletes"' type="button">
+                <i class="fas fa-truck-fast me-1"></i>
+                <span class="tab-text">Fletes</span>
+                @if (freightQuotations != null && freightQuotations.Any())
+                {
+                    <span class="tab-badge">@freightQuotations.Count</span>
+                }
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link @(activeTab == "productos" ? "active" : "")"
+                    @onclick='() => activeTab = "productos"' type="button">
+                <i class="fas fa-box-open me-1"></i>
+                <span class="tab-text">Productos</span>
+                @if (quotations != null && quotations.Any())
+                {
+                    <span class="tab-badge">@quotations.Count</span>
+                }
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link @(activeTab == "ordenes" ? "active" : "")"
+                    @onclick='() => activeTab = "ordenes"' type="button">
+                <i class="fas fa-receipt me-1"></i>
+                <span class="tab-text">Órdenes</span>
+                @if (orders != null && orders.Any())
+                {
+                    <span class="tab-badge">@orders.Count</span>
+                }
+            </button>
+        </li>
+    </ul>
+
+    <!-- Tab: Fletes -->
+    @if (activeTab == "fletes")
     {
-        <div class="d-flex justify-content-center align-items-center full-height">
-            <div class="spinner-border" role="status" style="color: #F5C144;">
-                <span class="visually-hidden">Cargando...</span>
+        @if (freightQuotations == null)
+        {
+            <div class="d-flex justify-content-center align-items-center full-height">
+                <div class="spinner-border" role="status" style="color: #F5C144;">
+                    <span class="visually-hidden">Cargando...</span>
+                </div>
             </div>
-        </div>
-    }
-    else if (!quotations.Any())
-    {
-        <p class="text-center">No tienes cotizaciones disponibles.</p>
-    }
-    else
-    {
-        <div class="table-responsive">
-            <table class="table table-striped table-hover">
-                <thead class="table-dark">
-                    <tr>
-                        <th>Número de Cotización</th>
-                        <th>Cliente</th>
-                        <th>Fecha</th>
-                        <th>Total</th>
-                        <th>Acciones</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var quotation in quotations)
-                    {
+        }
+        else if (!freightQuotations.Any())
+        {
+            <div class="empty-state text-center">
+                <i class="fas fa-truck-fast empty-icon"></i>
+                <p>No tienes cotizaciones de fletes.</p>
+                <a href="/freight" class="btn btn-cotizacion">Cotizar un Flete</a>
+            </div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead class="table-dark">
                         <tr>
-                            <td data-label="Número de Cotización">@quotation.QuotationNumber</td>
-                            <td data-label="Cliente">@quotation.Client</td>
-                            <td data-label="Fecha">@quotation.Date.ToString("dd/MM/yyyy")</td>
-                            <td data-label="Total">@quotation.Total.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</td>
-                            <td data-label="Acciones">
-                                <a href="@($"/quotationdetails/{quotation.Id}")" class="btn btn-primary btn-sm">Ver Detalles</a>
-                            </td>
+                            <th>N° Cotización</th>
+                            <th>Origen</th>
+                            <th>Destino</th>
+                            <th>Fecha</th>
+                            <th>Total</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
                         </tr>
-                    }
-                </tbody>
-            </table>
-        </div>
+                    </thead>
+                    <tbody>
+                        @foreach (var fq in freightQuotations)
+                        {
+                            <tr>
+                                <td data-label="N° Cotización">@fq.QuotationNumber</td>
+                                <td data-label="Origen">@fq.Origin</td>
+                                <td data-label="Destino">@fq.Destination</td>
+                                <td data-label="Fecha">@fq.FreightDate.ToString("dd/MM/yyyy")</td>
+                                <td data-label="Total">@fq.TotalCost.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</td>
+                                <td data-label="Estado">
+                                    <span class="@GetFreightStatusBadgeClass(fq.Status)">@GetFreightStatusText(fq.Status)</span>
+                                </td>
+                                <td data-label="Acciones">
+                                    <button class="btn btn-info btn-sm" @onclick="() => ViewFreightQuotation(fq)">
+                                        <i class="fas fa-eye"></i> Ver
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    }
+
+    <!-- Tab: Productos -->
+    @if (activeTab == "productos")
+    {
+        @if (quotations == null)
+        {
+            <div class="d-flex justify-content-center align-items-center full-height">
+                <div class="spinner-border" role="status" style="color: #F5C144;">
+                    <span class="visually-hidden">Cargando...</span>
+                </div>
+            </div>
+        }
+        else if (!quotations.Any())
+        {
+            <div class="empty-state text-center">
+                <i class="fas fa-box-open empty-icon"></i>
+                <p>No tienes cotizaciones de productos.</p>
+                <a href="/categories" class="btn btn-cotizacion">Ver Productos</a>
+            </div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>N° Cotización</th>
+                            <th>Cliente</th>
+                            <th>Fecha</th>
+                            <th>Total</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var quotation in quotations)
+                        {
+                            <tr>
+                                <td data-label="N° Cotización">@quotation.QuotationNumber</td>
+                                <td data-label="Cliente">@quotation.Client</td>
+                                <td data-label="Fecha">@quotation.Date.ToString("dd/MM/yyyy")</td>
+                                <td data-label="Total">@quotation.Total.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</td>
+                                <td data-label="Acciones">
+                                    <a href="@($"/quotationdetails/{quotation.Id}")" class="btn btn-primary btn-sm">Ver Detalles</a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    }
+
+    <!-- Tab: Órdenes -->
+    @if (activeTab == "ordenes")
+    {
+        @if (orders == null)
+        {
+            <div class="d-flex justify-content-center align-items-center full-height">
+                <div class="spinner-border" role="status" style="color: #F5C144;">
+                    <span class="visually-hidden">Cargando...</span>
+                </div>
+            </div>
+        }
+        else if (!orders.Any())
+        {
+            <div class="empty-state text-center">
+                <i class="fas fa-receipt empty-icon"></i>
+                <p>No tienes órdenes disponibles.</p>
+            </div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>N° Orden</th>
+                            <th>Cliente</th>
+                            <th>Fecha</th>
+                            <th>Total</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var order in orders)
+                        {
+                            <tr>
+                                <td data-label="N° Orden">@order.OrderNumber</td>
+                                <td data-label="Cliente">@order.User.Name</td>
+                                <td data-label="Fecha">@order.OrderDate.ToString("dd/MM/yyyy")</td>
+                                <td data-label="Total">@order.Total.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</td>
+                                <td data-label="Estado">
+                                    <span class="badge @(GetOrderStatusBadgeClass(order.Status))">@order.Status</span>
+                                </td>
+                                <td data-label="Acciones">
+                                    <a href="@($"/orderdetails/{order.Id}")" class="btn btn-primary btn-sm">Ver Detalles</a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
     }
 </div>
 
-<div class="container my-5">
-    <h1 class="text-center mb-4">Órdenes</h1>
+<!-- Modal para visualizar la ruta de la cotización de flete -->
+<div id="viewModal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="closeViewModal()">&times;</span>
+        <h4 class="modal-title text-center mb-3">Detalle de la Cotización</h4>
 
-    @if (orders == null)
-    {
-        <div class="d-flex justify-content-center align-items-center full-height">
-            <div class="spinner-border" role="status" style="color: #F5C144;">
-                <span class="visually-hidden">Cargando...</span>
+        @if (selectedFreightQuotation != null)
+        {
+            <div class="quotation-details mb-3">
+                <div class="row">
+                    <div class="col-6">
+                        <p><strong>N° Cotización:</strong> @selectedFreightQuotation.QuotationNumber</p>
+                        <p><strong>Fecha:</strong> @selectedFreightQuotation.FreightDate.ToString("dd/MM/yyyy")</p>
+                        <p><strong>Tipo Camión:</strong> @selectedFreightQuotation.TruckType</p>
+                    </div>
+                    <div class="col-6">
+                        <p><strong>Distancia:</strong> @selectedFreightQuotation.DistanceKm.ToString("N2") km</p>
+                        <p><strong>Seguro:</strong> @selectedFreightQuotation.InsuranceOption</p>
+                        <p><strong>Total:</strong> @selectedFreightQuotation.TotalCost.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</p>
+                    </div>
+                </div>
             </div>
-        </div>
-    }
-    else if (!orders.Any())
-    {
-        <p class="text-center">No tienes órdenes disponibles.</p>
-    }
-    else
-    {
-        <div class="table-responsive">
-            <table class="table table-striped table-hover">
-                <thead class="table-dark">
-                    <tr>
-                        <th>Número de Orden</th>
-                        <th>Cliente</th>
-                        <th>Fecha</th>
-                        <th>Total</th>
-                        <th>Status</th>
-                        <th>Acciones</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var order in orders)
-                    {
-                        <tr>
-                            <td data-label="Número de Orden">@order.OrderNumber</td>
-                            <td data-label="Cliente">@order.User.Name</td>
-                            <td data-label="Fecha">@order.OrderDate.ToString("dd/MM/yyyy")</td>
-                            <td data-label="Total">@order.Total.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("es-HN"))</td>
-                            <td data-label="Status">
-                                <span class="badge @(GetStatusBadgeClass(order.Status))">@order.Status</span>
-                            </td>
-                            <td data-label="Acciones">
-                                <a href="@($"/orderdetails/{order.Id}")" class="btn btn-primary btn-sm">Ver Detalles</a>
-                            </td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
-        </div>
-    }
+        }
+
+        <div class="mb-2"><strong>Origen:</strong> <span id="modalOrigin"></span></div>
+        <div class="mb-3"><strong>Destino:</strong> <span id="modalDestination"></span></div>
+        <div id="modalMapContainer" style="height: 350px; width: 100%; border: 1px solid #ddd; border-radius: 5px;"></div>
+
+        @if (selectedFreightQuotation != null && selectedFreightQuotation.Status == 0)
+        {
+            <div class="mt-3 text-center">
+                <button class="btn btn-success" @onclick="ConvertToOrder" disabled="@isConverting">
+                    <i class="fas fa-truck"></i> @(isConverting ? "Procesando..." : "Convertir en Orden")
+                </button>
+            </div>
+        }
+    </div>
 </div>
 
 @code {
+    private string activeTab = "fletes";
     private List<Quotation> quotations;
     private List<Order> orders;
+    private List<FreightQuotation> freightQuotations;
+    private FreightQuotation selectedFreightQuotation;
+    private bool isConverting = false;
+    private DotNetObjectReference<Quotations> dotNetRef;
 
     protected override async Task OnInitializedAsync()
     {
@@ -123,67 +279,299 @@
 
         var userIdString = user.FindFirstValue(ClaimTypes.NameIdentifier);
 
-        // Verificamos que el userId se pueda parsear, si no, retornamos colecciones vacías.
         if (!int.TryParse(userIdString, out int userId))
         {
             quotations = new List<Quotation>();
             orders = new List<Order>();
+            freightQuotations = new List<FreightQuotation>();
             return;
         }
 
-        // Si es SuperAdmin ve todas, de lo contrario solo las suyas.
         if (user.IsInRole("SuperAdmin"))
         {
             quotations = await QuotationService.GetAllQuotationsAsync();
             orders = await OrderService.GetAllOrdersAsync();
+            freightQuotations = await FreightQuotationService.GetAllFreightQuotationsAsync();
         }
         else
         {
             quotations = await QuotationService.GetQuotationsByUserIdAsync(userId);
             orders = await OrderService.GetOrdersByUserIdAsync(userId);
+            freightQuotations = await FreightQuotationService.GetQuotationsByUserIdAsync(userId);
+        }
+
+        // Si vienen de /freightquotations, activar tab de fletes
+        var uri = NavigationManager.Uri;
+        if (uri.Contains("freightquotations", StringComparison.OrdinalIgnoreCase))
+        {
+            activeTab = "fletes";
         }
     }
 
-    private string GetStatusBadgeClass(string status)
+    protected override void OnAfterRender(bool firstRender)
     {
-        return status switch
+        if (firstRender)
         {
-            "Pendiente" => "bg-warning text-dark",
-            "Confirmada" => "bg-primary",
-            "Ordenada" => "bg-info",
-            "Entregado" => "bg-success",
-            _ => "bg-secondary",
-        };
+            dotNetRef = DotNetObjectReference.Create(this);
+        }
+    }
+
+    // --- Freight helpers ---
+    private string GetFreightStatusText(int status) => status switch
+    {
+        0 => "Cotización",
+        1 => "Ordenada",
+        2 => "Expirada",
+        3 => "Pendiente",
+        4 => "Entregada",
+        _ => "Desconocido"
+    };
+
+    private string GetFreightStatusBadgeClass(int status) => status switch
+    {
+        0 => "badge bg-warning",
+        1 => "badge bg-primary",
+        2 => "badge bg-danger",
+        3 => "badge bg-info",
+        4 => "badge bg-success",
+        _ => "badge bg-secondary"
+    };
+
+    private async Task ViewFreightQuotation(FreightQuotation fq)
+    {
+        selectedFreightQuotation = fq;
+        StateHasChanged();
+
+        var stops = await FreightQuotationService.GetStopsByQuotationIdAsync(fq.Id);
+        var stopsDto = stops
+            .OrderBy(s => s.Sequence)
+            .Select(s => new { s.Address, Lat = s.Latitude, Lng = s.Longitude })
+            .ToList();
+        var stopsJson = JsonSerializer.Serialize(stopsDto);
+
+        await JS.InvokeVoidAsync("showQuotationModal", fq.Origin, fq.Destination, stopsJson);
+    }
+
+    private async Task ConvertToOrder()
+    {
+        if (selectedFreightQuotation == null || isConverting) return;
+        isConverting = true;
+        StateHasChanged();
+
+        try
+        {
+            await FreightQuotationService.UpdateStatusAsync(selectedFreightQuotation.Id, 1);
+            selectedFreightQuotation.Status = 1;
+
+            var item = freightQuotations.FirstOrDefault(q => q.Id == selectedFreightQuotation.Id);
+            if (item != null) item.Status = 1;
+
+            await JS.InvokeVoidAsync("closeViewModal");
+            await JS.InvokeVoidAsync("showToastSimple", "success", "¡Cotización convertida en orden exitosamente!");
+        }
+        catch (Exception ex)
+        {
+            await JS.InvokeVoidAsync("showToastSimple", "error", "Error al convertir: " + ex.Message);
+        }
+        finally
+        {
+            isConverting = false;
+            StateHasChanged();
+        }
+    }
+
+    // --- Order helpers ---
+    private string GetOrderStatusBadgeClass(string status) => status switch
+    {
+        "Pendiente" => "bg-warning text-dark",
+        "Confirmada" => "bg-primary",
+        "Ordenada" => "bg-info",
+        "Entregado" => "bg-success",
+        _ => "bg-secondary",
+    };
+
+    public void Dispose()
+    {
+        dotNetRef?.Dispose();
     }
 }
 
 <style>
     .full-height {
-        height: 50vh;
+        height: 30vh;
     }
 
-    /* Estilos para tablas responsivas en dispositivos móviles */
-    @@media (max-width: 767.98px) {
-        .table thead
+    /* Tabs */
+    .cotizacion-tabs {
+        border-bottom: 2px solid #dee2e6;
+        display: flex;
+        gap: 4px;
+    }
 
-    {
+    .cotizacion-tabs .nav-item {
+        flex: 1;
+    }
+
+    .cotizacion-tabs .nav-link {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        padding: 12px 16px;
+        color: #555;
+        font-weight: 600;
+        font-size: 0.95rem;
+        border: none;
+        border-bottom: 3px solid transparent;
+        background: none;
+        transition: all 0.25s;
+        width: 100%;
+        border-radius: 8px 8px 0 0;
+    }
+
+    .cotizacion-tabs .nav-link:hover {
+        color: #000;
+        background-color: #f8f9fa;
+    }
+
+    .cotizacion-tabs .nav-link.active {
+        color: #000;
+        border-bottom-color: #F5C144;
+        background-color: #fff;
+    }
+
+    .tab-badge {
+        background-color: #F5C144;
+        color: #000;
+        font-size: 0.7rem;
+        font-weight: 700;
+        padding: 2px 7px;
+        border-radius: 10px;
+        min-width: 20px;
+        text-align: center;
+    }
+
+    /* Empty state */
+    .empty-state {
+        padding: 60px 20px;
+    }
+
+    .empty-icon {
+        font-size: 3rem;
+        color: #ccc;
+        margin-bottom: 15px;
+    }
+
+    .empty-state p {
+        color: #888;
+        font-size: 1.05rem;
+        margin-bottom: 20px;
+    }
+
+    .btn-cotizacion {
+        background-color: #F5C144;
+        color: #000;
+        font-weight: 600;
+        padding: 10px 24px;
+        border-radius: 8px;
+        text-decoration: none;
+        transition: background-color 0.3s;
+    }
+
+    .btn-cotizacion:hover {
+        background-color: #d4a530;
+        color: #000;
+    }
+
+    /* Modal */
+    .modal {
         display: none;
+        position: fixed;
+        z-index: 1050;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        overflow: auto;
+        background-color: rgba(0, 0, 0, 0.5);
     }
 
-    .table tbody tr {
-        display: block;
-        margin-bottom: 1rem;
+    .modal-content {
+        background-color: #fff;
+        margin: 10% auto;
+        padding: 20px;
+        border-radius: 8px;
+        max-width: 700px;
+        position: relative;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    }
+
+    .close {
+        color: #aaa;
+        position: absolute;
+        top: 10px;
+        right: 15px;
+        font-size: 28px;
+        font-weight: bold;
+        cursor: pointer;
+    }
+
+    .close:hover {
+        color: #000;
+    }
+
+    .badge {
+        padding: 0.5em 0.75em;
+        border-radius: 0.5rem;
+        font-size: 0.9em;
+    }
+
+    .quotation-details {
+        background-color: #f8f9fa;
+        padding: 15px;
+        border-radius: 8px;
         border: 1px solid #dee2e6;
     }
 
-    .table tbody td {
-        display: block;
-        width: 100%;
-        text-align: right;
-        position: relative;
-        padding-left: 50%;
-        border-top: none;
+    .quotation-details p {
+        margin-bottom: 5px;
     }
+
+    .row {
+        display: flex;
+        flex-wrap: wrap;
+    }
+
+    .col-6 {
+        flex: 0 0 50%;
+        max-width: 50%;
+    }
+
+    /* Tabla responsive tipo tarjeta en móvil */
+    @@media (max-width: 767.98px) {
+        .table thead {
+            display: none;
+        }
+
+        .table tbody tr {
+            display: block;
+            margin-bottom: 1rem;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+        }
+
+        .table tbody td {
+            display: block;
+            width: 100%;
+            text-align: right;
+            position: relative;
+            padding-left: 50%;
+            padding-top: 8px;
+            padding-bottom: 8px;
+            border-top: none;
+            border-bottom: 1px solid #f0f0f0;
+        }
 
         .table tbody td::before {
             content: attr(data-label);
@@ -199,10 +587,47 @@
             border-bottom: 0;
         }
 
-    .btn-sm {
-        font-size: 0.875rem;
-        padding: 0.5rem 1rem;
+        .modal-content {
+            margin: 5% auto;
+            width: 95%;
+            max-width: 95%;
+            padding: 15px;
+        }
+
+        .col-6 {
+            flex: 0 0 100%;
+            max-width: 100%;
+        }
+
+        #modalMapContainer {
+            height: 250px !important;
+        }
+
+        /* Tabs en móvil */
+        .cotizacion-tabs .nav-link {
+            padding: 10px 8px;
+            font-size: 0.8rem;
+            gap: 4px;
+        }
+
+        .tab-text {
+            display: inline;
+        }
+
+        .cotizacion-tabs .nav-link i {
+            font-size: 0.9rem;
+        }
+
+        .btn-sm {
+            font-size: 0.875rem;
+            padding: 0.5rem 1rem;
+        }
     }
 
+    @@media (max-width: 380px) {
+        .cotizacion-tabs .nav-link {
+            font-size: 0.72rem;
+            padding: 8px 4px;
+        }
     }
 </style>

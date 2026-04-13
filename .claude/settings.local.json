@@ -20,7 +20,29 @@
       "Bash(taskkill //F //PID 14120)",
       "Bash(taskkill //F //IM FerrexWeb.exe)",
       "Bash(find C:UsersThinkPadDesktopTESTFERREXTestFreight -type f -name App.razor -o -name index.html -o -name *.csproj)",
-      "Bash(grep -E \"\\\\.razor$\")"
+      "Bash(grep -E \"\\\\.razor$\")",
+      "Bash(wc -l /c/Users/ThinkPad/Desktop/TESTFERREX/TestFreight/FerrexWeb/**/*.cs)",
+      "Bash(find C:UsersThinkPadDesktopTESTFERREXTestFreight -name *.config -type f)",
+      "Bash(find /c/Users/ThinkPad/Desktop/TESTFERREX/TestFreight/FerrexWeb -type f \\\\\\(-name *freight* -o -name *flete* \\\\\\) -iname *.razor -o -iname *.cs -o -iname *.js)",
+      "Bash(find C:UsersThinkPadDesktopTESTFERREXTestFreight -type f \\\\\\(-name *.js -o -name *.html \\\\\\))",
+      "Bash(find C:UsersThinkPadDesktopTESTFERREXTestFreightFerrexWebPages -name *.razor -type f)",
+      "Bash(grep -r \"BrevoSmtp\\\\|smtp\\\\|email\" C:UsersThinkPadDesktopTESTFERREXTestFreightFerrexWeb --include=*.json)",
+      "Bash(\"/c/Program Files/Microsoft SQL Server/Client SDK/ODBC/170/Tools/Binn/sqlcmd\" -S \"tcp:ferrexpresshn.database.windows.net,1433\" -U \"FerrAdmin\" -P \"ferrex#press2024\" -d \"FerrexpressHN\" -Q \"SELECT TOP 50 ID, Types, Size, id_subcategory, id_subcategory2, DescProducto FROM Products ORDER BY id_subcategory, Types, Size\" -s \"|\" -W 2>/dev/null)",
+      "Bash(\"/c/Program Files/Microsoft SQL Server/Client SDK/ODBC/170/Tools/Binn/sqlcmd\" -S \"tcp:ferrexpresshn.database.windows.net,1433\" -U \"FerrAdmin\" -P \"ferrex#press2024\" -d \"FerrexpressHN\" -Q \"SELECT id_subcategory, id_subcategory2, Types, Size, COUNT\\(*\\) as cnt FROM Products GROUP BY id_subcategory, id_subcategory2, Types, Size ORDER BY id_subcategory, id_subcategory2, Types, Size\" -s \"|\" -W)",
+      "Bash(find . -not -path */bin/* -not -path */obj/* -type d)",
+      "Bash(wc -l:*)",
+      "Bash(ls -la Footer.razor*)",
+      "Bash(grep:*)",
+      "Bash(find:*)",
+      "Bash(python3 -c ':*)",
+      "Bash(where sqlcmd:*)",
+      "Bash(\"/c/Program Files/Microsoft SQL Server/Client SDK/ODBC/170/Tools/Binn/sqlcmd\" -S tcp:ferrexpresshn.database.windows.net,1433 -U FerrAdmin -P \"ferrex#press2024\" -d FerrexpressHN -Q \"SELECT TOP 30 ID, Codigo, Product, Types, Size, id_subcategory, id_subcategory2 FROM Products WHERE Product LIKE '%tubo%galv%' ORDER BY Product\" -s\"|\" -W)",
+      "Bash(\"/c/Program Files/Microsoft SQL Server/Client SDK/ODBC/170/Tools/Binn/sqlcmd\" -S tcp:ferrexpresshn.database.windows.net,1433 -U FerrAdmin -P \"ferrex#press2024\" -d FerrexpressHN -Q \"SELECT TOP 40 ID, Codigo, Product, Types, Size, id_subcategory, id_subcategory2 FROM Products WHERE Product LIKE '%PVC%' ORDER BY Types, Size\" -s\"|\" -W)",
+      "Bash(\"/c/Program Files/Microsoft SQL Server/Client SDK/ODBC/170/Tools/Binn/sqlcmd\" -S tcp:ferrexpresshn.database.windows.net,1433 -U FerrAdmin -P \"ferrex#press2024\" -d FerrexpressHN -Q \"SELECT TOP 20 ID, Codigo, Product, Types, Size, id_subcategory, id_subcategory2 FROM Products WHERE id_subcategory = 9 ORDER BY Types, Size\" -s\"|\" -W)",
+      "Bash(\"/c/Program Files/Microsoft SQL Server/Client SDK/ODBC/170/Tools/Binn/sqlcmd\" -S tcp:ferrexpresshn.database.windows.net,1433 -U FerrAdmin -P \"ferrex#press2024\" -d FerrexpressHN -Q \"SELECT DISTINCT Types, COUNT\\(*\\) as Cnt FROM Products GROUP BY Types ORDER BY Cnt DESC\" -s\"|\" -W)",
+      "Bash(/c/Program Files/Microsoft SQL Server/Client SDK/ODBC/170/Tools/Binn/sqlcmd:*)",
+      "Bash(\"/c/Program Files/Microsoft SQL Server/Client SDK/ODBC/170/Tools/Binn/sqlcmd\" -S tcp:ferrexpresshn.database.windows.net,1433 -U FerrAdmin -P \"ferrex#press2024\" -d FerrexpressHN -Q \"SELECT id_subcategory2, COUNT\\(*\\) as total, SUM\\(CASE WHEN Types IS NULL THEN 1 ELSE 0 END\\) as sin_tipo, SUM\\(CASE WHEN Size IS NULL THEN 1 ELSE 0 END\\) as sin_size FROM Products WHERE id_subcategory2 IS NOT NULL GROUP BY id_subcategory2 ORDER BY total DESC\" -s\"|\" -W)",
+      "Bash('/c/Program Files/Microsoft SQL Server/Client SDK/ODBC/170/Tools/Binn/sqlcmd' -S tcp:ferrexpresshn.database.windows.net,1433 -U FerrAdmin -P 'ferrex#press2024' -d FerrexpressHN -Q ':*)"
     ]
   }
 }

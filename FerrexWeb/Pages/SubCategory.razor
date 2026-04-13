@@ -28,7 +28,7 @@ else
 
                 <div class="col-12 col-md-4 mb-4">
                     <div class="card category-card h-100 border-0">
-                        <img src="@subcat.imageCat" class="card-img-top" alt="@subcat.subcategory" />
+                        <img src="@GetSubcategoryImage(subcat)" class="card-img-top" alt="@subcat.subcategory" />
                         <div class="card-body d-flex flex-column">
                             <h5 class="card-title">@subcat.subcategory</h5>
                             <div class="mt-auto">
@@ -66,16 +66,26 @@ else
     {
         subCategories = await SubCategoryService.GetSubCategoriesByCategoryIdAsync(CategoryId);
 
-        // Obtener subcategorías sin SubCategories2 que necesitan primer producto
-        var subcatIdsWithoutSub2 = subCategories
-            .Where(s => s.SubCategories2 == null || !s.SubCategories2.Any())
-            .Select(s => s.id_subcategory)
-            .ToList();
-
-        if (subcatIdsWithoutSub2.Any())
+        // Obtener primer producto de TODAS las subcategorías (para imagen fallback)
+        var allSubcatIds = subCategories.Select(s => s.id_subcategory).ToList();
+        if (allSubcatIds.Any())
         {
-            firstProductMap = await ProductService.GetFirstProductBySubCategoryIdsAsync(subcatIdsWithoutSub2);
+            firstProductMap = await ProductService.GetFirstProductBySubCategoryIdsAsync(allSubcatIds);
         }
+    }
+
+    private string GetSubcategoryImage(FerrexWeb.Models.SubCategory subcat)
+    {
+        // 1. Imagen propia de la subcategoría
+        if (!string.IsNullOrEmpty(subcat.imageCat))
+            return subcat.imageCat;
+
+        // 2. Imagen del primer producto
+        if (firstProductMap.TryGetValue(subcat.id_subcategory, out var prod))
+            return prod.ImageUrl;
+
+        // 3. Default
+        return "images/product/default.png";
     }
 }
 

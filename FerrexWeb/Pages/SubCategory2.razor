@@ -25,7 +25,7 @@ else
             {
                 <div class="col-12 col-md-4 mb-4">
                     <div class="card product-card h-100">
-                        <img src="@firstProduct.ImageUrl" alt="@subcat.name" class="card-img-top" />
+                        <img src="@(firstProduct.ImageUrl ?? "images/product/default.png")" alt="@subcat.name" class="card-img-top" />
                         <div class="card-body d-flex flex-column">
                             <h5 class="card-title">@subcat.name</h5>
                             <div class="mt-auto">

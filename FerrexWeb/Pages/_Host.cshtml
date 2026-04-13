@@ -41,6 +41,11 @@
             font-size: 1.5rem;
             vertical-align: middle;
         }
+
+        /* Hide the default Blazor reconnection modal */
+        #components-reconnect-modal {
+            display: none !important;
+        }
     </style>
 
     <!-- HeadOutlet -->
@@ -92,6 +97,39 @@
     <script defer src="dist/app.bundle.js"></script>
 
     <!-- Framework -->
-    <script src="_framework/blazor.server.js"></script>
+    <script src="_framework/blazor.server.js" autostart="false"></script>
+    <script>
+        // Blazor reconnection: retry aggressively before showing UI
+        Blazor.start({
+            reconnectionOptions: {
+                maxRetries: 30,
+                retryIntervalMilliseconds: 2000
+            },
+            reconnectionHandler: {
+                onConnectionDown: (options, error) => {
+                    // Silently retry — don't show the default modal immediately
+                    console.warn('Blazor connection lost, retrying…');
+                },
+                onConnectionUp: () => {
+                    // Connection restored — reload to ensure fresh state
+                    location.reload();
+                }
+            }
+        });
+    </script>
+
+    <!--Start of Tawk.to Script-->
+    <script type="text/javascript">
+        var Tawk_API = Tawk_API || {}, Tawk_LoadStart = new Date();
+        (function () {
+            var s1 = document.createElement("script"), s0 = document.getElementsByTagName("script")[0];
+            s1.async = true;
+            s1.src = 'https://embed.tawk.to/69d6726b6839171c36f07332/1jlmqtsl8';
+            s1.charset = 'UTF-8';
+            s1.setAttribute('crossorigin', '*');
+            s0.parentNode.insertBefore(s1, s0);
+        })();
+    </script>
+    <!--End of Tawk.to Script-->
 </body>
 </html>

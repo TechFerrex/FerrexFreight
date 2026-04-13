@@ -119,21 +119,31 @@ app.Use(async (context, next) =>
             "https://maps.gstatic.com " +
             "https://code.jquery.com " +
             "https://cdnjs.cloudflare.com " +
-            "https://unpkg.com; " +
+            "https://unpkg.com " +
+            "https://*.tawk.to " +
+            "https://embed.tawk.to; " +
         "connect-src 'self' " +
             "https://maps.googleapis.com " +
             "https://maps.gstatic.com " +
+            "https://*.tawk.to " +
+            "wss://*.tawk.to " +
             "wss: ws:; " +
         "style-src 'self' 'unsafe-inline' " +
             "https://fonts.googleapis.com " +
             "https://cdn.jsdelivr.net " +
             "https://cdnjs.cloudflare.com " +
-            "https://unpkg.com; " +
-        "img-src 'self' data: https://maps.gstatic.com https://maps.googleapis.com https://*.gstatic.com https:; " +
-        "font-src 'self' " +
+            "https://unpkg.com " +
+            "https://embed.tawk.to " +
+            "https://*.tawk.to; " +
+        "img-src 'self' data: https://maps.gstatic.com https://maps.googleapis.com https://*.gstatic.com https://*.tawk.to https:; " +
+        "font-src 'self' data: " +
             "https://fonts.gstatic.com " +
             "https://cdn.jsdelivr.net " +
-            "https://cdnjs.cloudflare.com; " +
+            "https://cdnjs.cloudflare.com " +
+            "https://embed.tawk.to " +
+            "https://*.tawk.to; " +
+        "frame-src https://*.tawk.to; " +
+        "child-src https://*.tawk.to; " +
         "frame-ancestors 'none'; " +
         "object-src 'none';";
 

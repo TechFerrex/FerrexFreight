@@ -84,6 +84,16 @@
                         </div>
                     </div>
                 </div>
+                <div class="col-sm-6 col-md-4 mb-3">
+                    <div class="card h-100 shadow-sm admin-card">
+                        <div class="card-body">
+                            <i class="fas fa-boxes-stacked fa-3x mb-3 admin-icon"></i>
+                            <h5 class="card-title">Productos</h5>
+                            <p class="card-text">Crear, editar y eliminar productos del catálogo</p>
+                            <button class="btn btn-primary admin-btn" @onclick="IrAProductos">Gestionar Productos</button>
+                        </div>
+                    </div>
+                </div>
 
             </div>
     }
@@ -190,5 +200,9 @@
     private void IrAInventario()
     {
         NavigationManager.NavigateTo("/admin/inventory");
+    }
+    private void IrAProductos()
+    {
+        NavigationManager.NavigateTo("/admin/products");
     }
 }

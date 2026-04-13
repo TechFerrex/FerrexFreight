@@ -121,6 +121,60 @@
     </div>
 </div>
 
+<!-- Mini Servicios -->
+<div class="servicios-home">
+    <div class="container">
+        <div class="servicios-home-header text-center">
+            <span class="sh-tag">Nuevo</span>
+            <h2>Servicios de Reparación y Mantenimiento</h2>
+            <p class="sh-sub">Soluciones profesionales para tu hogar o negocio</p>
+        </div>
+        <div class="row g-4 justify-content-center">
+            <div class="col-md-3 col-6">
+                <div class="sh-card sh-card-eng">
+                    <div class="sh-icon sh-icon-eng">
+                        <i class="fas fa-hard-hat"></i>
+                    </div>
+                    <h4>Ingeniería</h4>
+                    <p>Revisión de proyectos y listado de materiales</p>
+                </div>
+            </div>
+            <div class="col-md-3 col-6">
+                <div class="sh-card">
+                    <div class="sh-icon">
+                        <i class="fas fa-faucet"></i>
+                    </div>
+                    <h4>Fontanería</h4>
+                    <p>Fugas, tuberías, grifos y drenajes</p>
+                </div>
+            </div>
+            <div class="col-md-3 col-6">
+                <div class="sh-card">
+                    <div class="sh-icon">
+                        <i class="fas fa-bolt"></i>
+                    </div>
+                    <h4>Electricidad</h4>
+                    <p>Instalaciones, cableado e iluminación</p>
+                </div>
+            </div>
+            <div class="col-md-3 col-6">
+                <div class="sh-card">
+                    <div class="sh-icon">
+                        <i class="fas fa-snowflake"></i>
+                    </div>
+                    <h4>Aire Acondicionado</h4>
+                    <p>Instalación, limpieza y mantenimiento</p>
+                </div>
+            </div>
+        </div>
+        <div class="text-center mt-4">
+            <a href="/service" class="sh-btn">
+                Ver Servicios <i class="fas fa-arrow-right"></i>
+            </a>
+        </div>
+    </div>
+</div>
+
 @code {
     // // Variables para las imágenes y enlaces
     // private List<string> ImagePaths = new List<string>
@@ -740,6 +794,196 @@
 
         .info-banner p {
             font-size: 0.9rem;
+        }
+    }
+
+    /* ===== Mini Servicios Home ===== */
+    .servicios-home {
+        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+        padding: 55px 0;
+        margin-top: 3rem;
+    }
+
+    .servicios-home-header {
+        margin-bottom: 35px;
+    }
+
+    .sh-tag {
+        display: inline-block;
+        background: rgba(245, 193, 68, 0.2);
+        color: #F5C144;
+        font-size: 0.75rem;
+        font-weight: 700;
+        padding: 4px 14px;
+        border-radius: 15px;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        margin-bottom: 12px;
+    }
+
+    .servicios-home-header h2 {
+        color: #fff;
+        font-size: 1.7rem;
+        font-weight: 800;
+        margin: 0 0 8px;
+    }
+
+    .sh-sub {
+        color: #8a93a6;
+        font-size: 1rem;
+        margin: 0;
+    }
+
+    .sh-card {
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 14px;
+        padding: 30px 20px;
+        text-align: center;
+        transition: all 0.3s;
+        height: 100%;
+    }
+
+    .sh-card:hover {
+        background: rgba(255, 255, 255, 0.1);
+        border-color: rgba(245, 193, 68, 0.3);
+        transform: translateY(-5px);
+    }
+
+    .sh-icon {
+        width: 60px;
+        height: 60px;
+        background: linear-gradient(135deg, #F5C144, #f0a500);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 16px;
+        transition: transform 0.3s;
+    }
+
+    .sh-card:hover .sh-icon {
+        transform: scale(1.12);
+    }
+
+    .sh-icon i {
+        font-size: 1.4rem;
+        color: #000;
+    }
+
+    .sh-card h4 {
+        color: #fff;
+        font-size: 1.05rem;
+        font-weight: 700;
+        margin: 0 0 8px;
+    }
+
+    .sh-card p {
+        color: #8a93a6;
+        font-size: 0.85rem;
+        margin: 0;
+        line-height: 1.4;
+    }
+
+    .sh-card-eng {
+        border: 1px solid rgba(245, 193, 68, 0.3);
+    }
+
+    .sh-icon-eng {
+        background: linear-gradient(135deg, #0f3460, #16213e) !important;
+    }
+
+    .sh-icon-eng i {
+        color: #F5C144 !important;
+    }
+
+    .sh-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: transparent;
+        border: 2px solid #F5C144;
+        color: #F5C144;
+        font-weight: 700;
+        font-size: 0.95rem;
+        padding: 12px 28px;
+        border-radius: 30px;
+        text-decoration: none;
+        transition: all 0.3s;
+    }
+
+    .sh-btn:hover {
+        background: #F5C144;
+        color: #000;
+        text-decoration: none;
+        transform: translateY(-2px);
+    }
+
+    .sh-btn i {
+        font-size: 0.85rem;
+        transition: transform 0.3s;
+    }
+
+    .sh-btn:hover i {
+        transform: translateX(4px);
+    }
+
+    @@media (max-width: 768px) {
+        .servicios-home {
+            padding: 40px 0;
+            margin-top: 1.5rem;
+        }
+
+        .servicios-home-header h2 {
+            font-size: 1.3rem;
+        }
+
+        .sh-sub {
+            font-size: 0.88rem;
+        }
+
+        .sh-card {
+            padding: 22px 14px;
+        }
+
+        .sh-icon {
+            width: 50px;
+            height: 50px;
+        }
+
+        .sh-icon i {
+            font-size: 1.15rem;
+        }
+
+        .sh-card h4 {
+            font-size: 0.92rem;
+        }
+
+        .sh-card p {
+            font-size: 0.78rem;
+        }
+    }
+
+    @@media (max-width: 480px) {
+        .servicios-home {
+            padding: 30px 0;
+        }
+
+        .servicios-home-header h2 {
+            font-size: 1.15rem;
+        }
+
+        .sh-card {
+            padding: 18px 12px;
+        }
+
+        .sh-card h4 {
+            font-size: 0.85rem;
+        }
+
+        .sh-btn {
+            width: 100%;
+            justify-content: center;
         }
     }
 </style>

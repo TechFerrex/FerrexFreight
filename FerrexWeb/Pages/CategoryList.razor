@@ -30,7 +30,7 @@ else
                             <div class="card-carousel">
                                 @for (int i = 0; i < imageCount; i++)
                                 {
-                                    <img src="@($"{category.ImageUrl}/{categoryImages[i]}")"
+                                    <img src="@($"{GetCategoryImageBase(category)}/{categoryImages[i]}")"
                                          alt="Imagen de categoría"
                                          class="carousel-image"
                                          loading="lazy"
@@ -67,6 +67,13 @@ else
     private List<string> GetImagesForCategory(int categoryId)
     {
         return new List<string> { "shutter1.webp", "shutter2.webp", "shutter3.webp" };
+    }
+
+    private string GetCategoryImageBase(Categories cat)
+    {
+        return !string.IsNullOrEmpty(cat.ImageUrl)
+            ? cat.ImageUrl
+            : "/images/categories/ImagesCat1";
     }
 }
 

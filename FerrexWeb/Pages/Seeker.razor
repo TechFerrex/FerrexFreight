@@ -1,5 +1,6 @@
 ﻿@using FerrexWeb.Services
 @using FerrexWeb.Models
+@using Microsoft.AspNetCore.Components.Web
 @implements IDisposable
 @inject SeekerService SeekerService
 @inject NavigationManager NavigationManager
@@ -7,9 +8,10 @@
 <div class="buscador-flotante">
     <div class="search-floating-bar">
         <input @bind="SearchTerm" @bind:event="oninput"
-               placeholder="Buscar..."
+               @onkeydown="HandleKeyDown"
+               placeholder="Buscar productos..."
                class="floating-search-input" />
-        <button class="floating-search-button" @onclick="BuscarProductosClick">
+        <button class="floating-search-button" @onclick="IrAResultados">
             <i class="fas fa-search"></i>
         </button>
     </div>
@@ -63,12 +65,23 @@
         });
     }
 
-    private async Task BuscarProductosClick()
+    private void HandleKeyDown(KeyboardEventArgs e)
     {
+        if (e.Key == "Enter")
+        {
+            IrAResultados();
+        }
+    }
+
+    private void IrAResultados()
+    {
+        if (string.IsNullOrWhiteSpace(searchTerm)) return;
+
         debounceCts.Cancel();
-        debounceCts.Dispose();
-        debounceCts = new CancellationTokenSource();
-        await BuscarProductosAsync();
+        var query = Uri.EscapeDataString(searchTerm.Trim());
+        productos.Clear();
+        NavigationManager.NavigateTo($"/search?q={query}");
+        searchTerm = string.Empty;
     }
 
     private async Task BuscarProductosAsync()
