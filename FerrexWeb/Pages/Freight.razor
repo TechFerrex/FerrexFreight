@@ -131,8 +131,14 @@
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label">Tipo de Camión</label>
+                        <label class="form-label">Tipo de Vehículo</label>
                         <div class="truck-selection d-flex flex-wrap gap-3">
+                            <div class="truck-card @(selectedTruckType == "motorcycle" ? "active" : "")"
+                                 data-truck-type="motorcycle"
+                                 @onclick='() => SelectTruckType("motorcycle")'>
+                                <i class="fas fa-motorcycle"></i>
+                                <div class="truck-name">Motocicleta</div>
+                            </div>
                             <div class="truck-card @(selectedTruckType == "pickup" ? "active" : "")"
                                  data-truck-type="pickup"
                                  @onclick='() => SelectTruckType("pickup")'>
@@ -302,8 +308,9 @@
     // ── Tarifas y fórmulas centralizadas en el servidor ──
     private static readonly Dictionary<string, decimal> TruckRates = new()
     {
+        ["motorcycle"] = 15m,
         ["pickup"] = 33m,
-        ["small"]  = 37m,
+        ["small"]  = 40m,
         ["medium"] = 50m
     };
 
@@ -317,7 +324,12 @@
         var costPerKm = TruckRates.GetValueOrDefault(truckType, 33m);
 
         decimal baseCost;
-        decimal baseFlat = truckType == "small" ? 600m : 350m;
+        decimal baseFlat = truckType switch
+        {
+            "motorcycle" => 100m,
+            "small" => 800m,
+            _ => 400m   // pickup y otros
+        };
         if (distanceKm <= 6m)
         {
             baseCost = baseFlat;
@@ -482,7 +494,7 @@
         return "Flete ordenado exitosamente";
     }
 
-    private string selectedTruckType { get; set; } = "pickup";
+    private string selectedTruckType { get; set; } = "motorcycle";
     private async Task ActivateMapSelection() => await JS.InvokeVoidAsync("activateMapSelection");
 
     private async Task CalculateRoute()

@@ -6,54 +6,11 @@
 
 <h1 class="text-center my-4">Categorías de Productos</h1>
 
-@if (categories == null)
-{
-    <div class="d-flex justify-content-center align-items-center full-height">
-        <div class="spinner-border" role="status" style="color: #F5C144;">
-            <span class="visually-hidden">Cargando...</span>
-        </div>
-    </div>
-}
-else
-{
-    <div class="container">
-        <div class="row">
-            @foreach (var category in categories)
-            {
-                var categoryImages = GetImagesForCategory(category.Id);
-                int imageCount = categoryImages.Count;
-                int cycleTime = 5;               
-                int totalDuration = imageCount * cycleTime; 
-                <div class="col-12 col-sm-6 col-md-4 mb-4">
-                    <NavLink href="@($"/categories/{category.Id}/subcategories")" class="text-decoration-none text-black">
-                        <div class="card category-card h-100 border-0">
-                            <div class="card-carousel">
-                                @for (int i = 0; i < imageCount; i++)
-                                {
-                                    <img src="@($"{GetCategoryImageBase(category)}/{categoryImages[i]}")"
-                                         alt="Imagen de categoría"
-                                         class="carousel-image"
-                                         loading="lazy"
-                                         style="animation-delay: @(i * cycleTime)s;
-                                                animation-duration: @(totalDuration)s;" />
-                                }
-                            </div>
-                            <div class="card-body d-flex flex-column">
-                                <h5 class="card-title">@category.Name</h5>
-                                <p class="card-text">@category.Description</p>
-                                <div class="mt-auto">
-                                    <a href="@($"/categories/{category.Id}/subcategories")" class="btn custom-btn">
-                                        Ver Mas
-                                    </a>
-                                </div>
-                            </div>
-                        </div>
-                    </NavLink>
-                </div>
-            }
-        </div>
-    </div>
-}
+<div class="coming-soon-container">
+    <i class="fas fa-hard-hat coming-soon-icon"></i>
+    <h2 class="coming-soon-title">Proximamente</h2>
+    <p class="coming-soon-text">Estamos trabajando para traerte los mejores productos. Vuelve pronto.</p>
+</div>
 
 @code {
     private List<Categories> categories;
@@ -79,6 +36,35 @@ else
 
 
 <style>
+    .coming-soon-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 50vh;
+        text-align: center;
+        padding: 40px 20px;
+    }
+
+    .coming-soon-icon {
+        font-size: 4rem;
+        color: #F5C144;
+        margin-bottom: 20px;
+    }
+
+    .coming-soon-title {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #333;
+        margin-bottom: 10px;
+    }
+
+    .coming-soon-text {
+        font-size: 1.1rem;
+        color: #888;
+        max-width: 400px;
+    }
+
     .full-height {
         height: 50vh;
     }

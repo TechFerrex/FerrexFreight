@@ -1,856 +1,1117 @@
-﻿@page "/"
+@page "/"
 @using FerrexWeb.Models
 @using FerrexWeb.Services
 @inject CategoryService CategoryService
 @inject ProductService ProductService
 @inject ApplicationDbContext DbContext
 
-<div class="container mt-5">
-    <div class="jumbotron text-center">
-        <h1>¿Listo para revolucionar tus envíos?</h1>
-        <p class="lead">Descubre cómo transformar tu logística con un servicio de fletes hecho a tu medida.</p>
-        <hr class="my-4" />
-        <p>Confía en nosotros para llevar tus productos de forma rápida y segura a donde los necesites.</p>
+<!-- ========== HERO SECTION ========== -->
+<section class="hero-section">
+    <div class="hero-bg-overlay"></div>
+    <div class="hero-particles">
+        <div class="particle p1"></div>
+        <div class="particle p2"></div>
+        <div class="particle p3"></div>
+        <div class="particle p4"></div>
+        <div class="particle p5"></div>
     </div>
-</div>
-
-<div class="container text-center mt-5 mb-5">
-    <div class="row justify-content-center">
-        <div class="col-md-5 mb-3">
-            <NavLink href="/freight" class="btn custom-btn btn-lg w-100">
-                <i class="fa-solid fa-truck animated-truck"></i> COTIZA TU FLETE
+    <div class="hero-inner">
+        <span class="hero-badge">Tu ferreteria y logistica en un solo lugar</span>
+        <h1 class="hero-title">
+            Todo lo que necesitas,
+            <span class="hero-highlight">donde lo necesitas</span>
+        </h1>
+        <p class="hero-subtitle">
+            Productos ferreteros, fletes a tu medida y servicios profesionales de reparacion y mantenimiento. FerrExpress conecta tu proyecto con soluciones reales.
+        </p>
+        <div class="hero-ctas">
+            <NavLink href="/freight" class="hero-btn-primary">
+                <i class="fas fa-truck-fast"></i> Cotiza tu Flete
+            </NavLink>
+            <NavLink href="/categories" class="hero-btn-secondary">
+                <i class="fas fa-boxes-stacked"></i> Ver Productos
             </NavLink>
         </div>
-        <div class="col-md-5 mb-3">
-            <NavLink href="/categories" class="btn custom-btn-secondary btn-lg w-100">
-                <i class="fa-solid fa-boxes-stacked"></i> VER PRODUCTOS
-            </NavLink>
-        </div>
-    </div>
-</div>
-
-@* <!-- Banner rotatorio -->
-<!-- Componente de banner optimizado -->
-<div class="banner-container">
-    @if (!isLoaded)
-    {
-        <!-- Placeholder minimalista mientras carga -->
-        <div class="banner-placeholder">
-            <div class="spinner-sm"></div>
-        </div>
-    }
-    else
-    {
-        <!-- Banner rotatorio optimizado -->
-        <NavLink href="@GetProductLink(CurrentImage)">
-            <img srcset="@GetImagePath(CurrentImage, "sm") 640w,
-                        @GetImagePath(CurrentImage, "md") 1024w,
-                        @CurrentImage 1920w"
-                 sizes="(max-width: 640px) 640px,
-                       (max-width: 1024px) 1024px,
-                       1920px"
-                 src="@GetImagePath(CurrentImage, "md")"
-                 class="banner-image @(isTransitioning ? "fade-out" : "fade-in")"
-                 alt="Banner promocional"
-                 width="1920"
-                 height="400"
-                 loading="lazy"
-                 fetchpriority="high"
-                 decoding="async" />
-        </NavLink>
-    }
-</div> *@
-
-<div class="container mt-5">
-    <div class="info-banner text-center">
-       @*  <img src="/images/freight-info-banner.webp" alt="Información de Fletes" class="img-fluid" /> *@
-        <p class="mt-3">Descubre cómo nuestros servicios de fletes optimizan tus envíos y mejoran la logística de tu negocio.</p>
-    </div>
-</div>
-
-<div class="container mt-5">
-    <div class="row justify-content-center">
-        <!-- Tarjeta 1 -->
-        <div class="col-md-4 mb-4">
-            <div class="custom-card text-center">
-                <div class="icon-wrapper">
-                    <i class="bi bi-truck custom-icon"></i>
-                </div>
-                <div class="card-content p-4">
-                    <h5 class="card-title custom-title">Transporte</h5>
-                    <p class="card-text">Tu envío seguro y rápido.</p>
-                    <!-- Contenido extra informativo que aparece en hover -->
-                    <div class="more-info">
-                        <small>Más información sobre nuestros envíos seguros.</small>
-                    </div>
-                </div>
+        <div class="hero-trust-row">
+            <div class="trust-item">
+                <i class="fas fa-shield-alt"></i>
+                <span>Envio seguro</span>
             </div>
-        </div>
-
-        <!-- Tarjeta 2 -->
-        <div class="col-md-4 mb-4">
-            <div class="custom-card text-center">
-                <div class="icon-wrapper">
-                    <i class="bi bi-globe custom-icon"></i>
-                </div>
-                <div class="card-content p-4">
-                    <h5 class="card-title custom-title">Cobertura</h5>
-                    <p class="card-text">Llegamos a todo el país.</p>
-                    <div class="more-info">
-                        <small>Conectamos cada rincón con nuestro servicio.</small>
-                    </div>
-                </div>
+            <div class="trust-divider"></div>
+            <div class="trust-item">
+                <i class="fas fa-map-marker-alt"></i>
+                <span>Cobertura nacional</span>
             </div>
-        </div>
-
-        <!-- Tarjeta 3 -->
-        <div class="col-md-4 mb-4">
-            <div class="custom-card text-center">
-                <div class="icon-wrapper">
-                    <i class="bi bi-compass custom-icon"></i>
-                </div>
-                <div class="card-content p-4">
-                    <h5 class="card-title custom-title">Rutas</h5>
-                    <p class="card-text">Planificación óptima.</p>
-                    <div class="more-info">
-                        <small>Optimización de rutas para eficiencia máxima.</small>
-                    </div>
-                </div>
+            <div class="trust-divider"></div>
+            <div class="trust-item">
+                <i class="fas fa-headset"></i>
+                <span>Soporte directo</span>
             </div>
         </div>
     </div>
-</div>
+</section>
 
-<!-- Mini Servicios -->
-<div class="servicios-home">
+<!-- ========== SERVICIOS RAPIDOS (3 Pilares) ========== -->
+<section class="pillars-section">
     <div class="container">
-        <div class="servicios-home-header text-center">
-            <span class="sh-tag">Nuevo</span>
-            <h2>Servicios de Reparación y Mantenimiento</h2>
-            <p class="sh-sub">Soluciones profesionales para tu hogar o negocio</p>
-        </div>
-        <div class="row g-4 justify-content-center">
-            <div class="col-md-3 col-6">
-                <div class="sh-card sh-card-eng">
-                    <div class="sh-icon sh-icon-eng">
-                        <i class="fas fa-hard-hat"></i>
+        <div class="pillars-grid">
+            <!-- Pilar 1: Fletes -->
+            <NavLink href="/freight" class="pillar-card pillar-freight">
+                <div class="pillar-icon-wrap">
+                    <div class="pillar-icon">
+                        <i class="fas fa-truck-moving"></i>
                     </div>
-                    <h4>Ingeniería</h4>
-                    <p>Revisión de proyectos y listado de materiales</p>
                 </div>
-            </div>
-            <div class="col-md-3 col-6">
-                <div class="sh-card">
-                    <div class="sh-icon">
-                        <i class="fas fa-faucet"></i>
+                <h3>Fletes y Logistica</h3>
+                <p>Planifica tu ruta, agrega paradas y recibe una cotizacion al instante. Transporte confiable para materiales de construccion y mas.</p>
+                <span class="pillar-link">
+                    Cotizar ahora <i class="fas fa-arrow-right"></i>
+                </span>
+            </NavLink>
+
+            <!-- Pilar 2: Productos -->
+            <NavLink href="/categories" class="pillar-card pillar-products">
+                <div class="pillar-icon-wrap">
+                    <div class="pillar-icon">
+                        <i class="fas fa-store"></i>
                     </div>
-                    <h4>Fontanería</h4>
-                    <p>Fugas, tuberías, grifos y drenajes</p>
                 </div>
-            </div>
-            <div class="col-md-3 col-6">
-                <div class="sh-card">
-                    <div class="sh-icon">
-                        <i class="fas fa-bolt"></i>
+                <h3>Productos Ferreteros</h3>
+                <p>Acero, cemento, techos, PVC, electricos, tabla yeso y mas. Catalogo completo con precios y disponibilidad inmediata.</p>
+                <span class="pillar-link">
+                    Explorar catalogo <i class="fas fa-arrow-right"></i>
+                </span>
+            </NavLink>
+
+            <!-- Pilar 3: Servicios -->
+            <NavLink href="/service" class="pillar-card pillar-services">
+                <div class="pillar-icon-wrap">
+                    <div class="pillar-icon">
+                        <i class="fas fa-tools"></i>
                     </div>
-                    <h4>Electricidad</h4>
-                    <p>Instalaciones, cableado e iluminación</p>
                 </div>
-            </div>
-            <div class="col-md-3 col-6">
-                <div class="sh-card">
-                    <div class="sh-icon">
-                        <i class="fas fa-snowflake"></i>
-                    </div>
-                    <h4>Aire Acondicionado</h4>
-                    <p>Instalación, limpieza y mantenimiento</p>
-                </div>
-            </div>
-        </div>
-        <div class="text-center mt-4">
-            <a href="/service" class="sh-btn">
-                Ver Servicios <i class="fas fa-arrow-right"></i>
-            </a>
+                <h3>Servicios Profesionales</h3>
+                <p>Fontaneria, electricidad, aire acondicionado e ingenieria. Manos expertas para tu hogar o negocio.</p>
+                <span class="pillar-link">
+                    Ver servicios <i class="fas fa-arrow-right"></i>
+                </span>
+            </NavLink>
         </div>
     </div>
-</div>
+</section>
+
+<!-- ========== SECCION FLETES DESTACADA ========== -->
+<section class="freight-showcase">
+    <div class="container">
+        <div class="freight-grid">
+            <div class="freight-info">
+                <span class="section-tag">Fletes Inteligentes</span>
+                <h2>Tu carga, nuestra prioridad</h2>
+                <p class="freight-desc">
+                    Con nuestro sistema de cotizacion en linea, planifica rutas con multiples paradas,
+                    calcula costos al instante y programa tu envio sin complicaciones.
+                </p>
+                <ul class="freight-features">
+                    <li>
+                        <div class="feature-icon"><i class="fas fa-route"></i></div>
+                        <div>
+                            <strong>Rutas personalizadas</strong>
+                            <span>Agrega origen, destino y paradas intermedias</span>
+                        </div>
+                    </li>
+                    <li>
+                        <div class="feature-icon"><i class="fas fa-calculator"></i></div>
+                        <div>
+                            <strong>Cotizacion al instante</strong>
+                            <span>Conoce el costo antes de confirmar</span>
+                        </div>
+                    </li>
+                    <li>
+                        <div class="feature-icon"><i class="fas fa-clock"></i></div>
+                        <div>
+                            <strong>Programacion flexible</strong>
+                            <span>Elige la fecha y hora que mejor te convenga</span>
+                        </div>
+                    </li>
+                    <li>
+                        <div class="feature-icon"><i class="fas fa-shield-alt"></i></div>
+                        <div>
+                            <strong>Transporte seguro</strong>
+                            <span>Tu mercancia protegida en todo momento</span>
+                        </div>
+                    </li>
+                </ul>
+                <NavLink href="/freight" class="freight-cta">
+                    <i class="fas fa-truck-fast animated-truck"></i> Planifica tu Flete
+                </NavLink>
+            </div>
+            <div class="freight-visual">
+                <div class="freight-map-card">
+                    <div class="map-header">
+                        <div class="map-dot dot-green"></div>
+                        <div class="map-dot dot-yellow"></div>
+                        <div class="map-dot dot-red"></div>
+                    </div>
+                    <div class="map-body">
+                        <div class="map-route-line"></div>
+                        <div class="map-point mp-origin">
+                            <i class="fas fa-circle"></i>
+                            <span>Origen</span>
+                        </div>
+                        <div class="map-point mp-stop">
+                            <i class="fas fa-map-pin"></i>
+                            <span>Parada 1</span>
+                        </div>
+                        <div class="map-point mp-dest">
+                            <i class="fas fa-flag-checkered"></i>
+                            <span>Destino</span>
+                        </div>
+                        <div class="map-info-box">
+                            <div class="map-info-row">
+                                <i class="fas fa-road"></i>
+                                <span>45.2 km</span>
+                            </div>
+                            <div class="map-info-row">
+                                <i class="fas fa-clock"></i>
+                                <span>~52 min</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ========== ESTADISTICAS / CONFIANZA ========== -->
+<section class="stats-section">
+    <div class="container">
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon"><i class="fas fa-truck"></i></div>
+                <div class="stat-number">500+</div>
+                <div class="stat-label">Fletes realizados</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon"><i class="fas fa-box-open"></i></div>
+                <div class="stat-number">2,000+</div>
+                <div class="stat-label">Productos disponibles</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon"><i class="fas fa-users"></i></div>
+                <div class="stat-number">300+</div>
+                <div class="stat-label">Clientes satisfechos</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon"><i class="fas fa-star"></i></div>
+                <div class="stat-number">4.8</div>
+                <div class="stat-label">Calificacion promedio</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ========== PRODUCTOS DESTACADOS ========== -->
+<section class="products-section">
+    <div class="container">
+        <div class="section-header-center">
+            <span class="section-tag">Catalogo</span>
+            <h2>Productos para cada proyecto</h2>
+            <p>Materiales de construccion, ferreteria y mas. Todo en un solo lugar.</p>
+        </div>
+        <div class="products-grid">
+            <NavLink href="/categories" class="product-cat-card pcc-steel">
+                <div class="pcc-icon"><i class="fas fa-industry"></i></div>
+                <h4>Acero y Hierro</h4>
+                <span>Varillas, tubos, angulos, platinas</span>
+            </NavLink>
+            <NavLink href="/categories" class="product-cat-card pcc-cement">
+                <div class="pcc-icon"><i class="fas fa-cubes"></i></div>
+                <h4>Cemento y Agregados</h4>
+                <span>Bloques, pegamentos, morteros</span>
+            </NavLink>
+            <NavLink href="/categories" class="product-cat-card pcc-roof">
+                <div class="pcc-icon"><i class="fas fa-home"></i></div>
+                <h4>Techos y Laminas</h4>
+                <span>Aluminio, traslucidas, canaletas</span>
+            </NavLink>
+            <NavLink href="/categories" class="product-cat-card pcc-pvc">
+                <div class="pcc-icon"><i class="fas fa-faucet"></i></div>
+                <h4>PVC y Fontaneria</h4>
+                <span>Tubos, codos, pegamentos</span>
+            </NavLink>
+            <NavLink href="/categories" class="product-cat-card pcc-elec">
+                <div class="pcc-icon"><i class="fas fa-bolt"></i></div>
+                <h4>Electricos</h4>
+                <span>Cables, poliductos, conduit</span>
+            </NavLink>
+            <NavLink href="/categories" class="product-cat-card pcc-dry">
+                <div class="pcc-icon"><i class="fas fa-layer-group"></i></div>
+                <h4>Tabla Yeso</h4>
+                <span>Laminas, perfiles, accesorios</span>
+            </NavLink>
+        </div>
+        <div class="text-center" style="margin-top: 2.5rem;">
+            <NavLink href="/categories" class="btn-see-all">
+                Ver todo el catalogo <i class="fas fa-arrow-right"></i>
+            </NavLink>
+        </div>
+    </div>
+</section>
+
+<!-- ========== SERVICIOS PROFESIONALES ========== -->
+<section class="services-home-section">
+    <div class="container">
+        <div class="section-header-center">
+            <span class="section-tag-dark">Nuevo</span>
+            <h2>Servicios de Reparacion y Mantenimiento</h2>
+            <p>Soluciones profesionales para tu hogar o negocio</p>
+        </div>
+        <div class="services-grid">
+            <div class="srv-card srv-featured">
+                <div class="srv-badge">Destacado</div>
+                <div class="srv-icon srv-icon-eng">
+                    <i class="fas fa-hard-hat"></i>
+                </div>
+                <h4>Ingenieria</h4>
+                <p>Revision de proyectos, presupuestos de materiales y asesoria tecnica</p>
+                <a href="https://wa.me/50432024761?text=Hola%2C%20me%20interesa%20el%20servicio%20de%20ingeniería"
+                   target="_blank" class="srv-contact">
+                    <i class="fab fa-whatsapp"></i> Consultar
+                </a>
+            </div>
+            <div class="srv-card">
+                <div class="srv-icon">
+                    <i class="fas fa-faucet"></i>
+                </div>
+                <h4>Fontaneria</h4>
+                <p>Fugas, tuberias, grifos, calentadores y drenajes</p>
+                <a href="https://wa.me/50432024761?text=Hola%2C%20necesito%20un%20servicio%20de%20fontanería"
+                   target="_blank" class="srv-contact">
+                    <i class="fab fa-whatsapp"></i> Consultar
+                </a>
+            </div>
+            <div class="srv-card">
+                <div class="srv-icon">
+                    <i class="fas fa-bolt"></i>
+                </div>
+                <h4>Electricidad</h4>
+                <p>Instalaciones, cableado, paneles e iluminacion</p>
+                <a href="https://wa.me/50432024761?text=Hola%2C%20necesito%20un%20servicio%20de%20electricidad"
+                   target="_blank" class="srv-contact">
+                    <i class="fab fa-whatsapp"></i> Consultar
+                </a>
+            </div>
+            <div class="srv-card">
+                <div class="srv-icon">
+                    <i class="fas fa-snowflake"></i>
+                </div>
+                <h4>Aire Acondicionado</h4>
+                <p>Instalacion, limpieza, mantenimiento y diagnostico</p>
+                <a href="https://wa.me/50432024761?text=Hola%2C%20necesito%20un%20servicio%20de%20aire%20acondicionado"
+                   target="_blank" class="srv-contact">
+                    <i class="fab fa-whatsapp"></i> Consultar
+                </a>
+            </div>
+        </div>
+        <div class="text-center" style="margin-top: 2rem;">
+            <NavLink href="/service" class="btn-services-all">
+                Ver todos los servicios <i class="fas fa-arrow-right"></i>
+            </NavLink>
+        </div>
+    </div>
+</section>
+
+<!-- ========== POR QUE ELEGIRNOS ========== -->
+<section class="why-section">
+    <div class="container">
+        <div class="section-header-center">
+            <span class="section-tag" style="background: rgba(245,193,68,0.2); color: #F5C144;">FerrExpress</span>
+            <h2 style="color: #fff;">Por que nos eligen</h2>
+            <p style="color: #8a93a6;">Mas que una ferreteria, somos tu aliado en cada proyecto</p>
+        </div>
+        <div class="why-grid">
+            <div class="why-card">
+                <div class="why-icon"><i class="fas fa-hand-holding-usd"></i></div>
+                <h4>Precios Competitivos</h4>
+                <p>Cotizaciones transparentes sin cargos ocultos. Siempre el mejor precio.</p>
+            </div>
+            <div class="why-card">
+                <div class="why-icon"><i class="fas fa-shipping-fast"></i></div>
+                <h4>Entrega Rapida</h4>
+                <p>Coordinamos la logistica para que recibas tus materiales cuando los necesitas.</p>
+            </div>
+            <div class="why-card">
+                <div class="why-icon"><i class="fas fa-user-check"></i></div>
+                <h4>Personal Capacitado</h4>
+                <p>Nuestro equipo tiene experiencia comprobada en cada area de servicio.</p>
+            </div>
+            <div class="why-card">
+                <div class="why-icon"><i class="fas fa-map-marked-alt"></i></div>
+                <h4>Cobertura Nacional</h4>
+                <p>Llegamos a cualquier punto del pais con nuestro servicio de fletes.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ========== CTA FINAL ========== -->
+<section class="final-cta-section">
+    <div class="container">
+        <div class="final-cta-inner">
+            <div class="final-cta-text">
+                <h2>Listo para empezar tu proyecto?</h2>
+                <p>Cotiza tu flete, explora productos o solicita un servicio profesional. Estamos aqui para ayudarte.</p>
+            </div>
+            <div class="final-cta-actions">
+                <NavLink href="/freight" class="fcta-btn fcta-primary">
+                    <i class="fas fa-truck-fast"></i> Cotizar Flete
+                </NavLink>
+                <a href="https://wa.me/50432024761?text=Hola%20FerrExpress%2C%20necesito%20información"
+                   target="_blank" class="fcta-btn fcta-whatsapp">
+                    <i class="fab fa-whatsapp"></i> WhatsApp
+                </a>
+            </div>
+        </div>
+    </div>
+</section>
 
 @code {
-    // // Variables para las imágenes y enlaces
-    // private List<string> ImagePaths = new List<string>
-    // {
-    //     "/images/banner1.webp",
-    //     "/images/banner2.webp",
-    //     "/images/banner3.webp"
-    // };
-
-    // private Dictionary<string, string> ImageProductLinks = new Dictionary<string, string>
-    // {
-    //     { "/images/banner1.webp", "productdetails/7119" },
-    //     { "/images/banner2.webp", "productdetails/7226" },
-    //     { "/images/banner3.webp", "productdetails/7150" }
-    // };
-
-    // Variables para controlar el estado del banner
-    private int currentIndex = 0;
-   // private string CurrentImage => ImagePaths[currentIndex];
-    private bool isLoaded = false;
-    private bool isTransitioning = false;
-    //private System.Timers.Timer rotationTimer;
     private bool isConnected;
-    private List<Categories> categories;
-    private List<Products> featuredProducts;
 
-    // Métodos para obtener datos
-    // private string GetProductLink(string imagePath)
-    // {
-    //     if (ImageProductLinks.ContainsKey(imagePath))
-    //     {
-    //         return ImageProductLinks[imagePath];
-    //     }
-    //     return "/";
-    // }
-
-    private string GetImagePath(string basePath, string size = "")
-    {
-        if (string.IsNullOrEmpty(size))
-            return basePath;
-
-        return basePath.Replace(".webp", $"-{size}.webp");
-    }
-
-    // Eventos del ciclo de vida
     protected override async Task OnInitializedAsync()
     {
         isConnected = await DbContext.Database.CanConnectAsync();
     }
-
-    protected override void OnInitialized()
-    {
-        base.OnInitialized();
-
-        // // Configurar el timer para rotar imágenes
-        // rotationTimer = new System.Timers.Timer(5000);
-        // rotationTimer.Elapsed += (sender, e) =>
-        // {
-        //     InvokeAsync(RotateImage);
-        // };
-    }
-
-    // protected override async Task OnAfterRenderAsync(bool firstRender)
-    // {
-    //     // if (firstRender)
-    //     // {
-    //     //     // Pequeña demora para permitir que la interfaz se cargue primero
-    //     //     await Task.Delay(300);
-
-    //     //     // Marcar como cargada la primera imagen
-    //     //     isLoaded = true;
-    //     //     StateHasChanged();
-
-    //     //     // Iniciar rotación después de que la página esté completamente cargada
-    //     //     await Task.Delay(1500);
-    //     //     rotationTimer.Start();
-    //     // }
-    // }
-
-    // // Método optimizado para cambiar imágenes
-    // private async void RotateImage()
-    // {
-    //     if (isTransitioning) return;
-
-    //     isTransitioning = true;
-    //     StateHasChanged();
-
-    //     await Task.Delay(300); // Tiempo reducido para la transición
-
-    //     currentIndex = (currentIndex + 1) % ImagePaths.Count;
-    //     isTransitioning = false;
-    //     StateHasChanged();
-    // }
-
-    // Limpieza al destruir el componente
-    // public void Dispose()
-    // {
-    //     rotationTimer?.Dispose();
-    // }
 }
 
 <style>
-    * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-    }
-
+    /* ===== RESET & BASE ===== */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
-        background: url("/images/GrayWall.png") no-repeat center/cover;
-        font-family: "Lato", sans-serif;
+        font-family: "Lato", "Segoe UI", sans-serif;
         font-weight: 400;
-        font-style: normal;
+        background: #f8f9fb;
     }
 
     .container {
         width: 100%;
-        max-width: 1140px;
+        max-width: 1200px;
         margin: 0 auto;
-        padding: 0 15px;
+        padding: 0 20px;
     }
 
-    .mt-5 {
-        margin-top: 3rem;
-    }
+    .text-center { text-align: center; }
 
-    .mb-5 {
-        margin-bottom: 3rem;
-    }
-
-    .my-4 {
-        margin-top: 1.5rem;
-        margin-bottom: 1.5rem;
-    }
-
-    .text-center {
+    /* ===== HERO ===== */
+    .hero-section {
+        position: relative;
+        background: linear-gradient(135deg, #0d0d1a 0%, #1a1a2e 40%, #16213e 70%, #0f3460 100%);
+        padding: 100px 20px 80px;
+        overflow: hidden;
         text-align: center;
     }
 
+    .hero-bg-overlay {
+        position: absolute;
+        top: 0; left: 0; width: 100%; height: 100%;
+        background:
+            radial-gradient(ellipse at 20% 50%, rgba(245,193,68,0.12) 0%, transparent 50%),
+            radial-gradient(ellipse at 80% 20%, rgba(15,52,96,0.3) 0%, transparent 50%),
+            radial-gradient(ellipse at 50% 100%, rgba(245,193,68,0.08) 0%, transparent 40%);
+        pointer-events: none;
+    }
+
+    .hero-particles {
+        position: absolute;
+        top: 0; left: 0; width: 100%; height: 100%;
+        pointer-events: none;
+        overflow: hidden;
+    }
+
+    .particle {
+        position: absolute;
+        border-radius: 50%;
+        background: rgba(245, 193, 68, 0.15);
+        animation: floatParticle 12s ease-in-out infinite;
+    }
+    .p1 { width: 6px; height: 6px; top: 20%; left: 10%; animation-delay: 0s; }
+    .p2 { width: 4px; height: 4px; top: 60%; left: 80%; animation-delay: 2s; }
+    .p3 { width: 8px; height: 8px; top: 40%; left: 50%; animation-delay: 4s; }
+    .p4 { width: 3px; height: 3px; top: 80%; left: 25%; animation-delay: 6s; }
+    .p5 { width: 5px; height: 5px; top: 15%; left: 70%; animation-delay: 8s; }
+
+    @@keyframes floatParticle {
+        0%, 100% { transform: translateY(0) translateX(0); opacity: 0.3; }
+        25% { transform: translateY(-20px) translateX(10px); opacity: 0.7; }
+        50% { transform: translateY(-10px) translateX(-15px); opacity: 0.5; }
+        75% { transform: translateY(-25px) translateX(5px); opacity: 0.8; }
+    }
+
+    .hero-inner {
+        position: relative;
+        z-index: 2;
+        max-width: 750px;
+        margin: 0 auto;
+    }
+
+    .hero-badge {
+        display: inline-block;
+        background: rgba(245, 193, 68, 0.15);
+        color: #F5C144;
+        font-size: 0.8rem;
+        font-weight: 700;
+        padding: 6px 20px;
+        border-radius: 20px;
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+        margin-bottom: 24px;
+        border: 1px solid rgba(245, 193, 68, 0.25);
+    }
+
+    .hero-title {
+        color: #fff;
+        font-size: 3.2rem;
+        font-weight: 800;
+        line-height: 1.15;
+        margin-bottom: 20px;
+    }
+
+    .hero-highlight {
+        color: #F5C144;
+        display: block;
+    }
+
+    .hero-subtitle {
+        color: #a8b2c1;
+        font-size: 1.15rem;
+        line-height: 1.7;
+        margin-bottom: 36px;
+        max-width: 600px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    .hero-ctas {
+        display: flex;
+        gap: 16px;
+        justify-content: center;
+        flex-wrap: wrap;
+        margin-bottom: 40px;
+    }
+
+    .hero-btn-primary {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        background: #F5C144;
+        color: #000;
+        font-size: 1.05rem;
+        font-weight: 700;
+        padding: 16px 36px;
+        border-radius: 50px;
+        text-decoration: none;
+        transition: all 0.3s;
+        box-shadow: 0 4px 20px rgba(245, 193, 68, 0.35);
+    }
+
+    .hero-btn-primary:hover {
+        background: #e6b13a;
+        color: #000;
+        transform: translateY(-3px);
+        box-shadow: 0 8px 30px rgba(245, 193, 68, 0.45);
+        text-decoration: none;
+    }
+
+    .hero-btn-secondary {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        background: transparent;
+        color: #fff;
+        font-size: 1.05rem;
+        font-weight: 600;
+        padding: 16px 36px;
+        border-radius: 50px;
+        border: 2px solid rgba(255,255,255,0.3);
+        text-decoration: none;
+        transition: all 0.3s;
+    }
+
+    .hero-btn-secondary:hover {
+        background: rgba(255,255,255,0.1);
+        border-color: #F5C144;
+        color: #F5C144;
+        transform: translateY(-3px);
+        text-decoration: none;
+    }
+
     .animated-truck {
-        margin-right: 8px;
         display: inline-block;
         animation: drive 2s linear infinite;
     }
 
     @@keyframes drive {
-        0%
-
-    {
-        transform: translateX(0);
+        0% { transform: translateX(0); }
+        50% { transform: translateX(5px); }
+        100% { transform: translateX(0); }
     }
 
-    50% {
-        transform: translateX(5px);
-    }
-
-    100% {
-        transform: translateX(0);
-    }
-
-    }
-
-    .lead {
-        font-size: 1.25rem;
-        font-weight: 300;
-    }
-
-    .jumbotron {
-        padding: 2rem 1rem;
-        margin-bottom: 2rem;
-        background-color: rgba(249, 249, 249, 0.8);
-        border-radius: 0.3rem;
-    }
-
-    hr {
-        border: none;
-        border-top: 1px solid #ccc;
-        margin: 1rem 0;
-    }
-
-    .row {
+    .hero-trust-row {
         display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 20px;
         flex-wrap: wrap;
-        margin-right: -15px;
-        margin-left: -15px;
     }
 
-    .col-12,
-    .col-sm-6,
-    .col-md-4 {
-        padding-right: 15px;
-        padding-left: 15px;
-        width: 100%;
-    }
-
-    @@media (min-width: 576px) {
-        .col-sm-6
-
-    {
-        width: 50%;
-    }
-
-    }
-
-    @@media (min-width: 768px) {
-        .col-md-4
-
-    {
-        width: 33.3333%;
-    }
-
-    }
-
-    .d-flex {
+    .trust-item {
         display: flex;
-    }
-
-    .justify-content-center {
-        justify-content: center;
-    }
-
-    .align-items-center {
         align-items: center;
+        gap: 8px;
+        color: rgba(255,255,255,0.6);
+        font-size: 0.85rem;
     }
 
-    .flex-column {
-        flex-direction: column;
+    .trust-item i {
+        color: #F5C144;
+        font-size: 0.9rem;
     }
 
-    .mt-auto {
-        margin-top: auto;
-    }
-
-    .spinner {
-        display: inline-block;
-        width: 3rem;
-        height: 3rem;
-        border: 0.4rem solid #f3f3f3;
-        border-top: 0.4rem solid #F5C144;
-        border-radius: 50%;
-        animation: spin 0.8s linear infinite;
-    }
-
-    @@keyframes spin {
-        to
-
-    {
-        transform: rotate(360deg);
-    }
-
-    }
-
-    .visually-hidden {
-        position: absolute;
+    .trust-divider {
         width: 1px;
-        height: 1px;
+        height: 16px;
+        background: rgba(255,255,255,0.2);
+    }
+
+    /* ===== PILLARS SECTION ===== */
+    .pillars-section {
         padding: 0;
-        overflow: hidden;
-        clip: rect(0, 0, 0, 0);
-        white-space: nowrap;
-        border: 0;
-    }
-
-    .card {
-        background-color: #fff;
-        border: none;
-        border-radius: 0.25rem;
-        overflow: hidden;
-        display: flex;
-        flex-direction: column;
-        height: 100%;
-        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-    }
-
-    .card-inner {
+        margin-top: -50px;
         position: relative;
-        height: 300px;
-        background: var(--clr);
-        overflow: hidden;
+        z-index: 10;
     }
 
-        .card-inner .box {
-            position: relative;
-            width: 100%;
-            height: 100%;
-        }
-
-        .card-inner .imgBox {
-            width: 100%;
-            height: 100%;
-        }
-
-            .card-inner .imgBox img {
-                width: 100%;
-                height: 100%;
-                object-fit: cover;
-            }
-
-        .card-inner .icon {
-            position: absolute;
-            bottom: 0;
-            right: 0;
-            width: 4rem;
-            height: 4rem;
-            background: var(--clr);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            border-top-left-radius: 50%;
-            transition: transform 0.3s;
-        }
-
-            .card-inner .icon:hover {
-                transform: scale(1.1);
-            }
-
-            .card-inner .icon .iconBox {
-                color: #000000;
-                font-size: 2.5rem;
-            }
-
-    .content {
-        padding: 1rem;
-        flex-grow: 1;
-        display: flex;
-        flex-direction: column;
+    .pillars-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 24px;
     }
 
-        .content h3 {
-            font-size: 1.5rem;
-            margin-bottom: 0.5rem;
-        }
-
-        .content p {
-            flex-grow: 1;
-            color: #565656;
-        }
-
-    .custom-btn {
-        background-color: #F5C144;
-        color: #000000;
-        border: none;
-        padding: 10px 20px;
-        font-size: 16px;
-        cursor: pointer;
-        transition: background-color 0.3s, color 0.3s;
-    }
-
-        .custom-btn:hover,
-        .custom-btn:active {
-            background-color: #000000;
-            color: #F5C144;
-        }
-
-    .custom-btn-secondary {
-        background-color: #2b3044;
-        color: #ffffff;
-        border: none;
-        padding: 10px 20px;
-        font-size: 16px;
-        cursor: pointer;
-        transition: background-color 0.3s, color 0.3s;
-    }
-
-        .custom-btn-secondary:hover,
-        .custom-btn-secondary:active {
-            background-color: #F5C144;
-            color: #000000;
-        }
-
-    .banner-container {
-        position: relative;
-        width: 100%;
-        height: 400px;
-        overflow: hidden;
-        margin: 0;
-        padding: 0;
-        background-color: #f0f0f0; /* Color de fondo mientras carga */
-    }
-
-    .banner-placeholder {
-        width: 100%;
-        height: 100%;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-    }
-
-    .spinner-sm {
-        width: 30px;
-        height: 30px;
-        border: 3px solid rgba(245, 193, 68, 0.2);
-        border-top: 3px solid #F5C144;
-        border-radius: 50%;
-        animation: spin 1s linear infinite;
-    }
-
-    .banner-image {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        opacity: 0;
-        transition: opacity 0.3s ease-out;
-        will-change: opacity;
-    }
-
-        .banner-image.fade-in {
-            opacity: 1;
-        }
-
-        .banner-image.fade-out {
-            opacity: 0;
-        }
-
-    @@media (max-width: 768px) {
-        .banner-container
-
-    {
-        height: 300px;
-    }
-
-    }
-
-    @@media (max-width: 480px) {
-        .banner-container
-
-    {
-        height: 200px;
-    }
-
-    }
-
-    @@keyframes spin {
-        to
-
-    {
-        transform: rotate(360deg);
-    }
-
-    }
-
-    .text-decoration-none {
+    .pillar-card {
+        background: #fff;
+        border-radius: 20px;
+        padding: 40px 30px 30px;
+        text-align: center;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+        transition: all 0.35s ease;
         text-decoration: none;
+        color: inherit;
+        display: block;
+        border: 2px solid transparent;
     }
 
-    .card-title {
-        font-size: 1.2rem;
-        margin-bottom: 0.5rem;
+    .pillar-card:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.12);
+        text-decoration: none;
+        color: inherit;
+        border-color: #F5C144;
     }
 
-    .card-text {
-        font-size: 1rem;
-        color: #565656;
+    .pillar-icon-wrap {
+        margin-bottom: 20px;
     }
 
-    .card:hover {
-        transform: scale(1.02);
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-        transition: transform 0.3s, box-shadow 0.3s;
-    }
-
-    .material-symbols-outlined {
-        font-variation-settings: 'FILL' 1, 'wght' 700, 'GRAD' 0, 'opsz' 48;
-    }
-
-    .info-banner {
-        background-color: rgba(245, 193, 68, 0.1);
-        padding: 2rem;
-        border-radius: 0.3rem;
-    }
-
-    .custom-card {
-        background-color: #fff;
-        border-radius: 15px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        position: relative;
-        padding-top: 50px;
-        transition: transform 0.3s ease, box-shadow 0.3s ease;
-    }
-
-        .custom-card:hover {
-            transform: translateY(-10px);
-            box-shadow: 0 8px 12px rgba(0,0,0,0.2);
-        }
-
-    .icon-wrapper {
-        width: 80px;
-        height: 80px;
-        background: #f8f9fa;
-        border-radius: 50%;
-        display: flex;
-        justify-content: center;
+    .pillar-icon {
+        width: 70px;
+        height: 70px;
+        border-radius: 20px;
+        display: inline-flex;
         align-items: center;
-        position: absolute;
-        top: -40px;
-        left: 50%;
-        transform: translateX(-50%);
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        transition: background 0.3s ease;
+        justify-content: center;
+        font-size: 1.8rem;
+        transition: transform 0.3s;
     }
 
-    .custom-icon {
-        font-size: 2rem;
+    .pillar-card:hover .pillar-icon {
+        transform: scale(1.1);
+    }
+
+    .pillar-freight .pillar-icon {
+        background: linear-gradient(135deg, #F5C144, #f0a500);
+        color: #000;
+    }
+    .pillar-products .pillar-icon {
+        background: linear-gradient(135deg, #1a1a2e, #0f3460);
         color: #F5C144;
-        transition: color 0.3s ease;
+    }
+    .pillar-services .pillar-icon {
+        background: linear-gradient(135deg, #25d366, #1da851);
+        color: #fff;
     }
 
-    .custom-title {
-        color: #F5C144;
-        font-weight: bold;
-    }
-
-    .more-info {
-        opacity: 0;
-        transition: opacity 0.3s ease, transform 0.3s ease;
-        transform: translateY(10px);
-        margin-top: 10px;
-    }
-
-    .custom-card:hover .more-info {
-        opacity: 1;
-        transform: translateY(0);
-    }
-
-    /* === Tablet === */
-    @@media (max-width: 768px) {
-        .jumbotron {
-            padding: 1.5rem 0.8rem;
-        }
-
-        .jumbotron h1 {
-            font-size: clamp(1.2rem, 4vw, 1.6rem);
-        }
-
-        .jumbotron .lead {
-            font-size: 1rem;
-        }
-
-        .mt-5 {
-            margin-top: 1.5rem;
-        }
-
-        .mb-5 {
-            margin-bottom: 1.5rem;
-        }
-
-        .custom-card {
-            padding-top: 40px;
-        }
-
-        .icon-wrapper {
-            width: 60px;
-            height: 60px;
-            top: -30px;
-        }
-
-        .custom-icon {
-            font-size: 1.5rem;
-        }
-
-        .info-banner {
-            padding: 1rem;
-        }
-
-        .custom-btn, .custom-btn-secondary {
-            font-size: 14px;
-            padding: 12px 15px;
-            min-height: 48px;
-        }
-
-        .col-md-5 {
-            flex: 0 0 100%;
-            max-width: 100%;
-        }
-
-        .col-md-4 {
-            flex: 0 0 50%;
-            max-width: 50%;
-        }
-    }
-
-    /* === Movil === */
-    @@media (max-width: 480px) {
-        .jumbotron h1 {
-            font-size: 1.2rem;
-        }
-
-        .jumbotron .lead {
-            font-size: 0.9rem;
-        }
-
-        .jumbotron p {
-            font-size: 0.9rem;
-        }
-
-        .mt-5 {
-            margin-top: 1rem;
-        }
-
-        .custom-card {
-            margin-bottom: 2rem;
-        }
-
-        .col-md-4 {
-            flex: 0 0 100%;
-            max-width: 100%;
-        }
-
-        .custom-btn, .custom-btn-secondary {
-            width: 100%;
-            font-size: 14px;
-            padding: 12px 15px;
-        }
-
-        .info-banner p {
-            font-size: 0.9rem;
-        }
-    }
-
-    /* ===== Mini Servicios Home ===== */
-    .servicios-home {
-        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-        padding: 55px 0;
-        margin-top: 3rem;
-    }
-
-    .servicios-home-header {
-        margin-bottom: 35px;
-    }
-
-    .sh-tag {
-        display: inline-block;
-        background: rgba(245, 193, 68, 0.2);
-        color: #F5C144;
-        font-size: 0.75rem;
-        font-weight: 700;
-        padding: 4px 14px;
-        border-radius: 15px;
-        letter-spacing: 1px;
-        text-transform: uppercase;
+    .pillar-card h3 {
+        font-size: 1.25rem;
+        font-weight: 800;
+        color: #1a1a2e;
         margin-bottom: 12px;
     }
 
-    .servicios-home-header h2 {
-        color: #fff;
-        font-size: 1.7rem;
+    .pillar-card p {
+        color: #666;
+        font-size: 0.92rem;
+        line-height: 1.6;
+        margin-bottom: 18px;
+    }
+
+    .pillar-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        color: #F5C144;
+        font-weight: 700;
+        font-size: 0.9rem;
+        transition: gap 0.3s;
+    }
+
+    .pillar-card:hover .pillar-link {
+        gap: 12px;
+    }
+
+    /* ===== FREIGHT SHOWCASE ===== */
+    .freight-showcase {
+        padding: 80px 0;
+        background: #fff;
+    }
+
+    .freight-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 60px;
+        align-items: center;
+    }
+
+    .section-tag {
+        display: inline-block;
+        background: rgba(245, 193, 68, 0.12);
+        color: #e6a817;
+        font-size: 0.78rem;
+        font-weight: 700;
+        padding: 5px 16px;
+        border-radius: 15px;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        margin-bottom: 14px;
+    }
+
+    .freight-info h2 {
+        font-size: 2.2rem;
         font-weight: 800;
-        margin: 0 0 8px;
+        color: #1a1a2e;
+        margin-bottom: 16px;
+        line-height: 1.2;
     }
 
-    .sh-sub {
-        color: #8a93a6;
+    .freight-desc {
+        color: #555;
         font-size: 1rem;
-        margin: 0;
+        line-height: 1.7;
+        margin-bottom: 30px;
     }
 
-    .sh-card {
+    .freight-features {
+        list-style: none;
+        padding: 0;
+        margin: 0 0 32px;
+    }
+
+    .freight-features li {
+        display: flex;
+        align-items: flex-start;
+        gap: 16px;
+        padding: 14px 0;
+        border-bottom: 1px solid #f0f0f0;
+    }
+
+    .freight-features li:last-child {
+        border-bottom: none;
+    }
+
+    .feature-icon {
+        width: 42px;
+        height: 42px;
+        min-width: 42px;
+        background: linear-gradient(135deg, rgba(245,193,68,0.15), rgba(245,193,68,0.05));
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #F5C144;
+        font-size: 1rem;
+    }
+
+    .freight-features strong {
+        display: block;
+        color: #1a1a2e;
+        font-size: 0.95rem;
+        margin-bottom: 2px;
+    }
+
+    .freight-features span {
+        color: #888;
+        font-size: 0.85rem;
+    }
+
+    .freight-cta {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        background: #F5C144;
+        color: #000;
+        font-size: 1rem;
+        font-weight: 700;
+        padding: 14px 32px;
+        border-radius: 50px;
+        text-decoration: none;
+        transition: all 0.3s;
+        box-shadow: 0 4px 15px rgba(245, 193, 68, 0.3);
+    }
+
+    .freight-cta:hover {
+        background: #e6b13a;
+        color: #000;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 25px rgba(245, 193, 68, 0.4);
+        text-decoration: none;
+    }
+
+    /* Freight Visual - Mapa ilustrativo */
+    .freight-map-card {
+        background: #1a1a2e;
+        border-radius: 20px;
+        overflow: hidden;
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15);
+    }
+
+    .map-header {
+        display: flex;
+        gap: 8px;
+        padding: 14px 18px;
+        background: rgba(255,255,255,0.05);
+    }
+
+    .map-dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+    }
+    .dot-green { background: #28a745; }
+    .dot-yellow { background: #F5C144; }
+    .dot-red { background: #dc3545; }
+
+    .map-body {
+        padding: 40px 30px;
+        position: relative;
+    }
+
+    .map-route-line {
+        position: absolute;
+        left: 52px;
+        top: 60px;
+        bottom: 100px;
+        width: 3px;
+        background: linear-gradient(to bottom, #28a745, #F5C144, #dc3545);
+        border-radius: 3px;
+    }
+
+    .map-point {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 18px 0;
+        position: relative;
+        z-index: 2;
+    }
+
+    .map-point i {
+        width: 36px;
+        height: 36px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        font-size: 0.9rem;
+    }
+
+    .mp-origin i {
+        background: rgba(40, 167, 69, 0.2);
+        color: #28a745;
+    }
+
+    .mp-stop i {
+        background: rgba(245, 193, 68, 0.2);
+        color: #F5C144;
+    }
+
+    .mp-dest i {
+        background: rgba(220, 53, 69, 0.2);
+        color: #dc3545;
+    }
+
+    .map-point span {
+        color: #b0b8c8;
+        font-size: 0.95rem;
+        font-weight: 500;
+    }
+
+    .map-info-box {
+        margin-top: 20px;
+        background: rgba(245, 193, 68, 0.1);
+        border: 1px solid rgba(245, 193, 68, 0.2);
+        border-radius: 12px;
+        padding: 16px 20px;
+        display: flex;
+        gap: 24px;
+    }
+
+    .map-info-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: #F5C144;
+        font-size: 0.9rem;
+        font-weight: 600;
+    }
+
+    .map-info-row i {
+        font-size: 0.85rem;
+        width: auto;
+        height: auto;
+        background: none;
+    }
+
+    /* ===== STATS ===== */
+    .stats-section {
+        padding: 60px 0;
+        background: linear-gradient(135deg, #F5C144 0%, #f0a500 100%);
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 30px;
+    }
+
+    .stat-card {
+        text-align: center;
+        padding: 20px;
+    }
+
+    .stat-icon {
+        font-size: 2rem;
+        color: rgba(0,0,0,0.25);
+        margin-bottom: 10px;
+    }
+
+    .stat-number {
+        font-size: 2.5rem;
+        font-weight: 800;
+        color: #000;
+        line-height: 1;
+        margin-bottom: 6px;
+    }
+
+    .stat-label {
+        font-size: 0.9rem;
+        color: rgba(0,0,0,0.6);
+        font-weight: 500;
+    }
+
+    /* ===== PRODUCTS ===== */
+    .products-section {
+        padding: 80px 0;
+        background: #f8f9fb;
+    }
+
+    .section-header-center {
+        text-align: center;
+        margin-bottom: 45px;
+    }
+
+    .section-header-center h2 {
+        font-size: 2rem;
+        font-weight: 800;
+        color: #1a1a2e;
+        margin-bottom: 10px;
+    }
+
+    .section-header-center p {
+        color: #777;
+        font-size: 1rem;
+    }
+
+    .section-tag-dark {
+        display: inline-block;
+        background: #1a1a2e;
+        color: #F5C144;
+        font-size: 0.75rem;
+        font-weight: 700;
+        padding: 5px 16px;
+        border-radius: 15px;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        margin-bottom: 14px;
+    }
+
+    .products-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 20px;
+    }
+
+    .product-cat-card {
+        background: #fff;
+        border-radius: 16px;
+        padding: 30px 24px;
+        text-align: center;
+        text-decoration: none;
+        color: inherit;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.04);
+        transition: all 0.3s;
+        border: 2px solid transparent;
+        display: block;
+    }
+
+    .product-cat-card:hover {
+        transform: translateY(-6px);
+        box-shadow: 0 12px 35px rgba(0,0,0,0.1);
+        border-color: #F5C144;
+        text-decoration: none;
+        color: inherit;
+    }
+
+    .pcc-icon {
+        width: 56px;
+        height: 56px;
+        border-radius: 14px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.4rem;
+        margin-bottom: 16px;
+        transition: transform 0.3s;
+    }
+
+    .product-cat-card:hover .pcc-icon {
+        transform: scale(1.1);
+    }
+
+    .pcc-steel .pcc-icon { background: #e8eaf6; color: #3f51b5; }
+    .pcc-cement .pcc-icon { background: #fce4ec; color: #e91e63; }
+    .pcc-roof .pcc-icon { background: #e0f2f1; color: #009688; }
+    .pcc-pvc .pcc-icon { background: #e3f2fd; color: #2196f3; }
+    .pcc-elec .pcc-icon { background: #fff3e0; color: #ff9800; }
+    .pcc-dry .pcc-icon { background: #f3e5f5; color: #9c27b0; }
+
+    .product-cat-card h4 {
+        font-size: 1.05rem;
+        font-weight: 700;
+        color: #1a1a2e;
+        margin-bottom: 6px;
+    }
+
+    .product-cat-card span {
+        font-size: 0.85rem;
+        color: #888;
+    }
+
+    .btn-see-all {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: transparent;
+        border: 2px solid #1a1a2e;
+        color: #1a1a2e;
+        font-weight: 700;
+        font-size: 0.95rem;
+        padding: 12px 30px;
+        border-radius: 30px;
+        text-decoration: none;
+        transition: all 0.3s;
+    }
+
+    .btn-see-all:hover {
+        background: #1a1a2e;
+        color: #F5C144;
+        text-decoration: none;
+        transform: translateY(-2px);
+    }
+
+    .btn-see-all i {
+        transition: transform 0.3s;
+    }
+
+    .btn-see-all:hover i {
+        transform: translateX(4px);
+    }
+
+    /* ===== SERVICES HOME ===== */
+    .services-home-section {
+        padding: 80px 0;
+        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    }
+
+    .services-home-section .section-header-center h2 {
+        color: #fff;
+    }
+
+    .services-home-section .section-header-center p {
+        color: #8a93a6;
+    }
+
+    .services-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 24px;
+    }
+
+    .srv-card {
         background: rgba(255, 255, 255, 0.06);
         border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 14px;
-        padding: 30px 20px;
+        border-radius: 16px;
+        padding: 32px 22px;
         text-align: center;
         transition: all 0.3s;
-        height: 100%;
+        position: relative;
     }
 
-    .sh-card:hover {
+    .srv-card:hover {
         background: rgba(255, 255, 255, 0.1);
         border-color: rgba(245, 193, 68, 0.3);
-        transform: translateY(-5px);
+        transform: translateY(-6px);
     }
 
-    .sh-icon {
+    .srv-featured {
+        border: 1px solid rgba(245, 193, 68, 0.3);
+    }
+
+    .srv-badge {
+        position: absolute;
+        top: -10px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: #F5C144;
+        color: #000;
+        font-size: 0.7rem;
+        font-weight: 700;
+        padding: 3px 12px;
+        border-radius: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .srv-icon {
         width: 60px;
         height: 60px;
         background: linear-gradient(135deg, #F5C144, #f0a500);
@@ -858,46 +1119,63 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        margin: 0 auto 16px;
+        margin: 0 auto 18px;
         transition: transform 0.3s;
     }
 
-    .sh-card:hover .sh-icon {
+    .srv-card:hover .srv-icon {
         transform: scale(1.12);
     }
 
-    .sh-icon i {
+    .srv-icon i {
         font-size: 1.4rem;
         color: #000;
     }
 
-    .sh-card h4 {
-        color: #fff;
-        font-size: 1.05rem;
-        font-weight: 700;
-        margin: 0 0 8px;
-    }
-
-    .sh-card p {
-        color: #8a93a6;
-        font-size: 0.85rem;
-        margin: 0;
-        line-height: 1.4;
-    }
-
-    .sh-card-eng {
-        border: 1px solid rgba(245, 193, 68, 0.3);
-    }
-
-    .sh-icon-eng {
+    .srv-icon-eng {
         background: linear-gradient(135deg, #0f3460, #16213e) !important;
     }
 
-    .sh-icon-eng i {
+    .srv-icon-eng i {
         color: #F5C144 !important;
     }
 
-    .sh-btn {
+    .srv-card h4 {
+        color: #fff;
+        font-size: 1.05rem;
+        font-weight: 700;
+        margin-bottom: 10px;
+    }
+
+    .srv-card p {
+        color: #8a93a6;
+        font-size: 0.85rem;
+        line-height: 1.5;
+        margin-bottom: 18px;
+    }
+
+    .srv-contact {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: #25d366;
+        color: #fff;
+        font-size: 0.82rem;
+        font-weight: 600;
+        padding: 8px 18px;
+        border-radius: 20px;
+        text-decoration: none;
+        transition: all 0.3s;
+    }
+
+    .srv-contact:hover {
+        background: #1da851;
+        color: #fff;
+        transform: scale(1.05);
+        text-decoration: none;
+    }
+
+    .btn-services-all {
         display: inline-flex;
         align-items: center;
         gap: 8px;
@@ -912,76 +1190,253 @@
         transition: all 0.3s;
     }
 
-    .sh-btn:hover {
+    .btn-services-all:hover {
         background: #F5C144;
         color: #000;
         text-decoration: none;
         transform: translateY(-2px);
     }
 
-    .sh-btn i {
-        font-size: 0.85rem;
+    .btn-services-all i {
         transition: transform 0.3s;
     }
 
-    .sh-btn:hover i {
+    .btn-services-all:hover i {
         transform: translateX(4px);
     }
 
+    /* ===== WHY SECTION ===== */
+    .why-section {
+        padding: 80px 0;
+        background: linear-gradient(135deg, #0f3460 0%, #1a1a2e 100%);
+    }
+
+    .why-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 24px;
+    }
+
+    .why-card {
+        text-align: center;
+        padding: 30px 20px;
+        border-radius: 16px;
+        background: rgba(255,255,255,0.04);
+        border: 1px solid rgba(255,255,255,0.06);
+        transition: all 0.3s;
+    }
+
+    .why-card:hover {
+        background: rgba(255,255,255,0.08);
+        transform: translateY(-4px);
+    }
+
+    .why-icon {
+        font-size: 2rem;
+        color: #F5C144;
+        margin-bottom: 16px;
+    }
+
+    .why-card h4 {
+        color: #fff;
+        font-size: 1.05rem;
+        font-weight: 700;
+        margin-bottom: 10px;
+    }
+
+    .why-card p {
+        color: #8a93a6;
+        font-size: 0.88rem;
+        line-height: 1.5;
+        margin: 0;
+    }
+
+    /* ===== FINAL CTA ===== */
+    .final-cta-section {
+        padding: 70px 0;
+        background: #fff;
+    }
+
+    .final-cta-inner {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 40px;
+        background: linear-gradient(135deg, #fefbf3 0%, #fff8e6 100%);
+        border: 2px solid rgba(245, 193, 68, 0.2);
+        border-radius: 24px;
+        padding: 50px;
+    }
+
+    .final-cta-text h2 {
+        font-size: 1.8rem;
+        font-weight: 800;
+        color: #1a1a2e;
+        margin-bottom: 10px;
+    }
+
+    .final-cta-text p {
+        color: #666;
+        font-size: 1rem;
+        margin: 0;
+    }
+
+    .final-cta-actions {
+        display: flex;
+        gap: 14px;
+        flex-shrink: 0;
+    }
+
+    .fcta-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.95rem;
+        font-weight: 700;
+        padding: 14px 28px;
+        border-radius: 50px;
+        text-decoration: none;
+        transition: all 0.3s;
+    }
+
+    .fcta-primary {
+        background: #F5C144;
+        color: #000;
+        box-shadow: 0 4px 15px rgba(245, 193, 68, 0.3);
+    }
+
+    .fcta-primary:hover {
+        background: #e6b13a;
+        color: #000;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 25px rgba(245, 193, 68, 0.4);
+        text-decoration: none;
+    }
+
+    .fcta-whatsapp {
+        background: #25d366;
+        color: #fff;
+        box-shadow: 0 4px 15px rgba(37, 211, 102, 0.3);
+    }
+
+    .fcta-whatsapp:hover {
+        background: #1da851;
+        color: #fff;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 25px rgba(37, 211, 102, 0.4);
+        text-decoration: none;
+    }
+
+    /* ============================== */
+    /* ===== RESPONSIVE DESIGN ===== */
+    /* ============================== */
+
+    @@media (max-width: 1024px) {
+        .hero-title { font-size: 2.6rem; }
+        .freight-grid { grid-template-columns: 1fr; gap: 40px; }
+        .freight-visual { order: -1; }
+        .freight-info h2 { font-size: 1.8rem; }
+    }
+
     @@media (max-width: 768px) {
-        .servicios-home {
-            padding: 40px 0;
-            margin-top: 1.5rem;
+        /* Hero */
+        .hero-section { padding: 70px 16px 60px; }
+        .hero-title { font-size: 2rem; }
+        .hero-subtitle { font-size: 1rem; }
+        .hero-btn-primary, .hero-btn-secondary {
+            padding: 14px 28px;
+            font-size: 0.95rem;
+            width: 100%;
+            justify-content: center;
         }
+        .hero-ctas { flex-direction: column; align-items: center; }
+        .hero-trust-row { gap: 12px; }
+        .trust-divider { display: none; }
+        .trust-item { font-size: 0.78rem; }
 
-        .servicios-home-header h2 {
-            font-size: 1.3rem;
-        }
+        /* Pillars */
+        .pillars-section { margin-top: -30px; }
+        .pillars-grid { grid-template-columns: 1fr; gap: 16px; }
+        .pillar-card { padding: 30px 24px 24px; }
 
-        .sh-sub {
-            font-size: 0.88rem;
-        }
+        /* Stats */
+        .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 20px; }
+        .stat-number { font-size: 2rem; }
 
-        .sh-card {
-            padding: 22px 14px;
-        }
+        /* Products */
+        .products-section { padding: 50px 0; }
+        .products-grid { grid-template-columns: repeat(2, 1fr); gap: 14px; }
+        .product-cat-card { padding: 24px 16px; }
+        .section-header-center h2 { font-size: 1.5rem; }
 
-        .sh-icon {
-            width: 50px;
-            height: 50px;
-        }
+        /* Services */
+        .services-home-section { padding: 50px 0; }
+        .services-grid { grid-template-columns: repeat(2, 1fr); gap: 16px; }
+        .srv-card { padding: 26px 16px; }
 
-        .sh-icon i {
-            font-size: 1.15rem;
-        }
+        /* Why */
+        .why-section { padding: 50px 0; }
+        .why-grid { grid-template-columns: repeat(2, 1fr); gap: 16px; }
 
-        .sh-card h4 {
-            font-size: 0.92rem;
-        }
+        /* Freight */
+        .freight-showcase { padding: 50px 0; }
+        .freight-info h2 { font-size: 1.6rem; }
 
-        .sh-card p {
-            font-size: 0.78rem;
+        /* Final CTA */
+        .final-cta-section { padding: 40px 0; }
+        .final-cta-inner {
+            flex-direction: column;
+            text-align: center;
+            padding: 35px 24px;
         }
+        .final-cta-text h2 { font-size: 1.4rem; }
+        .final-cta-actions { flex-direction: column; width: 100%; }
+        .fcta-btn { justify-content: center; width: 100%; }
     }
 
     @@media (max-width: 480px) {
-        .servicios-home {
-            padding: 30px 0;
-        }
+        /* Hero */
+        .hero-section { padding: 50px 14px 45px; }
+        .hero-title { font-size: 1.65rem; }
+        .hero-badge { font-size: 0.68rem; padding: 5px 14px; }
+        .hero-subtitle { font-size: 0.9rem; margin-bottom: 28px; }
 
-        .servicios-home-header h2 {
-            font-size: 1.15rem;
-        }
+        /* Pillars */
+        .pillar-card h3 { font-size: 1.1rem; }
+        .pillar-card p { font-size: 0.85rem; }
 
-        .sh-card {
-            padding: 18px 12px;
-        }
+        /* Products */
+        .products-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .product-cat-card { padding: 20px 12px; }
+        .product-cat-card h4 { font-size: 0.92rem; }
+        .product-cat-card span { font-size: 0.78rem; }
 
-        .sh-card h4 {
-            font-size: 0.85rem;
-        }
+        /* Services */
+        .services-grid { grid-template-columns: 1fr; }
+        .srv-card { padding: 24px 18px; }
 
-        .sh-btn {
+        /* Stats */
+        .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 14px; }
+        .stat-number { font-size: 1.7rem; }
+        .stat-label { font-size: 0.8rem; }
+        .stat-icon { font-size: 1.5rem; }
+
+        /* Why */
+        .why-grid { grid-template-columns: 1fr; }
+
+        /* Freight visual */
+        .map-body { padding: 28px 20px; }
+        .map-info-box { flex-direction: column; gap: 10px; }
+
+        /* Final CTA */
+        .final-cta-inner { padding: 28px 18px; }
+        .final-cta-text h2 { font-size: 1.2rem; }
+        .final-cta-text p { font-size: 0.88rem; }
+
+        /* General */
+        .section-header-center h2 { font-size: 1.3rem; }
+        .section-header-center p { font-size: 0.88rem; }
+        .btn-see-all, .btn-services-all {
             width: 100%;
             justify-content: center;
         }

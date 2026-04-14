@@ -17,7 +17,7 @@ a, .btn-link {
 }
 
 .content {
-    padding-top: 1.1rem;
+    padding-top: 0;
 }
 
 h1:focus {
@@ -54,9 +54,9 @@ h1:focus {
     color: #000000; /* Texto negro */
     border: none; /* Sin borde */
     padding: 10px 20px; /* Espaciado interno */
-    font-size: 16px; /* Tamaño de fuente */
+    font-size: 16px; /* Tamaï¿½o de fuente */
     cursor: pointer; /* Cursor de puntero */
-    transition: background-color 0.3s, color 0.3s; /* Transición suave para los cambios de color */
+    transition: background-color 0.3s, color 0.3s; /* Transiciï¿½n suave para los cambios de color */
     border-radius: 0; /* Botones cuadrados */
 }
 
@@ -127,7 +127,7 @@ h1:focus {
 .banner-image {
     width: 100%; /* Ancho completo */
     height: 100%; /* Altura completa del contenedor */
-    object-fit: cover; /* Asegura que la imagen se ajuste sin distorsión */
+    object-fit: cover; /* Asegura que la imagen se ajuste sin distorsiï¿½n */
     transition: opacity 0.5s ease-in-out;
 }
 
@@ -139,6 +139,6 @@ h1:focus {
 }
 
     .expandable-content.show {
-        max-height: 300px; /* Ajusta este valor según el contenido */
+        max-height: 300px; /* Ajusta este valor segï¿½n el contenido */
         padding: 10px 0;
     }

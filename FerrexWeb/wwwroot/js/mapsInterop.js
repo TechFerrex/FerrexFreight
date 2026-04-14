@@ -5,7 +5,7 @@
     let originMarker = null, destinationMarker = null;
     let stopMarkers = [];
     let isMapSelectionMode = false, currentSelection = "";
-    const truckRates = { small: 37, medium: 50, pickup: 33 };
+    const truckRates = { motorcycle: 15, small: 40, medium: 50, pickup: 33 };
     window.dotNetRef = null;
     window.calculationData = {};
 
@@ -19,14 +19,24 @@
         // Solo inicializar el mapa de freight aquí, /cart usa su propio mapa (initCartMap)
         if (!isFreightPage()) return;
 
-        const hondurasCenter = { lat: 14.0723, lng: -87.1921 };
+        const spsCenter = { lat: 15.50, lng: -88.03 };
+        const spsBounds = {
+            north: 15.58,
+            south: 15.44,
+            east: -87.94,
+            west: -88.12
+        };
 
         map = new google.maps.Map(document.getElementById("map"), {
-            center: hondurasCenter,
-            zoom: 7,
+            center: spsCenter,
+            zoom: 13,
             mapTypeControl: false,
             streetViewControl: false,
-            fullscreenControl: false
+            fullscreenControl: false,
+            restriction: {
+                latLngBounds: spsBounds,
+                strictBounds: true
+            }
         });
 
         directionsService = new google.maps.DirectionsService();
@@ -38,6 +48,8 @@
         if (originInput) {
             const acOrigin = new google.maps.places.Autocomplete(originInput, {
                 componentRestrictions: { country: "hn" },
+                bounds: spsBounds,
+                strictBounds: true,
                 fields: ["geometry", "name"]
             });
             acOrigin.addListener("place_changed", () => {
@@ -62,6 +74,8 @@
         if (destInput) {
             const acDest = new google.maps.places.Autocomplete(destInput, {
                 componentRestrictions: { country: "hn" },
+                bounds: spsBounds,
+                strictBounds: true,
                 fields: ["geometry", "name"]
             });
             acDest.addListener("place_changed", () => {
@@ -219,6 +233,8 @@
 
         const autocomplete = new google.maps.places.Autocomplete(input, {
             componentRestrictions: { country: "hn" },
+            bounds: { north: 15.58, south: 15.44, east: -87.94, west: -88.12 },
+            strictBounds: true,
             fields: ["geometry", "name", "formatted_address"]
         });
 
@@ -342,24 +358,30 @@
         document.getElementById("stops-list").appendChild(li);
     }
 
-    // –– Validación de departamento ––
+    // –– Validación: solo San Pedro Sula (Cortés) ––
     function validateAllowedLocation(latLng, callback) {
         const geocoder = new google.maps.Geocoder();
         geocoder.geocode({ location: latLng }, (results, status) => {
             if (status === 'OK' && results[0]) {
-                let isHN = false, deptOk = true;
+                let isHN = false, isSPS = false;
                 results[0].address_components.forEach(c => {
                     if (c.types.includes('country') && c.long_name.toLowerCase() === 'honduras') {
                         isHN = true;
                     }
+                    if (c.types.includes('locality') || c.types.includes('administrative_area_level_2')) {
+                        const name = c.long_name.toLowerCase();
+                        if (name.includes('san pedro sula') || name.includes('cortés') || name.includes('cortes')) {
+                            isSPS = true;
+                        }
+                    }
                     if (c.types.includes('administrative_area_level_1')) {
-                        const d = c.long_name.toLowerCase();
-                        if (d.includes('gracias a dios') || d.includes('islas')) {
-                            deptOk = false;
+                        const name = c.long_name.toLowerCase();
+                        if (name.includes('cortés') || name.includes('cortes')) {
+                            isSPS = true;
                         }
                     }
                 });
-                callback(isHN && deptOk);
+                callback(isHN && isSPS);
             } else callback(false);
         });
     }
@@ -445,12 +467,12 @@
         // 4) Validar que origen y destino estén en zona permitida
         validateAllowedLocation(originMarker.getPosition(), ok1 => {
             if (!ok1) {
-                showAlert("Origen fuera de zona autorizada.");
+                showAlert("El origen debe estar dentro de San Pedro Sula.");
                 return;
             }
             validateAllowedLocation(destinationMarker.getPosition(), ok2 => {
                 if (!ok2) {
-                    showAlert("Destino fuera de zona autorizada.");
+                    showAlert("El destino debe estar dentro de San Pedro Sula.");
                     return;
                 }
 
@@ -484,14 +506,16 @@
                     const distanceKm = totalMeters / 1000;
 
                     // 8) Cálculo de costos
-                    const truckType = document.getElementById("truck-type").value || "pickup";
+                    const truckType = document.getElementById("truck-type").value || "motorcycle";
                     const costPerKm = truckRates[truckType] || 33;
+                    const baseFlat = truckType === "motorcycle" ? 100
+                        : truckType === "small" ? 800 : 400;
                     let baseCost = 0;
                     if (distanceKm <= 6) {
-                        baseCost = (truckType === "small") ? 600 : 350;
+                        baseCost = baseFlat;
                     } else {
                         const extraKm = distanceKm - 6;
-                        baseCost = (truckType === "small" ? 600 : 350) + extraKm * costPerKm;
+                        baseCost = baseFlat + extraKm * costPerKm;
                     }
                     const insOpt = document.getElementById("insurance-option")?.value || "none";
                     let insuranceCost = insOpt === "basic" ? baseCost * 0.05

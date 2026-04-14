@@ -29,7 +29,7 @@
                 }
             </button>
         </li>
-        <li class="nav-item" role="presentation">
+        @* <li class="nav-item" role="presentation">
             <button class="nav-link @(activeTab == "productos" ? "active" : "")"
                     @onclick='() => activeTab = "productos"' type="button">
                 <i class="fas fa-box-open me-1"></i>
@@ -39,7 +39,7 @@
                     <span class="tab-badge">@quotations.Count</span>
                 }
             </button>
-        </li>
+        </li> *@
         <li class="nav-item" role="presentation">
             <button class="nav-link @(activeTab == "ordenes" ? "active" : "")"
                     @onclick='() => activeTab = "ordenes"' type="button">
@@ -112,7 +112,7 @@
         }
     }
 
-    <!-- Tab: Productos -->
+    @* <!-- Tab: Productos (inhabilitado temporalmente) -->
     @if (activeTab == "productos")
     {
         @if (quotations == null)
@@ -161,7 +161,7 @@
                 </table>
             </div>
         }
-    }
+    } *@
 
     <!-- Tab: Órdenes -->
     @if (activeTab == "ordenes")

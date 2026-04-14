@@ -16,7 +16,7 @@ html, body {
 
 /* 3. Separaci�n para que el contenido no quede oculto tras la nav */
 main {
-    margin-top: 80px; /* o la altura exacta de tu NavMenu */
+    margin-top: 0;
 }
 
 /* 4. Footer: menos padding y evita que crezca demasiado */
@@ -107,7 +107,7 @@ main {
 /* ===== Optimizaciones Globales para Movil ===== */
 @media (max-width: 768px) {
     main {
-        margin-top: 60px;
+        margin-top: 0;
     }
 
     .container {
@@ -118,7 +118,7 @@ main {
 
 @media (max-width: 480px) {
     main {
-        margin-top: 50px;
+        margin-top: 0;
     }
 }
 
