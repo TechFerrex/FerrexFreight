@@ -1,4 +1,4 @@
-﻿@page "/userinfo"
+@page "/userinfo"
 @using Microsoft.EntityFrameworkCore
 @using FerrexWeb.Services
 @using FerrexWeb.Models
@@ -15,180 +15,353 @@
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @using System.ComponentModel.DataAnnotations
 
-<div class="main">
-    @if (showErrorModal)
-    {
-        <div class="modal-overlay">
-            <div class="modal-box">
-                <h3 style="color:red">¡Error!</h3>
-                <p>@errorModalMessage</p>
-                    <div style="display:flex; justify-content:center; gap:10px;">
-                        <button class="user-button" @onclick="CloseErrorModal">
-                        Cerrar
-                    </button>
-                    @if (showForgotPasswordOption)
+<div class="auth-wrapper">
+    <div class="auth-card">
+        <div class="auth-header">
+            <div class="brand-logo">
+                <i class="fas fa-screwdriver-wrench"></i>
+            </div>
+            <h1 class="auth-title">Ferrexpress</h1>
+            <p class="auth-subtitle">
+                @(activeTab == "login" ? "Bienvenido de nuevo" : "Crea tu cuenta en segundos")
+            </p>
+        </div>
+
+        <div class="auth-tabs" role="tablist">
+            <button type="button"
+                    class="auth-tab @(activeTab == "login" ? "active" : "")"
+                    @onclick='() => SwitchTab("login")'>
+                <i class="fas fa-right-to-bracket"></i>
+                <span>Iniciar sesión</span>
+            </button>
+            <button type="button"
+                    class="auth-tab @(activeTab == "register" ? "active" : "")"
+                    @onclick='() => SwitchTab("register")'>
+                <i class="fas fa-user-plus"></i>
+                <span>Registrarse</span>
+            </button>
+        </div>
+
+        <div class="auth-body">
+            @if (activeTab == "login")
+            {
+                <form class="auth-form" @onsubmit:preventDefault="true" autocomplete="on">
+                    @if (!string.IsNullOrEmpty(loginError))
                     {
-                       <button class="user-button"
-                            style="background-color:orange; margin-left:10px;"
-                            @onclick="OpenForgotPasswordModal">
-                           ¿Olvidaste tu contraseña?
-                      </button>
+                        <div class="auth-alert auth-alert-error">
+                            <i class="fas fa-circle-exclamation"></i>
+                            <span>@loginError</span>
+                        </div>
                     }
+
+                    <div class="field">
+                        <label class="field-label">Correo electrónico</label>
+                        <div class="input-wrap">
+                            <i class="fas fa-envelope input-icon"></i>
+                            <input type="email"
+                                   class="field-input"
+                                   placeholder="tucorreo@ejemplo.com"
+                                   autocomplete="email"
+                                   @bind="loginModel.Email"
+                                   @bind:event="oninput" />
+                        </div>
+                    </div>
+
+                    <div class="field">
+                        <label class="field-label">Contraseña</label>
+                        <div class="input-wrap">
+                            <i class="fas fa-lock input-icon"></i>
+                            <input type="@(showLoginPassword ? "text" : "password")"
+                                   class="field-input"
+                                   placeholder="Tu contraseña"
+                                   autocomplete="current-password"
+                                   @bind="loginModel.Password"
+                                   @bind:event="oninput" />
+                            <button type="button"
+                                    class="toggle-pass"
+                                    tabindex="-1"
+                                    @onclick="() => showLoginPassword = !showLoginPassword"
+                                    aria-label="Mostrar u ocultar contraseña">
+                                <i class="fas @(showLoginPassword ? "fa-eye-slash" : "fa-eye")"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <button class="primary-btn"
+                            type="button"
+                            @onclick="HandleLogin"
+                            disabled="@isLoggingIn">
+                        @if (isLoggingIn)
+                        {
+                            <i class="fas fa-spinner fa-spin"></i>
+                            <span>Iniciando...</span>
+                        }
+                        else
+                        {
+                            <span>Iniciar sesión</span>
+                            <i class="fas fa-arrow-right-to-bracket"></i>
+                        }
+                    </button>
+
                     @if (showResendVerification)
                     {
-                        <button class="user-button"
-                                style="background-color:#28a745; margin-left:10px;"
-                                @onclick="ResendVerificationEmail">
-                            Reenviar verificación
+                        <button type="button" class="secondary-btn" @onclick="ResendVerificationEmail">
+                            <i class="fas fa-paper-plane"></i>
+                            <span>Reenviar correo de verificación</span>
                         </button>
                     }
-                </div>
-            </div>
-        </div>
-    }
-    @if (showForgotPasswordModal)
-    {
-        <div class="modal-overlay">
-            <div class="modal-box">
-                <h3>Recuperar contraseña</h3>
-                <EditForm Model="forgotModel" OnValidSubmit="HandleForgotPassword">
-                    <DataAnnotationsValidator />
-                    <ValidationSummary />
 
-                    <!-- Solo lectura y precargado desde loginModel.Email -->
-                    <InputText class="user-input"
-                               @bind-Value="forgotModel.Email"
-                               placeholder="Tu correo electrónico" />
-
-                    @if (!string.IsNullOrEmpty(forgotErrorMsg))
-                    {
-                        <p style="color:red">@forgotErrorMsg</p>
-                    }
-                    @if (!string.IsNullOrEmpty(forgotSuccessMsg))
-                    {
-                        <p style="color:green">@forgotSuccessMsg</p>
-                    }
-
-                    <div style="display:flex; justify-content:center; gap:10px;">
-                        <button class="user-button"
-                                type="submit"
-                                disabled="@isForgotSubmitting">
-                            @(isForgotSubmitting ? "Enviando..." : "Enviar enlace")
+                    <p class="switch-hint">
+                        ¿No tienes cuenta?
+                        <button type="button" class="link-btn" @onclick='() => SwitchTab("register")'>
+                            Regístrate aquí
                         </button>
-                        <button class="user-button"
-                                style="background-color:#aaa; margin-left:10px;"
-                                type="button"
-                                @onclick="() => showForgotPasswordModal = false">
-                            Cerrar
-                        </button>
-                    </div>
-                </EditForm>
-            </div>
-        </div>
-    }
-
-
-
-    @if (showVerifyModal)
-    {
-        <div class="modal-overlay">
-            <div class="modal-box">
-                <h3>¡Verifica tu correo!</h3>
-                <p>@verifyModalMessage</p>
-                <div style="text-align:right">
-                    <button class="user-button" @onclick="CloseVerifyModal">Cerrar</button>
-                </div>
-            </div>
-        </div>
-    }
-
-
-    @if (showPolicyDialog)
-    {
-        <div class="modal-overlay">
-            <div class="modal-box">
-                <h3>Política de Privacidad</h3>
-                <p>
-                    Aquí va el texto completo de tu política o un resumen. <br />
-                    El usuario debe leer y aceptar.
-                </p>
-                <div style="text-align: right;">
-                    <button class="user-button" @onclick="AcceptPolicy"
-                    style="display:inline-block; width:auto; margin-right:10px;">
-                        Aceptar
-                    </button>
-                    <button class="user-button" @onclick="DeclinePolicy"
-                    style="display:inline-block; width:auto; background-color:red;">
-                        Cancelar
-                    </button>
-                </div>
-            </div>
-        </div>
-    }
-
-    <input type="checkbox" id="chk" aria-hidden="true" class="user-input">
-    <div class="signup">
-        <form @onsubmit:preventDefault="true">
-            <label for="chk" aria-hidden="true">Registrarse</label>
-            <input type="text" class="user-input" name="name" placeholder="Tu Nombre" @bind="registerModel.Name" required>
-            <input type="email" class="user-input" name="email" placeholder="Correo" @bind="registerModel.Email" required>
-            <input type="text" class="user-input" name="phoneNumber" placeholder="Número de Teléfono" @bind="registerModel.PhoneNumber" required>
-            <input type="password" class="user-input" name="password" placeholder="Contraseña" @bind="registerModel.Password" required
-            minlength="8"
-            pattern="^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^\w])[A-Za-z\d\S]{8,}$"
-            title="La contraseña debe tener al menos 8 caracteres, incluyendo una mayúscula, un número y un carácter especial." />
-            <button class="user-button"
-                    type="button"
-                    @onclick="OnRegisterClick"
-                    disabled="@isRegistering">
-                @(isRegistering ? "Registrando..." : "Registrarse")
-            </button>
-            @if (!string.IsNullOrEmpty(registerMessage))
-            {
-                <div class="alert alert-info">@registerMessage</div>
+                    </p>
+                </form>
             }
-        </form>
-    </div>
+            else
+            {
+                <form class="auth-form" @onsubmit:preventDefault="true" autocomplete="on">
+                    @if (!string.IsNullOrEmpty(registerError))
+                    {
+                        <div class="auth-alert auth-alert-error">
+                            <i class="fas fa-circle-exclamation"></i>
+                            <span>@registerError</span>
+                        </div>
+                    }
 
-    <div class="login">
-        <form @onsubmit:preventDefault="true">
-            <label style="padding-top: 50px" for="chk" aria-hidden="true">Inicio de Sesión</label>
-            <input type="email" class="user-input" name="email" placeholder="Correo" @bind="loginModel.Email" required />
-            <input type="password" class="user-input" name="password" placeholder="Contraseña" @bind="loginModel.Password" required />
-            <button class="user-button"
-            type="button"
-            @onclick="HandleLogin"
-            disabled="@isLoggingIn">
-                @(isLoggingIn ? "Iniciando..." : "Iniciar sesión")
-            </button>
-            <div style="text-align:center; margin-top:10px;">
-                <button type="button" class="forgot-link" @onclick="OpenForgotPasswordModal">
-                    ¿Olvidaste tu contraseña?
-                </button>
-            </div>
-        </form>
+                    <div class="field">
+                        <label class="field-label">Nombre completo</label>
+                        <div class="input-wrap">
+                            <i class="fas fa-user input-icon"></i>
+                            <input type="text"
+                                   class="field-input"
+                                   placeholder="Ej. Juan Pérez"
+                                   autocomplete="name"
+                                   @bind="registerModel.Name"
+                                   @bind:event="oninput" />
+                        </div>
+                    </div>
+
+                    <div class="field">
+                        <label class="field-label">Correo electrónico</label>
+                        <div class="input-wrap">
+                            <i class="fas fa-envelope input-icon"></i>
+                            <input type="email"
+                                   class="field-input"
+                                   placeholder="tucorreo@ejemplo.com"
+                                   autocomplete="email"
+                                   @bind="registerModel.Email"
+                                   @bind:event="oninput" />
+                        </div>
+                    </div>
+
+                    <div class="field">
+                        <label class="field-label">Teléfono</label>
+                        <div class="input-wrap">
+                            <i class="fas fa-phone input-icon"></i>
+                            <input type="tel"
+                                   class="field-input"
+                                   placeholder="Ej. +52 555 123 4567"
+                                   autocomplete="tel"
+                                   @bind="registerModel.PhoneNumber"
+                                   @bind:event="oninput" />
+                        </div>
+                    </div>
+
+                    <div class="field">
+                        <label class="field-label">Contraseña</label>
+                        <div class="input-wrap">
+                            <i class="fas fa-lock input-icon"></i>
+                            <input type="@(showRegisterPassword ? "text" : "password")"
+                                   class="field-input"
+                                   placeholder="Mínimo 8 caracteres"
+                                   autocomplete="new-password"
+                                   @bind="registerModel.Password"
+                                   @bind:event="oninput" />
+                            <button type="button"
+                                    class="toggle-pass"
+                                    tabindex="-1"
+                                    @onclick="() => showRegisterPassword = !showRegisterPassword"
+                                    aria-label="Mostrar u ocultar contraseña">
+                                <i class="fas @(showRegisterPassword ? "fa-eye-slash" : "fa-eye")"></i>
+                            </button>
+                        </div>
+
+                        <ul class="pw-requirements">
+                            <li class="@(HasMinLength(registerModel.Password) ? "ok" : "")">
+                                <i class="fas @(HasMinLength(registerModel.Password) ? "fa-circle-check" : "fa-circle")"></i>
+                                Al menos 8 caracteres
+                            </li>
+                            <li class="@(HasUpper(registerModel.Password) ? "ok" : "")">
+                                <i class="fas @(HasUpper(registerModel.Password) ? "fa-circle-check" : "fa-circle")"></i>
+                                Una letra mayúscula
+                            </li>
+                            <li class="@(HasDigit(registerModel.Password) ? "ok" : "")">
+                                <i class="fas @(HasDigit(registerModel.Password) ? "fa-circle-check" : "fa-circle")"></i>
+                                Un número
+                            </li>
+                            <li class="@(HasSymbol(registerModel.Password) ? "ok" : "")">
+                                <i class="fas @(HasSymbol(registerModel.Password) ? "fa-circle-check" : "fa-circle")"></i>
+                                Un carácter especial
+                            </li>
+                        </ul>
+                    </div>
+
+                    <button class="primary-btn"
+                            type="button"
+                            @onclick="OnRegisterClick"
+                            disabled="@isRegistering">
+                        @if (isRegistering)
+                        {
+                            <i class="fas fa-spinner fa-spin"></i>
+                            <span>Registrando...</span>
+                        }
+                        else
+                        {
+                            <span>Crear cuenta</span>
+                            <i class="fas fa-user-plus"></i>
+                        }
+                    </button>
+
+                    <p class="switch-hint">
+                        ¿Ya tienes cuenta?
+                        <button type="button" class="link-btn" @onclick='() => SwitchTab("login")'>
+                            Inicia sesión
+                        </button>
+                    </p>
+                </form>
+            }
+        </div>
     </div>
 </div>
+
+@* ---------- Modales ---------- *@
+
+@if (showForgotPasswordModal)
+{
+    <div class="modal-overlay" @onclick="CloseForgotPasswordModal">
+        <div class="modal-box" @onclick:stopPropagation="true">
+            <div class="modal-icon"><i class="fas fa-key"></i></div>
+            <h3>Recuperar contraseña</h3>
+            <p class="modal-subtitle">Te enviaremos un enlace para restablecerla.</p>
+
+            <EditForm Model="forgotModel" OnValidSubmit="HandleForgotPassword">
+                <DataAnnotationsValidator />
+
+                <div class="field">
+                    <div class="input-wrap">
+                        <i class="fas fa-envelope input-icon"></i>
+                        <InputText class="field-input"
+                                   @bind-Value="forgotModel.Email"
+                                   placeholder="Tu correo electrónico" />
+                    </div>
+                </div>
+
+                @if (!string.IsNullOrEmpty(forgotErrorMsg))
+                {
+                    <div class="auth-alert auth-alert-error">
+                        <i class="fas fa-circle-exclamation"></i>
+                        <span>@forgotErrorMsg</span>
+                    </div>
+                }
+                @if (!string.IsNullOrEmpty(forgotSuccessMsg))
+                {
+                    <div class="auth-alert auth-alert-success">
+                        <i class="fas fa-circle-check"></i>
+                        <span>@forgotSuccessMsg</span>
+                    </div>
+                }
+
+                <div class="modal-actions">
+                    <button class="secondary-btn"
+                            type="button"
+                            @onclick="CloseForgotPasswordModal">
+                        Cancelar
+                    </button>
+                    <button class="primary-btn"
+                            type="submit"
+                            disabled="@isForgotSubmitting">
+                        @if (isForgotSubmitting)
+                        {
+                            <i class="fas fa-spinner fa-spin"></i>
+                            <span>Enviando...</span>
+                        }
+                        else
+                        {
+                            <span>Enviar enlace</span>
+                        }
+                    </button>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+}
+
+@if (showVerifyModal)
+{
+    <div class="modal-overlay" @onclick="CloseVerifyModal">
+        <div class="modal-box" @onclick:stopPropagation="true">
+            <div class="modal-icon success"><i class="fas fa-circle-check"></i></div>
+            <h3>¡Listo!</h3>
+            <p class="modal-subtitle">@verifyModalMessage</p>
+            <div class="modal-actions">
+                <button class="primary-btn" @onclick="CloseVerifyModal">
+                    Continuar
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@if (showPolicyDialog)
+{
+    <div class="modal-overlay">
+        <div class="modal-box" @onclick:stopPropagation="true">
+            <div class="modal-icon"><i class="fas fa-file-shield"></i></div>
+            <h3>Política de Privacidad</h3>
+            <p class="modal-subtitle">
+                Para continuar con el registro necesitas aceptar nuestra política de privacidad.
+                Tus datos se utilizarán únicamente para el funcionamiento de tu cuenta y los
+                pedidos que realices en Ferrexpress.
+            </p>
+            <div class="modal-actions">
+                <button class="secondary-btn" @onclick="DeclinePolicy">
+                    Cancelar
+                </button>
+                <button class="primary-btn" @onclick="AcceptPolicy">
+                    Aceptar y continuar
+                </button>
+            </div>
+        </div>
+    </div>
+}
 
 @code {
     private LoginModel loginModel = new LoginModel();
     private RegisterModel registerModel = new RegisterModel();
-    private bool loginFailed;
-    private bool registerFailed;
-    private bool showForgotPasswordOption = false;
-    private bool showForgotPasswordModal = false;
-    private string loginMessage;
+
+    private string activeTab = "login";
+    private bool showLoginPassword = false;
+    private bool showRegisterPassword = false;
+
+    private string loginError;
+    private string registerError;
 
     private bool isLoggingIn = false;
     private bool isRegistering = false;
     private bool showPolicyDialog = false;
-    private bool showErrorModal = false;
     private bool showVerifyModal = false;
     private string verifyModalMessage;
-    private string errorModalMessage = string.Empty;
-  
 
-    private string registerMessage;
+    private bool showForgotPasswordModal = false;
+    private bool isForgotSubmitting = false;
+    private string forgotErrorMsg;
+    private string forgotSuccessMsg;
+    private ForgotPasswordModel forgotModel = new();
+
+    private bool showResendVerification = false;
+    private int? pendingVerificationUserId = null;
 
     private static System.Collections.Concurrent.ConcurrentDictionary<string, int> loginAttempts = new();
     private static System.Collections.Concurrent.ConcurrentDictionary<string, DateTime> lockouts = new();
@@ -196,30 +369,53 @@
     private static System.Collections.Concurrent.ConcurrentDictionary<string, DateTime> lastForgot = new();
     private static System.Collections.Concurrent.ConcurrentDictionary<string, DateTime> lastResend = new();
     private const int RateLimitSeconds = 60;
+    private const int MaxLoginAttempts = 5;
+    private const int LockoutMinutes = 15;
 
-    private bool showResendVerification = false;
-    private int? pendingVerificationUserId = null;
-
-    private ForgotPasswordModel forgotModel = new();
-
-    // Mensajes dentro del modal
-    private string forgotErrorMsg;
-    private string forgotSuccessMsg;
     private class ForgotPasswordModel
     {
-        [Required, EmailAddress]
+        [Required(ErrorMessage = "Ingresa tu correo electrónico.")]
+        [EmailAddress(ErrorMessage = "El correo no tiene un formato válido.")]
         public string Email { get; set; }
     }
-    // Abre el modal de recuperar
+
+    public class LoginModel
+    {
+        public string Email { get; set; }
+        public string Password { get; set; }
+    }
+
+    public class RegisterModel
+    {
+        public string Name { get; set; }
+        public string Email { get; set; }
+        public string PhoneNumber { get; set; }
+        public string Password { get; set; }
+        public bool PolicyAccepted { get; set; }
+    }
+
+    private void SwitchTab(string tab)
+    {
+        activeTab = tab;
+        loginError = null;
+        registerError = null;
+        showResendVerification = false;
+    }
+
     private void OpenForgotPasswordModal()
     {
         showForgotPasswordModal = true;
-        showErrorModal = false;
         forgotErrorMsg = null;
         forgotSuccessMsg = null;
-        forgotModel.Email = loginModel.Email ?? "";
+        forgotModel = new ForgotPasswordModel { Email = loginModel.Email ?? "" };
     }
-    private bool isForgotSubmitting = false;
+
+    private void CloseForgotPasswordModal()
+    {
+        showForgotPasswordModal = false;
+        forgotErrorMsg = null;
+        forgotSuccessMsg = null;
+    }
 
     private async Task HandleForgotPassword()
     {
@@ -283,7 +479,7 @@
         }
         catch
         {
-            forgotErrorMsg = "Error al enviar el enlace. Inténtalo de nuevo más tarde.";
+            forgotErrorMsg = "No pudimos enviar el enlace. Inténtalo de nuevo más tarde.";
         }
         finally
         {
@@ -291,82 +487,76 @@
         }
     }
 
-
-    private const int MaxLoginAttempts = 5;
-    private const int LockoutMinutes = 15;
-
     private async Task HandleLogin()
     {
         if (isLoggingIn) return;
         isLoggingIn = true;
-        showErrorModal = false;
+        loginError = null;
+        showResendVerification = false;
 
-        var emailKey = loginModel.Email?.ToLower() ?? "";
-
-        // Verificar si está bloqueado
-        if (lockouts.TryGetValue(emailKey, out var lockoutEnd) && DateTime.UtcNow < lockoutEnd)
+        try
         {
-            var remaining = (int)(lockoutEnd - DateTime.UtcNow).TotalMinutes + 1;
-            ShowError($"Demasiados intentos fallidos. Intenta de nuevo en {remaining} minutos.");
-            isLoggingIn = false;
-            return;
-        }
+            var emailKey = loginModel.Email?.Trim().ToLower() ?? "";
 
-        if (string.IsNullOrWhiteSpace(loginModel.Email) || string.IsNullOrWhiteSpace(loginModel.Password))
-        {
-            ShowError("Correo y contraseña son obligatorios.");
-            isLoggingIn = false;
-            return;
-        }
-
-        var user = await DbContext.Users.Include(u => u.Role).FirstOrDefaultAsync(u => u.Email.ToLower() == loginModel.Email.ToLower());
-        if (user == null || !BCrypt.Net.BCrypt.Verify(loginModel.Password, user.Password))
-        {
-            // Incrementar intentos fallidos (thread-safe)
-            var attempts = loginAttempts.AddOrUpdate(emailKey, 1, (_, prev) => prev + 1);
-
-            if (attempts >= MaxLoginAttempts)
+            if (string.IsNullOrWhiteSpace(loginModel.Email) || string.IsNullOrWhiteSpace(loginModel.Password))
             {
-                lockouts[emailKey] = DateTime.UtcNow.AddMinutes(LockoutMinutes);
-                loginAttempts.TryRemove(emailKey, out _);
-                ShowError($"Demasiados intentos fallidos. Cuenta bloqueada por {LockoutMinutes} minutos.");
+                loginError = "Ingresa tu correo y tu contraseña para continuar.";
+                return;
             }
-            else
+
+            if (lockouts.TryGetValue(emailKey, out var lockoutEnd) && DateTime.UtcNow < lockoutEnd)
             {
-                var remaining = MaxLoginAttempts - attempts;
-                showForgotPasswordOption = true;
-                ShowError($"Correo o contraseña incorrectos. Te quedan {remaining} intentos.");
+                var remaining = (int)(lockoutEnd - DateTime.UtcNow).TotalMinutes + 1;
+                loginError = $"Demasiados intentos fallidos. Intenta de nuevo en {remaining} minuto(s).";
+                return;
             }
-            isLoggingIn = false;
-            return;
+
+            var user = await DbContext.Users.Include(u => u.Role)
+                .FirstOrDefaultAsync(u => u.Email.ToLower() == emailKey);
+
+            if (user == null || !BCrypt.Net.BCrypt.Verify(loginModel.Password, user.Password))
+            {
+                var attempts = loginAttempts.AddOrUpdate(emailKey, 1, (_, prev) => prev + 1);
+
+                if (attempts >= MaxLoginAttempts)
+                {
+                    lockouts[emailKey] = DateTime.UtcNow.AddMinutes(LockoutMinutes);
+                    loginAttempts.TryRemove(emailKey, out _);
+                    loginError = $"Demasiados intentos fallidos. Tu cuenta quedó bloqueada por {LockoutMinutes} minutos.";
+                }
+                else
+                {
+                    var remaining = MaxLoginAttempts - attempts;
+                    loginError = $"Correo o contraseña incorrectos. Te quedan {remaining} intento(s).";
+                }
+                return;
+            }
+
+            // Verificación de correo desactivada temporalmente.
+
+            loginAttempts.TryRemove(emailKey, out _);
+            lockouts.TryRemove(emailKey, out _);
+
+            var claims = new List<Claim> {
+                new Claim(ClaimTypes.Name, user.Name),
+                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+                new Claim(ClaimTypes.Email, user.Email),
+                new Claim(ClaimTypes.Role, user.Role?.Name ?? "User")
+            };
+            var token = GenerateJwt(claims);
+            if (AuthenticationStateProvider is CustomAuthenticationStateProvider cap)
+                await cap.SignIn(token);
+
+            NavigationManager.NavigateTo("/");
         }
-
-        // Verificación de correo desactivada temporalmente
-        // if (!user.EmailConfirmed)
-        // {
-        //     pendingVerificationUserId = user.Id;
-        //     showResendVerification = true;
-        //     ShowError("Verifica tu correo antes de iniciar sesión.");
-        //     isLoggingIn = false;
-        //     return;
-        // }
-
-        // Login exitoso - limpiar intentos
-        loginAttempts.TryRemove(emailKey, out _);
-        lockouts.TryRemove(emailKey, out _);
-
-        // Generar JWT y navegar
-        var claims = new List<Claim> {
-            new Claim(ClaimTypes.Name, user.Name),
-            new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-            new Claim(ClaimTypes.Email, user.Email),
-            new Claim(ClaimTypes.Role, user.Role?.Name ?? "User")
-        };
-        var token = GenerateJwt(claims);
-        if (AuthenticationStateProvider is CustomAuthenticationStateProvider cap)
-            await cap.SignIn(token);
-
-        NavigationManager.NavigateTo("/");
+        catch
+        {
+            loginError = "Ocurrió un error al iniciar sesión. Inténtalo de nuevo.";
+        }
+        finally
+        {
+            isLoggingIn = false;
+        }
     }
 
     private string GenerateJwt(List<Claim> claims)
@@ -385,15 +575,36 @@
     private void OnRegisterClick()
     {
         if (isRegistering) return;
+        registerError = null;
+
+        if (string.IsNullOrWhiteSpace(registerModel.Name)
+            || string.IsNullOrWhiteSpace(registerModel.Email)
+            || string.IsNullOrWhiteSpace(registerModel.Password)
+            || string.IsNullOrWhiteSpace(registerModel.PhoneNumber))
+        {
+            registerError = "Completa todos los campos para crear tu cuenta.";
+            return;
+        }
+
+        if (!IsPasswordValid(registerModel.Password))
+        {
+            registerError = "Tu contraseña debe tener al menos 8 caracteres, una mayúscula, un número y un carácter especial.";
+            return;
+        }
+
+        if (!System.Text.RegularExpressions.Regex.IsMatch(registerModel.PhoneNumber.Trim(), @"^\+?[\d\s\-]{8,15}$"))
+        {
+            registerError = "Ingresa un número de teléfono válido (8 a 15 dígitos).";
+            return;
+        }
+
         showPolicyDialog = true;
     }
 
     private async Task AcceptPolicy()
     {
         registerModel.PolicyAccepted = true;
-
         showPolicyDialog = false;
-
         await HandleRegister();
     }
 
@@ -407,51 +618,24 @@
     {
         if (isRegistering) return;
         isRegistering = true;
-        registerMessage = null;
+        registerError = null;
 
         try
         {
-            // 1) Validar campos obligatorios
-            if (string.IsNullOrWhiteSpace(registerModel.Name)
-                || string.IsNullOrWhiteSpace(registerModel.Email)
-                || string.IsNullOrWhiteSpace(registerModel.Password))
-            {
-                registerMessage = "Todos los campos son obligatorios.";
-                return;
-            }
-
-            // 2) Validar formato de teléfono
-            if (string.IsNullOrWhiteSpace(registerModel.PhoneNumber)
-                || !System.Text.RegularExpressions.Regex.IsMatch(registerModel.PhoneNumber.Trim(), @"^\+?[\d\s\-]{8,15}$"))
-            {
-                registerMessage = "Ingresa un número de teléfono válido (8-15 dígitos).";
-                return;
-            }
-
-            // 3) Validar complejidad de contraseña server-side
-            if (!IsPasswordValid(registerModel.Password))
-            {
-                registerMessage = "La contraseña debe tener al menos 8 caracteres, una mayúscula, un número y un carácter especial.";
-                return;
-            }
-
-            // 4) Rate limiting por email
-            var emailKey = registerModel.Email.ToLower();
+            var emailKey = registerModel.Email.Trim().ToLower();
             if (lastRegistration.TryGetValue(emailKey, out var lastTime)
                 && (DateTime.UtcNow - lastTime).TotalSeconds < RateLimitSeconds)
             {
-                registerMessage = "Espera un momento antes de intentar registrarte de nuevo.";
+                registerError = "Espera un momento antes de intentar registrarte de nuevo.";
                 return;
             }
 
-            // 5) Comprobar duplicado (case-insensitive)
             if (await DbContext.Users.AnyAsync(u => u.Email.ToLower() == emailKey))
             {
-                registerMessage = "Este correo ya está registrado.";
+                registerError = "Este correo ya está registrado. Intenta iniciar sesión.";
                 return;
             }
 
-            // 6) Crear usuario (verificación de correo desactivada — se crea ya confirmado)
             var user = new User
                 {
                     Name = registerModel.Name.Trim(),
@@ -466,16 +650,15 @@
             DbContext.Users.Add(user);
             await DbContext.SaveChangesAsync();
 
-            // 7) y 8) Generación de token y envío de correo de verificación desactivados temporalmente.
-
             lastRegistration[emailKey] = DateTime.UtcNow;
             registerModel = new RegisterModel();
-            verifyModalMessage = "¡Cuenta creada exitosamente! Ya puedes iniciar sesión.";
+            verifyModalMessage = "Tu cuenta fue creada correctamente. Ya puedes iniciar sesión.";
             showVerifyModal = true;
+            activeTab = "login";
         }
-        catch (Exception)
+        catch
         {
-            registerMessage = "Ocurrió un error durante el registro. Inténtalo de nuevo.";
+            registerError = "Ocurrió un error durante el registro. Inténtalo de nuevo.";
         }
         finally
         {
@@ -488,23 +671,6 @@
         showVerifyModal = false;
     }
 
-    public class LoginModel
-    {
-        public string Email { get; set; }
-        public string Password { get; set; }
-    }
-
-    public class RegisterModel
-    {
-        public string Name { get; set; }
-        public string Email { get; set; }
-        public string PhoneNumber { get; set; }
-        public string Password { get; set; }
-        public bool PolicyAccepted { get; set; }
-
-    }
- 
-
     private async Task ResendVerificationEmail()
     {
         if (!pendingVerificationUserId.HasValue) return;
@@ -513,28 +679,27 @@
         if (lastResend.TryGetValue(resendKey, out var lastResendTime)
             && (DateTime.UtcNow - lastResendTime).TotalSeconds < RateLimitSeconds)
         {
-            ShowError("Espera un momento antes de reenviar el correo.");
+            loginError = "Espera un momento antes de reenviar el correo.";
             return;
         }
 
-        var user = await DbContext.Users.Include(u => u.Role).FirstOrDefaultAsync(u => u.Id == pendingVerificationUserId.Value);
+        var user = await DbContext.Users.Include(u => u.Role)
+            .FirstOrDefaultAsync(u => u.Id == pendingVerificationUserId.Value);
         if (user == null || user.EmailConfirmed) return;
 
-        // Eliminar tokens de verificación anteriores
         var oldTokens = await DbContext.EmailVerifications
             .Where(ev => ev.UserId == user.Id)
             .ToListAsync();
         DbContext.EmailVerifications.RemoveRange(oldTokens);
 
-        // Generar nuevo token
         var token = Guid.NewGuid().ToString("N");
         var ev2 = new EmailVerification
-        {
-            UserId = user.Id,
-            Token = token,
-            ExpiresAt = DateTime.UtcNow.AddMinutes(30),
-            CreatedAt = DateTime.UtcNow
-        };
+            {
+                UserId = user.Id,
+                Token = token,
+                ExpiresAt = DateTime.UtcNow.AddMinutes(30),
+                CreatedAt = DateTime.UtcNow
+            };
         DbContext.EmailVerifications.Add(ev2);
         await DbContext.SaveChangesAsync();
 
@@ -549,13 +714,13 @@
             await EmailSender.SendEmailAsync(user.Email, "Verifica tu correo", html);
             lastResend[resendKey] = DateTime.UtcNow;
             showResendVerification = false;
-            showErrorModal = false;
+            loginError = null;
             verifyModalMessage = "Se ha reenviado el correo de verificación. Revisa tu bandeja.";
             showVerifyModal = true;
         }
         catch
         {
-            ShowError("Error al reenviar el correo. Inténtalo más tarde.");
+            loginError = "No pudimos reenviar el correo. Inténtalo más tarde.";
         }
     }
 
@@ -566,284 +731,496 @@
             && password.Any(c => !char.IsLetterOrDigit(c));
     }
 
-    // Método para abrir el modal
-    private void ShowError(string message)
-    {
-        errorModalMessage = message;
-        showErrorModal = true;
-    }
-
-    // Método para cerrarlo
-    private void CloseErrorModal()
-    {
-        showErrorModal = false;
-        // Opcionalmente: limpiar flags de fallo
-        loginFailed = false;
-        registerFailed = false;
-    }
-
+    private static bool HasMinLength(string p) => !string.IsNullOrEmpty(p) && p.Length >= 8;
+    private static bool HasUpper(string p) => !string.IsNullOrEmpty(p) && p.Any(char.IsUpper);
+    private static bool HasDigit(string p) => !string.IsNullOrEmpty(p) && p.Any(char.IsDigit);
+    private static bool HasSymbol(string p) => !string.IsNullOrEmpty(p) && p.Any(c => !char.IsLetterOrDigit(c));
 }
 
 <style>
-    body {
-        background: url("/images/sitioweb-horizontal.png") no-repeat center/cover;
-        margin: 0;
-    }
-
-    .main {
-        padding: 0;
-        width: 650px;
-        max-width: 95%;
-        height: 600px;
-        margin: 0 auto;
-        border-radius: 15px;
-        justify-content: center;
-        align-items: center;
-        overflow: hidden;
-        font-family: 'Jost', sans-serif;
-        background: linear-gradient(to bottom, #e6b23b, #F5C144, #e6b23b);
-    }
-
-    #chk {
-        display: none;
-    }
-
-    .signup, .login {
-        position: relative;
-        width: 100%;
-        height: 90%;
-    }
-
-    label {
-        color: #fff;
-        font-size: 2.3em;
-        justify-content: center;
+    .auth-wrapper {
+        min-height: calc(100vh - 120px);
         display: flex;
-        margin: 60px;
-        font-weight: bold;
-        cursor: pointer;
-        transition: .5s ease-in-out;
+        align-items: center;
+        justify-content: center;
+        padding: 40px 16px;
+        font-family: 'Jost', sans-serif;
+        box-sizing: border-box;
+        background:
+            radial-gradient(1200px 500px at 10% -10%, rgba(245,193,68,0.25), transparent 60%),
+            radial-gradient(900px 500px at 110% 110%, rgba(245,193,68,0.18), transparent 60%),
+            linear-gradient(180deg, #f9fafb 0%, #f1f3f7 100%);
     }
+
+    .auth-card {
+        width: 100%;
+        max-width: 460px;
+        background: #fff;
+        border-radius: 20px;
+        box-shadow: 0 20px 50px -20px rgba(17, 24, 39, 0.25), 0 4px 12px rgba(17,24,39,0.06);
+        overflow: hidden;
+        box-sizing: border-box;
+    }
+
+    .auth-header {
+        text-align: center;
+        padding: 32px 28px 18px;
+    }
+
+    .brand-logo {
+        width: 58px;
+        height: 58px;
+        margin: 0 auto 12px;
+        border-radius: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #F5C144 0%, #e6a82b 100%);
+        color: #fff;
+        font-size: 1.6em;
+        box-shadow: 0 8px 20px -8px rgba(230, 168, 43, 0.7);
+    }
+
+    .auth-title {
+        font-size: 1.6em;
+        font-weight: 700;
+        margin: 0;
+        color: #111827;
+        letter-spacing: -0.02em;
+    }
+
+    .auth-subtitle {
+        margin: 6px 0 0;
+        color: #6b7280;
+        font-size: 0.95em;
+    }
+
+    .auth-tabs {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 4px;
+        padding: 0 28px;
+        background: #fff;
+        border-bottom: 1px solid #eef0f3;
+    }
+
+    .auth-tab {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 14px 8px;
+        background: transparent;
+        border: none;
+        color: #6b7280;
+        font-size: 0.95em;
+        font-weight: 600;
+        cursor: pointer;
+        border-bottom: 2px solid transparent;
+        transition: color 0.2s, border-color 0.2s;
+        font-family: inherit;
+    }
+
+        .auth-tab i {
+            font-size: 0.95em;
+        }
+
+        .auth-tab:hover {
+            color: #111827;
+        }
+
+        .auth-tab.active {
+            color: #111827;
+            border-bottom-color: #F5C144;
+        }
+
+    .auth-body {
+        padding: 24px 28px 30px;
+    }
+
+    .auth-form {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+    }
+
+    .field {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .field-label {
+        font-size: 0.82em;
+        font-weight: 600;
+        color: #374151;
+        margin-left: 2px;
+    }
+
+    .input-wrap {
+        position: relative;
+        display: flex;
+        align-items: center;
+    }
+
+    .input-icon {
+        position: absolute;
+        left: 14px;
+        color: #9ca3af;
+        font-size: 0.95em;
+        pointer-events: none;
+    }
+
+    .field-input {
+        width: 100%;
+        height: 46px;
+        padding: 0 44px 0 42px;
+        background: #f9fafb;
+        border: 1px solid #e5e7eb;
+        border-radius: 10px;
+        outline: none;
+        font-size: 0.95em;
+        color: #111827;
+        font-family: inherit;
+        box-sizing: border-box;
+        transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+    }
+
+        .field-input::placeholder {
+            color: #9ca3af;
+        }
+
+        .field-input:focus {
+            border-color: #F5C144;
+            background: #fff;
+            box-shadow: 0 0 0 4px rgba(245, 193, 68, 0.15);
+        }
+
+    .toggle-pass {
+        position: absolute;
+        right: 8px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 34px;
+        height: 34px;
+        border-radius: 8px;
+        border: none;
+        background: transparent;
+        color: #6b7280;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.15s;
+    }
+
+        .toggle-pass:hover {
+            background: #f3f4f6;
+            color: #111827;
+        }
+
+    .pw-requirements {
+        list-style: none;
+        padding: 6px 2px 0;
+        margin: 0;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 4px 10px;
+        font-size: 0.78em;
+        color: #9ca3af;
+    }
+
+        .pw-requirements li {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: color 0.2s;
+        }
+
+            .pw-requirements li i {
+                font-size: 0.75em;
+            }
+
+            .pw-requirements li.ok {
+                color: #16a34a;
+            }
+
+    .forgot-row {
+        display: flex;
+        justify-content: flex-end;
+        margin-top: -4px;
+    }
+
+    .link-btn {
+        background: none;
+        border: none;
+        padding: 0;
+        color: #e6a82b;
+        font-size: 0.85em;
+        font-weight: 600;
+        cursor: pointer;
+        font-family: inherit;
+    }
+
+        .link-btn:hover {
+            text-decoration: underline;
+            color: #b87d1a;
+        }
+
+    .primary-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        width: 100%;
+        height: 48px;
+        border: none;
+        border-radius: 10px;
+        background: linear-gradient(135deg, #F5C144 0%, #e6a82b 100%);
+        color: #fff;
+        font-size: 0.98em;
+        font-weight: 700;
+        cursor: pointer;
+        font-family: inherit;
+        box-shadow: 0 8px 20px -10px rgba(230, 168, 43, 0.8);
+        transition: transform 0.1s, box-shadow 0.2s, opacity 0.2s;
+    }
+
+        .primary-btn:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: 0 12px 24px -10px rgba(230, 168, 43, 0.9);
+        }
+
+        .primary-btn:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        .primary-btn:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+
+    .secondary-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        width: 100%;
+        height: 44px;
+        border: 1px solid #e5e7eb;
+        border-radius: 10px;
+        background: #fff;
+        color: #374151;
+        font-size: 0.92em;
+        font-weight: 600;
+        cursor: pointer;
+        font-family: inherit;
+        transition: background 0.15s, border-color 0.15s;
+    }
+
+        .secondary-btn:hover {
+            background: #f9fafb;
+            border-color: #d1d5db;
+        }
+
+    .switch-hint {
+        margin: 4px 0 0;
+        text-align: center;
+        font-size: 0.88em;
+        color: #6b7280;
+    }
+
+    .auth-alert {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        padding: 12px 14px;
+        border-radius: 10px;
+        font-size: 0.88em;
+        line-height: 1.35;
+        border: 1px solid transparent;
+    }
+
+        .auth-alert i {
+            margin-top: 2px;
+            flex-shrink: 0;
+        }
+
+    .auth-alert-error {
+        background: #fef2f2;
+        color: #b91c1c;
+        border-color: #fecaca;
+    }
+
+    .auth-alert-success {
+        background: #f0fdf4;
+        color: #166534;
+        border-color: #bbf7d0;
+    }
+
+    /* ---------- Modales ---------- */
 
     .modal-overlay {
         position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background-color: rgba(0,0,0,0.5);
+        inset: 0;
+        background: rgba(17, 24, 39, 0.5);
+        backdrop-filter: blur(3px);
         display: flex;
         justify-content: center;
         align-items: center;
         z-index: 9999;
-        padding: 15px;
+        padding: 16px;
         box-sizing: border-box;
+        animation: fadeIn 0.15s ease-out;
     }
 
     .modal-box {
-        background-color: white;
-        padding: 20px;
-        border-radius: 8px;
-        width: 500px;
-        max-width: 100%;
+        background: #fff;
+        padding: 28px 24px 22px;
+        border-radius: 16px;
+        width: 100%;
+        max-width: 420px;
         max-height: 90vh;
         overflow-y: auto;
-    }
-
-        .modal-box .user-button {
-            width: auto;
-            min-width: 120px;
-            padding: 0 15px;
-            display: inline-block;
-        }
-
-    .user-input {
-        width: 80%;
-        max-width: 300px;
-        height: 50px;
-        background: #ffffff;
-        justify-content: center;
-        display: flex;
-        margin: 10px auto;
-        padding: 10px;
-        border: none;
-        outline: none;
-        border-radius: 5px;
-        box-sizing: border-box;
-    }
-
-    .user-button {
-        width: 60%;
-        height: 40px;
-        margin: 10px auto;
-        justify-content: center;
-        display: block;
-        color: #fff;
-        background: #000000;
-        font-size: 1em;
-        font-weight: bold;
-        margin-top: 20px;
-        outline: none;
-        border: none;
-        border-radius: 5px;
-        transition: .2s ease-in;
-        cursor: pointer;
-    }
-
-        .user-button:hover {
-            background: #ffffff;
-            color: #000000;
-        }
-
-    .forgot-link {
-        background: none;
-        border: none;
-        color: #555;
-        text-decoration: underline;
-        cursor: pointer;
-        font-size: 0.9em;
-        padding: 0;
-    }
-
-        .forgot-link:hover {
-            color: #e6b23b;
-        }
-
-    .alert-info {
-        width: 80%;
-        max-width: 300px;
-        margin: 10px auto;
-        font-size: 0.85em;
+        box-shadow: 0 25px 50px -12px rgba(0,0,0,0.35);
         text-align: center;
-        word-wrap: break-word;
+        box-sizing: border-box;
+        animation: slideUp 0.2s ease-out;
     }
 
-    .login {
-        height: 560px;
-        background: #ffffff;
-        border-radius: 60% / 10%;
-        transform: translateY(-180px);
-        transition: .8s ease-in-out;
+        .modal-box h3 {
+            margin: 8px 0 4px;
+            font-size: 1.2em;
+            color: #111827;
+            font-weight: 700;
+        }
+
+    .modal-icon {
+        width: 54px;
+        height: 54px;
+        margin: 0 auto 8px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(245, 193, 68, 0.15);
+        color: #e6a82b;
+        font-size: 1.4em;
     }
 
-        .login label {
-            color: #e6b23b;
-            transform: scale(.6);
+        .modal-icon.success {
+            background: rgba(22, 163, 74, 0.12);
+            color: #16a34a;
         }
 
-    #chk:checked ~ .login {
-        transform: translateY(-500px);
+    .modal-subtitle {
+        color: #6b7280;
+        font-size: 0.92em;
+        margin: 0 0 18px;
+        line-height: 1.4;
     }
 
-        #chk:checked ~ .login label {
-            transform: scale(1);
-        }
-
-    #chk:checked ~ .signup label {
-        transform: scale(.6);
+    .modal-actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 14px;
     }
 
-    /* Tablet */
-    @@media (max-width: 768px) {
-        .main {
-            width: 90%;
-            height: 580px;
-        }
-
-        label {
-            font-size: 2em;
-            margin: 45px;
-        }
-
-        .user-input {
-            width: 85%;
-        }
-    }
-
-    /* Móvil */
-    @@media (max-width: 600px) {
-        .main {
-            width: 95%;
-            height: 550px;
-            margin: 10px auto;
-        }
-
-        .signup, .login {
-            height: 600px;
-            padding: 15px;
-        }
-
-        label {
-            font-size: 1.8em;
-            margin: 25px;
-        }
-
-        .user-input {
-            width: 95%;
-            max-width: none;
+        .modal-actions .primary-btn,
+        .modal-actions .secondary-btn {
+            flex: 1;
+            height: 44px;
             font-size: 0.9em;
-            height: 45px;
         }
 
-        .user-button {
-            width: 80%;
-            height: 45px;
-            font-size: 1em;
+    .modal-box .field {
+        margin-bottom: 12px;
+        text-align: left;
+    }
+
+    .modal-box .auth-alert {
+        margin-top: 4px;
+    }
+
+    /* ---------- Validación Blazor ---------- */
+
+    .validation-message {
+        color: #dc2626;
+        font-size: 0.8em;
+        margin-top: 4px;
+        margin-left: 2px;
+    }
+
+    @@keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+
+    @@keyframes slideUp {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ---------- Responsivo ---------- */
+
+    @@media (max-width: 540px) {
+        .auth-wrapper {
+            padding: 20px 12px;
+            min-height: calc(100vh - 80px);
         }
 
-        .alert-info {
-            width: 95%;
-            max-width: none;
+        .auth-card {
+            max-width: 100%;
+            border-radius: 16px;
         }
 
-        .login {
-            transform: translateY(-180px);
-            transition: .8s ease-in-out;
-            border-radius: 10px;
+        .auth-header {
+            padding: 26px 20px 14px;
         }
 
-        #chk:checked ~ .login {
-            transform: translateY(-500px);
+        .auth-title {
+            font-size: 1.4em;
         }
 
-        .modal-box {
-            padding: 15px;
+        .auth-tabs {
+            padding: 0 16px;
         }
 
-            .modal-box .user-button {
-                min-width: 90px;
-                font-size: 0.85em;
-                padding: 0 10px;
+        .auth-body {
+            padding: 20px 18px 26px;
+        }
+
+        .pw-requirements {
+            grid-template-columns: 1fr;
+        }
+
+        .modal-actions {
+            flex-direction: column-reverse;
+        }
+
+            .modal-actions .primary-btn,
+            .modal-actions .secondary-btn {
+                width: 100%;
             }
-
-        .modal-box div[style*="display:flex"] {
-            flex-wrap: wrap;
-        }
     }
 
-    /* Pantallas muy pequeñas */
     @@media (max-width: 380px) {
-        .main {
-            width: 100%;
-            height: 520px;
-            margin: 5px auto;
-            border-radius: 10px;
+        .field-input {
+            height: 44px;
+            font-size: 0.92em;
         }
 
-        label {
-            font-size: 1.5em;
-            margin: 20px;
+        .primary-btn {
+            height: 46px;
         }
 
-        .user-input {
-            height: 42px;
-            font-size: 0.85em;
+        .auth-tab {
+            font-size: 0.88em;
+            padding: 12px 4px;
         }
 
-        .user-button {
-            width: 90%;
-            font-size: 0.9em;
-        }
+            .auth-tab i {
+                display: none;
+            }
     }
-
 </style>
