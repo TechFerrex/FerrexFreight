@@ -30,8 +30,8 @@
 
     private async Task SendEmail()
     {
-        var brevoConfig = Configuration.GetSection("BrevoSmtp");
-        var fromEmail = brevoConfig["FromEmail"] ?? "techferrexpress@outlook.com";
+        var smtpConfig = Configuration.GetSection("SmtpSettings");
+        var fromEmail = smtpConfig["FromEmail"] ?? "gerencia@ferrexpresshn.com";
         var fromName = "Ferrexpress Contact Form";
         var toEmail = "ferrexpresshn@gmail.com";
         var toName = "Ferrexpress";
@@ -56,12 +56,12 @@
         mailMessage.ReplyTo = new MailAddress(formModel.Email, formModel.Name);
         mailMessage.To.Add(new MailAddress(toEmail, toName));
 
-        var smtpHost = brevoConfig["Host"] ?? "smtp-relay.brevo.com";
-        var smtpPort = int.TryParse(brevoConfig["Port"], out var p) ? p : 587;
+        var smtpHost = smtpConfig["Host"] ?? "smtp.gmail.com";
+        var smtpPort = int.TryParse(smtpConfig["Port"], out var p) ? p : 587;
 
         using var smtpClient = new SmtpClient(smtpHost, smtpPort)
             {
-                Credentials = new NetworkCredential(brevoConfig["User"], brevoConfig["Pass"]),
+                Credentials = new NetworkCredential(smtpConfig["User"], smtpConfig["Pass"]),
                 EnableSsl = true
             };
         await smtpClient.SendMailAsync(mailMessage);

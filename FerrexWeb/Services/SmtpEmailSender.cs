@@ -1,13 +1,12 @@
-﻿using System.Net.Mail;
+using System.Net.Mail;
 using System.Net;
 using Microsoft.Extensions.Configuration;
 
 
 namespace FerrexWeb.Services
 {
-    public class BrevoEmailSender : IEmailSender
+    public class SmtpEmailSender : IEmailSender
     {
-        private readonly IConfiguration _config;
         private readonly string _host;
         private readonly int _port;
         private readonly string _user;
@@ -15,14 +14,14 @@ namespace FerrexWeb.Services
         private readonly string _from;
         private readonly string _fromName;
 
-        public BrevoEmailSender(IConfiguration config)
+        public SmtpEmailSender(IConfiguration config)
         {
-            _host = config["BrevoSmtp:Host"];
-            _port = int.Parse(config["BrevoSmtp:Port"]);
-            _user = config["BrevoSmtp:User"];
-            _pass = config["BrevoSmtp:Pass"];
-            _from = config["BrevoSmtp:FromEmail"];
-            _fromName = config["BrevoSmtp:FromName"];
+            _host = config["SmtpSettings:Host"];
+            _port = int.Parse(config["SmtpSettings:Port"]);
+            _user = config["SmtpSettings:User"];
+            _pass = config["SmtpSettings:Pass"];
+            _from = config["SmtpSettings:FromEmail"];
+            _fromName = config["SmtpSettings:FromName"];
         }
 
 

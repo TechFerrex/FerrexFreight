@@ -247,6 +247,30 @@
             // Actualizar el valor del input con la dirección formateada
             input.value = place.formatted_address || place.name || input.value;
         });
+
+        attachPacContainerPositioning(input);
+    }
+
+    // Mantiene el dropdown de Google Places (.pac-container) pegado al input
+    // cuando se usa position: fixed, corrigiendo las coordenadas en scroll/resize.
+    function attachPacContainerPositioning(input) {
+        const reposition = () => {
+            if (document.activeElement !== input) return;
+            const rect = input.getBoundingClientRect();
+            document.querySelectorAll('.pac-container').forEach(pac => {
+                if (pac.offsetHeight === 0 || pac.style.display === 'none') return;
+                pac.style.top = rect.bottom + 'px';
+                pac.style.left = rect.left + 'px';
+                pac.style.width = rect.width + 'px';
+            });
+        };
+        const rafReposition = () => requestAnimationFrame(reposition);
+
+        input.addEventListener('focus', rafReposition);
+        input.addEventListener('input', rafReposition);
+        input.addEventListener('keyup', rafReposition);
+        window.addEventListener('scroll', rafReposition, true);
+        window.addEventListener('resize', rafReposition);
     }
 
     function showCalculationModal(distanceKm, totalStops, baseCost, insuranceCost, extraStopCost, totalCost, freightDate) {

@@ -112,13 +112,13 @@
 <!-- ============= MODAL CREAR / EDITAR ============= -->
 @if (showModal)
 {
-    <div class="modal-overlay" @onclick="CloseModal"></div>
-    <div class="modal-panel">
-        <div class="modal-panel-header">
+    <div class="modal-overlay" @onclick="CloseModal">
+    <div class="modal-box modal-box--lg" @onclick:stopPropagation="true">
+        <div class="modal-box__header">
             <h4>@(isEditing ? "Editar Producto" : "Nuevo Producto")</h4>
-            <button class="modal-close" @onclick="CloseModal"><i class="fas fa-times"></i></button>
+            <button class="modal-box__close" @onclick="CloseModal"><i class="fas fa-times"></i></button>
         </div>
-        <div class="modal-panel-body">
+        <div class="modal-box__body">
             <EditForm Model="form" OnValidSubmit="SaveProduct">
                 <DataAnnotationsValidator />
 
@@ -227,18 +227,19 @@
             </EditForm>
         </div>
     </div>
+    </div>
 }
 
 <!-- ============= MODAL CONFIRMAR ELIMINAR ============= -->
 @if (showDeleteModal)
 {
-    <div class="modal-overlay" @onclick="() => showDeleteModal = false"></div>
-    <div class="modal-panel modal-panel-sm">
-        <div class="modal-panel-header delete-header">
+    <div class="modal-overlay" @onclick="() => showDeleteModal = false">
+    <div class="modal-box modal-box--sm" @onclick:stopPropagation="true">
+        <div class="modal-box__header modal-box__header--danger">
             <h4><i class="fas fa-exclamation-triangle me-2"></i>Eliminar Producto</h4>
-            <button class="modal-close" @onclick="() => showDeleteModal = false"><i class="fas fa-times"></i></button>
+            <button class="modal-box__close" @onclick="() => showDeleteModal = false"><i class="fas fa-times"></i></button>
         </div>
-        <div class="modal-panel-body text-center">
+        <div class="modal-box__body text-center">
             <p>¿Estás seguro de que deseas eliminar <strong>@productToDelete?.DescProducto</strong>?</p>
             <p class="text-muted small">Esta acción no se puede deshacer.</p>
             <div class="d-flex justify-content-center gap-2 mt-3">
@@ -252,6 +253,7 @@
                 </button>
             </div>
         </div>
+    </div>
     </div>
 }
 
@@ -654,78 +656,7 @@
         color: #000;
     }
 
-    /* Modal */
-    .modal-overlay {
-        position: fixed;
-        top: 0; left: 0;
-        width: 100%; height: 100%;
-        background: rgba(0, 0, 0, 0.5);
-        z-index: 1050;
-    }
-
-    .modal-panel {
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        background: #fff;
-        border-radius: 14px;
-        width: 95%;
-        max-width: 700px;
-        max-height: 90vh;
-        overflow-y: auto;
-        z-index: 1060;
-        box-shadow: 0 15px 40px rgba(0, 0, 0, 0.2);
-    }
-
-    .modal-panel-sm {
-        max-width: 440px;
-    }
-
-    .modal-panel-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 18px 24px;
-        border-bottom: 1px solid #eee;
-    }
-
-    .modal-panel-header h4 {
-        margin: 0;
-        font-weight: 700;
-        font-size: 1.15rem;
-        color: #1a1a2e;
-    }
-
-    .delete-header {
-        border-bottom-color: #f8d7da;
-    }
-
-    .delete-header h4 {
-        color: #dc3545;
-    }
-
-    .modal-close {
-        background: #f0f0f0;
-        border: none;
-        border-radius: 50%;
-        width: 34px;
-        height: 34px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        color: #666;
-        transition: background 0.2s;
-    }
-
-    .modal-close:hover {
-        background: #ddd;
-    }
-
-    .modal-panel-body {
-        padding: 24px;
-    }
+    /* Modal base styles moved to site.css (.modal-overlay / .modal-box / .modal-box__header / .modal-box__body / .modal-box__close) */
 
     .form-label {
         font-weight: 600;
@@ -792,11 +723,11 @@
             justify-content: flex-end;
         }
 
-        .modal-panel-body {
+        .modal-box__body {
             padding: 16px;
         }
 
-        .modal-panel-header {
+        .modal-box__header {
             padding: 14px 16px;
         }
     }

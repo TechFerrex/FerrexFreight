@@ -37,9 +37,18 @@
                                     <label class="route-label">Origen</label>
                                     <input id="origin-input"
                                            type="text"
-                                           class="form-control route-input"
+                                           class="form-control route-input @(originInvalid ? "is-invalid" : "")"
                                            placeholder="¿Desde dónde sales?"
-                                           @bind="OriginAddress" />
+                                           @bind="OriginAddress"
+                                           @bind:event="oninput"
+                                           @onfocus="() => originInvalid = false" />
+                                    @if (originInvalid)
+                                    {
+                                        <div class="field-error-msg">
+                                            <i class="fas fa-circle-exclamation"></i>
+                                            <span>Ingresa la dirección de origen</span>
+                                        </div>
+                                    }
                                 </div>
                                 <div class="route-controls">
                                     <button class="btn btn-outline-primary btn-map-select" @onclick='() => SelectLocationOnMap("origin")' title="Seleccionar en mapa">
@@ -104,9 +113,18 @@
                                     <label class="route-label">Destino</label>
                                     <input id="destination-input"
                                            type="text"
-                                           class="form-control route-input"
+                                           class="form-control route-input @(destinationInvalid ? "is-invalid" : "")"
                                            placeholder="¿A dónde vas?"
-                                           @bind="DestinationAddress" />
+                                           @bind="DestinationAddress"
+                                           @bind:event="oninput"
+                                           @onfocus="() => destinationInvalid = false" />
+                                    @if (destinationInvalid)
+                                    {
+                                        <div class="field-error-msg">
+                                            <i class="fas fa-circle-exclamation"></i>
+                                            <span>Ingresa la dirección de destino</span>
+                                        </div>
+                                    }
                                 </div>
                                 <div class="route-controls">
                                     <button class="btn btn-outline-primary btn-map-select" @onclick='() => SelectLocationOnMap("destination")' title="Seleccionar en mapa">
@@ -157,7 +175,17 @@
 
                     <div class="mb-3">
                         <label for="freight-date" class="form-label">Fecha de Programación</label>
-                        <input id="freight-date" type="date" class="form-control" min="@MinDate" />
+                        <input id="freight-date" type="date"
+                               class="form-control @(dateInvalid ? "is-invalid" : "")"
+                               min="@MinDate"
+                               @onchange="() => dateInvalid = false" />
+                        @if (dateInvalid)
+                        {
+                            <div class="field-error-msg">
+                                <i class="fas fa-circle-exclamation"></i>
+                                <span>Selecciona la fecha de programación</span>
+                            </div>
+                        }
                     </div>
 
                     <div class="mb-3">
@@ -204,6 +232,11 @@
     // Propiedades para los campos de entrada
     private string OriginAddress { get; set; } = "";
     private string DestinationAddress { get; set; } = "";
+
+    // Estado de validación por campo
+    private bool originInvalid;
+    private bool destinationInvalid;
+    private bool dateInvalid;
 
     // Lista de paradas intermedias
     private List<StopDto> Stops { get; set; } = new();
@@ -505,6 +538,21 @@
         {
             await JS.InvokeVoidAsync("showAlert",
                 "Por favor, inicie sesión o regístrese para poder calcular el flete.");
+            return;
+        }
+
+        originInvalid = string.IsNullOrWhiteSpace(OriginAddress);
+        destinationInvalid = string.IsNullOrWhiteSpace(DestinationAddress);
+        var dateValue = await JS.InvokeAsync<string>("getElementValue", "freight-date");
+        dateInvalid = string.IsNullOrWhiteSpace(dateValue);
+
+        if (originInvalid || destinationInvalid || dateInvalid)
+        {
+            var firstInvalidId = originInvalid ? "origin-input"
+                                 : destinationInvalid ? "destination-input"
+                                 : "freight-date";
+            await JS.InvokeVoidAsync("focusElement", firstInvalidId);
+            StateHasChanged();
             return;
         }
 

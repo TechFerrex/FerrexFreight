@@ -12,10 +12,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
     <!-- CSS -->
-    <link rel="stylesheet" href="bootstrap/bootstrap.min.css" />
-    <link rel="stylesheet" href="css/site.css" />
-    <link rel="stylesheet" href="css/responsive.css" />
-    <link rel="icon" type="image/x-icon" href="logotornillo.ico" />
+    <link rel="stylesheet" href="bootstrap/bootstrap.min.css" asp-append-version="true" />
+    <link rel="stylesheet" href="css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="css/responsive.css" asp-append-version="true" />
+    <link rel="icon" type="image/x-icon" href="logotornillo.ico" asp-append-version="true" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet"
@@ -70,12 +70,12 @@
         window._googleMapsApiKey = "@Configuration["GoogleMaps:ApiKey"]";
     </script>
 
-    <script defer src="js/mapsInterop.js"></script>
-    <script defer src="js/quotationsModalFreight.js"></script>
-    <script defer src="js/customScripts.js"></script>
-    <script defer src="js/freightAdminHelpers.js"></script>
-    <script defer src="js/FileUtil.js"></script>
-    <script defer src="js/site.js"></script>
+    <script defer src="js/mapsInterop.js" asp-append-version="true"></script>
+    <script defer src="js/quotationsModalFreight.js" asp-append-version="true"></script>
+    <script defer src="js/customScripts.js" asp-append-version="true"></script>
+    <script defer src="js/freightAdminHelpers.js" asp-append-version="true"></script>
+    <script defer src="js/FileUtil.js" asp-append-version="true"></script>
+    <script defer src="js/site.js" asp-append-version="true"></script>
 
     <script async defer
             src="https://maps.googleapis.com/maps/api/js?key=@Configuration["GoogleMaps:ApiKey"]&libraries=places&callback=initMap">
@@ -94,7 +94,7 @@
             crossorigin="anonymous"></script>
 
     <!-- Tu bundle minificado -->
-    <script defer src="dist/app.bundle.js"></script>
+    <script defer src="dist/app.bundle.js" asp-append-version="true"></script>
 
     <!-- Framework -->
     <script src="_framework/blazor.server.js" autostart="false"></script>

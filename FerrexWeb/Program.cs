@@ -78,7 +78,7 @@ builder.Services.AddScoped<FreightQuotationService>();
 builder.Services.AddScoped<InventoryService>();
 builder.Services.AddTransient<SeekerService>();
 builder.Services.AddTransient<PdfService>();
-builder.Services.AddTransient<IEmailSender, BrevoEmailSender>();
+builder.Services.AddTransient<IEmailSender, SmtpEmailSender>();
 
 builder.Services.AddAntiforgery(options => options.HeaderName = "X-XSRF-TOKEN");
 
@@ -106,6 +106,27 @@ app.Use(async (context, next) =>
 {
     context.Response.Headers.Remove("Server");
     context.Response.Headers.Remove("X-Powered-By");
+
+    // Evita que el HTML del _Host quede cacheado en el navegador.
+    // Los estáticos (css/js/img) NO entran aquí — los sirve UseStaticFiles
+    // y se versionan con asp-append-version, así que pueden cachearse sin riesgo.
+    var path = context.Request.Path.Value ?? string.Empty;
+    var isStaticAsset =
+        path.StartsWith("/css/", StringComparison.OrdinalIgnoreCase) ||
+        path.StartsWith("/js/", StringComparison.OrdinalIgnoreCase) ||
+        path.StartsWith("/images/", StringComparison.OrdinalIgnoreCase) ||
+        path.StartsWith("/dist/", StringComparison.OrdinalIgnoreCase) ||
+        path.StartsWith("/bootstrap/", StringComparison.OrdinalIgnoreCase) ||
+        path.StartsWith("/_framework/", StringComparison.OrdinalIgnoreCase) ||
+        path.StartsWith("/_content/", StringComparison.OrdinalIgnoreCase);
+
+    if (!isStaticAsset)
+    {
+        context.Response.Headers["Cache-Control"] = "no-cache, no-store, must-revalidate";
+        context.Response.Headers["Pragma"] = "no-cache";
+        context.Response.Headers["Expires"] = "0";
+    }
+
     context.Response.Headers["X-Content-Type-Options"] = "nosniff";
     context.Response.Headers["X-Frame-Options"] = "DENY";
     context.Response.Headers["X-XSS-Protection"] = "1; mode=block";

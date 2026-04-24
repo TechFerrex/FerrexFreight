@@ -259,3 +259,220 @@ main {
         max-height: 300px; /* Ajusta este valor seg�n el contenido */
         padding: 10px 0;
     }
+
+/* ==========================================================
+   FERREXPRESS MODAL SYSTEM (shared)
+   Usage:
+     <div class="modal-overlay"><div class="modal-box modal-box--md">
+       <div class="modal-box__header"><h4>...</h4>
+         <button class="modal-box__close"><i class="fas fa-times"></i></button>
+       </div>
+       <div class="modal-box__body">...</div>
+     </div></div>
+   For auth/confirm modals use: .modal-box .modal-box--centered
+   ========================================================== */
+:root {
+    --ferrex-dark: #1a1a2e;
+    --ferrex-accent: #F5C144;
+    --ferrex-danger: #dc3545;
+    --ferrex-radius: 14px;
+    --ferrex-shadow: 0 20px 45px -10px rgba(0,0,0,0.25);
+    --ferrex-border: #eef0f4;
+    --ferrex-text-muted: #6b7280;
+}
+
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(17, 24, 39, 0.5);
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+    padding: 16px;
+    box-sizing: border-box;
+    animation: ferrexFadeIn 0.15s ease-out;
+}
+
+.modal-box {
+    position: relative;
+    background: #fff;
+    border-radius: var(--ferrex-radius);
+    width: 100%;
+    max-width: 460px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: var(--ferrex-shadow);
+    box-sizing: border-box;
+    animation: ferrexSlideUp 0.2s ease-out;
+}
+
+.modal-box--sm { max-width: 380px; }
+.modal-box--md { max-width: 560px; }
+.modal-box--lg { max-width: 760px; }
+
+/* Centered (auth/confirm) variant */
+.modal-box--centered {
+    padding: 28px 24px 22px;
+    text-align: center;
+}
+
+.modal-box--centered h3 {
+    margin: 8px 0 4px;
+    font-size: 1.2em;
+    color: var(--ferrex-dark);
+    font-weight: 700;
+}
+
+/* Header variant (forms) */
+.modal-box__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 22px;
+    border-bottom: 1px solid var(--ferrex-border);
+}
+
+.modal-box__header h4 {
+    margin: 0;
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: var(--ferrex-dark);
+}
+
+.modal-box__header--danger { border-bottom-color: #f8d7da; }
+.modal-box__header--danger h4 { color: var(--ferrex-danger); }
+
+.modal-box__body { padding: 22px; }
+.modal-box--centered .modal-box__body { padding: 0; }
+
+.modal-box__close {
+    background: #f0f0f0;
+    border: none;
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: #666;
+    transition: background 0.2s;
+    flex-shrink: 0;
+}
+
+.modal-box__close:hover { background: #ddd; }
+
+.modal-icon {
+    width: 54px;
+    height: 54px;
+    margin: 0 auto 8px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(245, 193, 68, 0.15);
+    color: #e6a82b;
+    font-size: 1.4em;
+}
+
+.modal-icon.success {
+    background: rgba(22, 163, 74, 0.12);
+    color: #16a34a;
+}
+
+.modal-icon.danger {
+    background: rgba(220, 53, 69, 0.12);
+    color: var(--ferrex-danger);
+}
+
+.modal-subtitle {
+    color: var(--ferrex-text-muted);
+    font-size: 0.92em;
+    margin: 0 0 18px;
+    line-height: 1.4;
+}
+
+.modal-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 14px;
+}
+
+.modal-box--centered .modal-actions .primary-btn,
+.modal-box--centered .modal-actions .secondary-btn {
+    flex: 1;
+    height: 44px;
+    font-size: 0.9em;
+}
+
+@keyframes ferrexFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes ferrexSlideUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Bootstrap modal brand normalization (Admin screens) */
+.modal .modal-content {
+    border-radius: var(--ferrex-radius);
+    border: none;
+    box-shadow: var(--ferrex-shadow);
+    overflow: hidden;
+}
+
+.modal .modal-header {
+    border-bottom: 1px solid var(--ferrex-border);
+    padding: 16px 22px;
+}
+
+.modal .modal-header.bg-primary,
+.modal .modal-header.bg-info {
+    background-color: var(--ferrex-dark) !important;
+    color: #fff;
+    border-bottom: 0;
+}
+
+.modal .modal-header.bg-danger {
+    background-color: var(--ferrex-danger) !important;
+    color: #fff;
+    border-bottom: 0;
+}
+
+.modal .modal-footer {
+    border-top: 1px solid var(--ferrex-border);
+    padding: 14px 22px;
+}
+
+/* ==========================================================
+   FIELD VALIDATION (shared)
+   ========================================================== */
+.field--invalid .field-input,
+.field--invalid .form-control,
+.field--invalid .form-select,
+.field-input.is-invalid,
+.form-control.is-invalid {
+    border-color: var(--ferrex-danger) !important;
+    background-color: #fff5f5;
+    box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.12);
+}
+
+.field-error-msg {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--ferrex-danger);
+    font-size: 0.82em;
+    margin-top: 6px;
+    font-weight: 500;
+}
+
+.field-error-msg i {
+    font-size: 0.9em;
+}

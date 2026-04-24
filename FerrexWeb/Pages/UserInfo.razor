@@ -111,6 +111,12 @@
                         </button>
                     }
 
+                    <p class="switch-hint" style="text-align:center;margin-top:8px;">
+                        <button type="button" class="link-btn" @onclick="OpenForgotPasswordModal">
+                            ¿Olvidaste tu contraseña?
+                        </button>
+                    </p>
+
                     <p class="switch-hint">
                         ¿No tienes cuenta?
                         <button type="button" class="link-btn" @onclick='() => SwitchTab("register")'>
@@ -241,7 +247,7 @@
 @if (showForgotPasswordModal)
 {
     <div class="modal-overlay" @onclick="CloseForgotPasswordModal">
-        <div class="modal-box" @onclick:stopPropagation="true">
+        <div class="modal-box modal-box--sm modal-box--centered" @onclick:stopPropagation="true">
             <div class="modal-icon"><i class="fas fa-key"></i></div>
             <h3>Recuperar contraseña</h3>
             <p class="modal-subtitle">Te enviaremos un enlace para restablecerla.</p>
@@ -301,7 +307,7 @@
 @if (showVerifyModal)
 {
     <div class="modal-overlay" @onclick="CloseVerifyModal">
-        <div class="modal-box" @onclick:stopPropagation="true">
+        <div class="modal-box modal-box--sm modal-box--centered" @onclick:stopPropagation="true">
             <div class="modal-icon success"><i class="fas fa-circle-check"></i></div>
             <h3>¡Listo!</h3>
             <p class="modal-subtitle">@verifyModalMessage</p>
@@ -317,7 +323,7 @@
 @if (showPolicyDialog)
 {
     <div class="modal-overlay">
-        <div class="modal-box" @onclick:stopPropagation="true">
+        <div class="modal-box modal-box--sm modal-box--centered" @onclick:stopPropagation="true">
             <div class="modal-icon"><i class="fas fa-file-shield"></i></div>
             <h3>Política de Privacidad</h3>
             <p class="modal-subtitle">
@@ -466,10 +472,14 @@
             await DbContext.SaveChangesAsync();
 
             var link = $"{NavigationManager.BaseUri.TrimEnd('/')}/resetpassword?token={token}";
-            var html = $@"
-            <p>¡Hola {user.Name}!</p>
-            <p>Haz clic <a href=""{link}"">aquí</a> para restablecer tu contraseña.</p>
-            <p>Expira: {pr.ExpiresAt:yyyy-MM-dd HH:mm} UTC.</p>";
+            var html = BuildEmailTemplate(
+                badge: "Recuperar contraseña",
+                greeting: $"Hola, {user.Name}",
+                intro: "Recibimos una solicitud para restablecer la contraseña de tu cuenta en Ferrexpress. Haz clic en el botón de abajo para crear una nueva contraseña.",
+                buttonText: "Restablecer mi contraseña",
+                link: link,
+                expiresUtc: pr.ExpiresAt,
+                securityNote: "Si no solicitaste este cambio, puedes ignorar este correo de forma segura. Tu contraseña actual seguirá funcionando y tu cuenta permanecerá protegida.");
             await EmailSender.SendEmailAsync(user.Email,
                 "Recupera tu contraseña en Ferrexpress",
                 html);
@@ -532,7 +542,13 @@
                 return;
             }
 
-            // Verificación de correo desactivada temporalmente.
+            if (!user.EmailConfirmed)
+            {
+                pendingVerificationUserId = user.Id;
+                showResendVerification = true;
+                loginError = "Debes verificar tu correo antes de iniciar sesión. Revisa tu bandeja o reenvía el correo de verificación.";
+                return;
+            }
 
             loginAttempts.TryRemove(emailKey, out _);
             lockouts.TryRemove(emailKey, out _);
@@ -645,15 +661,46 @@
                     CreateTime = DateTime.UtcNow,
                     RoleId = 1,
                     PolicyUser = registerModel.PolicyAccepted,
-                    EmailConfirmed = true
+                    EmailConfirmed = false
                 };
             DbContext.Users.Add(user);
             await DbContext.SaveChangesAsync();
 
+            var verifyToken = Guid.NewGuid().ToString("N");
+            var verification = new EmailVerification
+                {
+                    UserId = user.Id,
+                    Token = verifyToken,
+                    ExpiresAt = DateTime.UtcNow.AddMinutes(30),
+                    CreatedAt = DateTime.UtcNow
+                };
+            DbContext.EmailVerifications.Add(verification);
+            await DbContext.SaveChangesAsync();
+
+            var verifyLink = $"{NavigationManager.BaseUri.TrimEnd('/')}/verify?token={verifyToken}";
+            var verifyHtml = BuildEmailTemplate(
+                badge: "Verificar correo",
+                greeting: $"Bienvenido, {user.Name}",
+                intro: "Gracias por registrarte en Ferrexpress. Para activar tu cuenta y comenzar a usar nuestros servicios, confirma tu dirección de correo haciendo clic en el botón de abajo.",
+                buttonText: "Verificar mi correo",
+                link: verifyLink,
+                expiresUtc: verification.ExpiresAt,
+                securityNote: "Si no creaste una cuenta en Ferrexpress, puedes ignorar este mensaje. Nadie podrá acceder a la cuenta hasta que el correo sea verificado.");
+            try
+            {
+                await EmailSender.SendEmailAsync(user.Email, "Verifica tu correo", verifyHtml);
+            }
+            catch
+            {
+                // Si falla el envío, el usuario puede reenviar desde el login.
+            }
+
             lastRegistration[emailKey] = DateTime.UtcNow;
+            pendingVerificationUserId = user.Id;
             registerModel = new RegisterModel();
-            verifyModalMessage = "Tu cuenta fue creada correctamente. Ya puedes iniciar sesión.";
+            verifyModalMessage = "Tu cuenta fue creada. Revisa tu correo para verificar tu cuenta antes de iniciar sesión.";
             showVerifyModal = true;
+            showResendVerification = true;
             activeTab = "login";
         }
         catch
@@ -704,10 +751,14 @@
         await DbContext.SaveChangesAsync();
 
         var link = $"{NavigationManager.BaseUri.TrimEnd('/')}/verify?token={token}";
-        var html = $@"
-            <p>¡Hola {user.Name}!</p>
-            <p>Haz clic <a href=""{link}"">aquí</a> para verificar tu correo.</p>
-            <p>Expira: {ev2.ExpiresAt:yyyy-MM-dd HH:mm} UTC</p>";
+        var html = BuildEmailTemplate(
+            badge: "Verificar correo",
+            greeting: $"Bienvenido, {user.Name}",
+            intro: "Gracias por registrarte en Ferrexpress. Para activar tu cuenta y comenzar a usar nuestros servicios, confirma tu dirección de correo haciendo clic en el botón de abajo.",
+            buttonText: "Verificar mi correo",
+            link: link,
+            expiresUtc: ev2.ExpiresAt,
+            securityNote: "Si no creaste una cuenta en Ferrexpress, puedes ignorar este mensaje. Nadie podrá acceder a la cuenta hasta que el correo sea verificado.");
 
         try
         {
@@ -735,6 +786,87 @@
     private static bool HasUpper(string p) => !string.IsNullOrEmpty(p) && p.Any(char.IsUpper);
     private static bool HasDigit(string p) => !string.IsNullOrEmpty(p) && p.Any(char.IsDigit);
     private static bool HasSymbol(string p) => !string.IsNullOrEmpty(p) && p.Any(c => !char.IsLetterOrDigit(c));
+
+    private static string BuildEmailTemplate(
+        string badge,
+        string greeting,
+        string intro,
+        string buttonText,
+        string link,
+        DateTime expiresUtc,
+        string securityNote)
+    {
+        var safeBadge = System.Net.WebUtility.HtmlEncode(badge);
+        var safeGreeting = System.Net.WebUtility.HtmlEncode(greeting);
+        var safeIntro = System.Net.WebUtility.HtmlEncode(intro);
+        var safeButton = System.Net.WebUtility.HtmlEncode(buttonText);
+        var safeLink = System.Net.WebUtility.HtmlEncode(link);
+        var safeSecurity = System.Net.WebUtility.HtmlEncode(securityNote);
+        var expires = expiresUtc.ToString("yyyy-MM-dd HH:mm");
+        var year = DateTime.UtcNow.Year;
+
+        return $@"<!DOCTYPE html>
+<html lang=""es"">
+<head>
+<meta charset=""UTF-8"">
+<meta name=""viewport"" content=""width=device-width,initial-scale=1"">
+<title>{safeBadge}</title>
+</head>
+<body style=""margin:0;padding:0;background-color:#f4f4f7;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#2d2d2d;"">
+  <table role=""presentation"" width=""100%"" cellpadding=""0"" cellspacing=""0"" style=""background-color:#f4f4f7;padding:32px 12px;"">
+    <tr>
+      <td align=""center"">
+        <table role=""presentation"" width=""600"" cellpadding=""0"" cellspacing=""0"" style=""max-width:600px;width:100%;background-color:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.06);"">
+          <tr>
+            <td style=""background-color:#1a1a2e;padding:28px 32px;"">
+              <table role=""presentation"" width=""100%"" cellpadding=""0"" cellspacing=""0"">
+                <tr>
+                  <td style=""vertical-align:middle;"">
+                    <span style=""display:inline-block;font-size:22px;font-weight:700;color:#ffffff;letter-spacing:0.5px;"">FERREX<span style=""color:#F5C144;"">PRESS</span></span>
+                  </td>
+                  <td align=""right"" style=""vertical-align:middle;"">
+                    <span style=""display:inline-block;background-color:#F5C144;color:#1a1a2e;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;padding:6px 12px;border-radius:20px;"">{safeBadge}</span>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style=""padding:40px 32px 24px 32px;"">
+              <h1 style=""margin:0 0 16px 0;font-size:24px;font-weight:600;color:#1a1a2e;line-height:1.3;"">{safeGreeting}</h1>
+              <p style=""margin:0 0 24px 0;font-size:15px;line-height:1.6;color:#4a4a5e;"">{safeIntro}</p>
+              <table role=""presentation"" cellpadding=""0"" cellspacing=""0"" style=""margin:8px 0 28px 0;"">
+                <tr>
+                  <td style=""background-color:#dc3545;border-radius:8px;"">
+                    <a href=""{safeLink}"" style=""display:inline-block;padding:14px 32px;font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:8px;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;"">{safeButton}</a>
+                  </td>
+                </tr>
+              </table>
+              <table role=""presentation"" width=""100%"" cellpadding=""0"" cellspacing=""0"" style=""background-color:#fff8e7;border-left:3px solid #F5C144;border-radius:4px;margin-bottom:24px;"">
+                <tr>
+                  <td style=""padding:12px 16px;font-size:13px;color:#7a5a00;"">
+                    <strong>Este enlace expira:</strong> {expires} UTC
+                  </td>
+                </tr>
+              </table>
+              <p style=""margin:0 0 8px 0;font-size:13px;color:#6b7280;"">Si el botón no funciona, copia y pega este enlace en tu navegador:</p>
+              <p style=""margin:0 0 20px 0;font-size:12px;word-break:break-all;""><a href=""{safeLink}"" style=""color:#3b82f6;text-decoration:underline;"">{safeLink}</a></p>
+              <p style=""margin:0;padding-top:20px;border-top:1px solid #eeeef2;font-size:13px;color:#6b7280;line-height:1.5;"">{safeSecurity}</p>
+            </td>
+          </tr>
+          <tr>
+            <td style=""background-color:#fafafa;padding:20px 32px;text-align:center;border-top:1px solid #eeeef2;"">
+              <p style=""margin:0 0 6px 0;font-size:12px;color:#9ca3af;"">&copy; {year} Ferrexpress. Todos los derechos reservados.</p>
+              <p style=""margin:0;font-size:11px;color:#9ca3af;"">Este es un correo automático, por favor no respondas a este mensaje.</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>";
+    }
 }
 
 <style>
@@ -1060,78 +1192,7 @@
 
     /* ---------- Modales ---------- */
 
-    .modal-overlay {
-        position: fixed;
-        inset: 0;
-        background: rgba(17, 24, 39, 0.5);
-        backdrop-filter: blur(3px);
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        z-index: 9999;
-        padding: 16px;
-        box-sizing: border-box;
-        animation: fadeIn 0.15s ease-out;
-    }
-
-    .modal-box {
-        background: #fff;
-        padding: 28px 24px 22px;
-        border-radius: 16px;
-        width: 100%;
-        max-width: 420px;
-        max-height: 90vh;
-        overflow-y: auto;
-        box-shadow: 0 25px 50px -12px rgba(0,0,0,0.35);
-        text-align: center;
-        box-sizing: border-box;
-        animation: slideUp 0.2s ease-out;
-    }
-
-        .modal-box h3 {
-            margin: 8px 0 4px;
-            font-size: 1.2em;
-            color: #111827;
-            font-weight: 700;
-        }
-
-    .modal-icon {
-        width: 54px;
-        height: 54px;
-        margin: 0 auto 8px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: rgba(245, 193, 68, 0.15);
-        color: #e6a82b;
-        font-size: 1.4em;
-    }
-
-        .modal-icon.success {
-            background: rgba(22, 163, 74, 0.12);
-            color: #16a34a;
-        }
-
-    .modal-subtitle {
-        color: #6b7280;
-        font-size: 0.92em;
-        margin: 0 0 18px;
-        line-height: 1.4;
-    }
-
-    .modal-actions {
-        display: flex;
-        gap: 10px;
-        margin-top: 14px;
-    }
-
-        .modal-actions .primary-btn,
-        .modal-actions .secondary-btn {
-            flex: 1;
-            height: 44px;
-            font-size: 0.9em;
-        }
+    /* Modal base styles moved to site.css (.modal-overlay / .modal-box / .modal-icon / .modal-subtitle / .modal-actions) */
 
     .modal-box .field {
         margin-bottom: 12px;

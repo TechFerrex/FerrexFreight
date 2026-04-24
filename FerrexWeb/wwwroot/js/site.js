@@ -1,6 +1,19 @@
 ﻿let cartMap = null;
 let cartMarker = null;
 
+// Helpers genéricos para interop con Blazor
+window.getElementValue = function (id) {
+    const el = document.getElementById(id);
+    return el ? el.value : "";
+};
+
+window.focusElement = function (id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.focus({ preventScroll: false });
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+};
+
 // Espera a que Google Maps esté cargado
 function waitForGoogleMaps() {
     return new Promise(function (resolve) {
